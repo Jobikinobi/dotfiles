@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.jth.mac-save</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-c</string>
+        <string>
+            source ~/.zshrc 2>/dev/null;
+            cd /Volumes/mac-setup || exit 1;
+            /opt/homebrew/bin/brew bundle dump --file=brewfile/Brewfile --force;
+            cp ~/.zshrc dotfiles/.zshrc;
+            cp ~/.gitconfig dotfiles/.gitconfig;
+            git add -A;
+            git diff --cached --quiet || git commit -m "auto-save: $(date +%Y-%m-%d)" && git push;
+        </string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/mac-save.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/mac-save.error.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
