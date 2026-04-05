@@ -9,6 +9,9 @@
 dotfiles/.ssh/id_*
 dotfiles/.ssh/known_hosts
 
+# Helix runtime (hundreds of tree-sitter grammar repos — re-downloadable)
+dotfiles/.config/helix/runtime/
+
 # Sensitive configs
 dotfiles/.claude.json
 dotfiles/.config/gcloud/
