@@ -1,0 +1,17 @@
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/Users/jth/micromamba/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/Users/jth/micromamba/etc/profile.d/conda.sh" ]; then
+        . "/Users/jth/micromamba/etc/profile.d/conda.sh"
+    else
+        export PATH="/Users/jth/micromamba/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+. "$HOME/.cargo/env"

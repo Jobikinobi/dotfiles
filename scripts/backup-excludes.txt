@@ -1,0 +1,28 @@
+# CCC / rsync exclusion list for Mac backup
+# These are either reproducible, empty, or sparse files that bloat backups
+
+# Apple Containers (sparse VM disk images — appears as 2GB but expands to 3.5TB on copy)
+Library/Application Support/com.apple.container
+
+# Docker Desktop VM disk
+Library/Containers/com.docker.docker/Data/vms
+
+# Xcode simulators (re-downloadable)
+Library/Developer/CoreSimulator/Cryptex
+
+# Build caches
+Library/Caches
+Library/Developer/Xcode/DerivedData
+
+# Node modules (reproducible via npm install)
+node_modules
+
+# Python virtualenvs
+.venv
+__pycache__
+
+# Colima VM disks (back up volumes separately if needed)
+.colima
+
+# Trash
+.Trash

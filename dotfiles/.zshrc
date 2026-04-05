@@ -1,0 +1,254 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Modern ZSH Configuration with Zinit
+# Optimized for: macOS, Homebrew, Development Workflow
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1. ZINIT INITIALIZATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+
+if [ ! -d "$ZINIT_HOME" ]; then
+   mkdir -p "$(dirname $ZINIT_HOME)"
+   git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+fi
+
+source "${ZINIT_HOME}/zinit.zsh"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 2. COMPLETIONS SETUP - CUSTOM + OH-MY-ZSH
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+fpath=(~/.zsh/completions /opt/homebrew/share/zsh/site-functions $fpath)
+
+zinit snippet OMZL::completion.zsh
+zinit snippet OMZP::git
+zinit snippet OMZP::docker
+zinit snippet OMZP::kubectl
+zinit snippet OMZP::npm
+zinit snippet OMZP::command-not-found
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 3. INITIALIZE COMPLETION SYSTEM
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+autoload -Uz compinit
+if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
+    compinit -i
+else
+    compinit -i -C
+fi
+
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path ~/.zsh/cache
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 4. COMPLETION STYLES - FISH-LIKE BEHAVIOR
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+setopt COMPLETE_IN_WORD
+setopt ALWAYS_TO_END
+setopt AUTO_MENU
+setopt AUTO_LIST
+setopt AUTO_PARAM_SLASH
+
+unsetopt BEEP
+unsetopt LIST_BEEP
+unsetopt HIST_BEEP
+
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
+zstyle ':completion:*' completer _complete _match _approximate
+zstyle ':completion:*:match:*' original only
+zstyle ':completion:*:approximate:*' max-errors 1 numeric
+zstyle ':completion:*:*:*:*:*' menu select
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#) ([0-9a-z-]#)*=01;34=0=01'
+zstyle ':completion:*:options' description 'yes'
+zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
+zstyle ':completion:*:messages' format '%F{purple}-- %d --%f'
+zstyle ':completion:*:warnings' format '%F{red}-- no matches found --%f'
+zstyle ':completion:*:corrections' format '%F{green}-- %d (errors: %e) --%f'
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*' verbose yes
+zstyle ':completion:*' special-dirs true
+zstyle ':completion:*' list-dirs-first true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 5. MODERN PLUGINS VIA ZINIT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+zinit light zsh-users/zsh-autosuggestions
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
+bindkey '^ ' autosuggest-accept
+
+zinit light zsh-users/zsh-syntax-highlighting
+zinit light zsh-users/zsh-completions
+zinit light Aloxaf/fzf-tab
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 6. HISTORY CONFIGURATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HISTFILE=~/.zsh_history
+HISTSIZE=50000
+SAVEHIST=50000
+
+setopt EXTENDED_HISTORY
+setopt HIST_EXPIRE_DUPS_FIRST
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_FIND_NO_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_SAVE_NO_DUPS
+setopt HIST_REDUCE_BLANKS
+setopt HIST_VERIFY
+setopt SHARE_HISTORY
+
+autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+bindkey "^[[A" up-line-or-beginning-search
+bindkey "^[[B" down-line-or-beginning-search
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 7. NAVIGATION & DIRECTORY STACK
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+setopt AUTO_CD
+setopt AUTO_PUSHD
+setopt PUSHD_IGNORE_DUPS
+setopt PUSHD_MINUS
+setopt PUSHD_SILENT
+setopt PUSHD_TO_HOME
+
+alias d='dirs -v | head -20'
+alias 1='cd -'
+alias 2='cd -2'
+alias 3='cd -3'
+alias 4='cd -4'
+alias 5='cd -5'
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 8. KEY BINDINGS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+bindkey -e
+bindkey '^[[1;5C' forward-word
+bindkey '^[[1;5D' backward-word
+bindkey '^[[H' beginning-of-line
+bindkey '^[[F' end-of-line
+bindkey '^[[3~' delete-char
+bindkey '^[[3;5~' kill-word
+bindkey '^H' backward-kill-word
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 9. PATH & ENVIRONMENT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Node.js (Homebrew)
+export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+
+# Go
+export PATH="$HOME/go/bin:$PATH"
+
+# pipx / uv
+export PATH="$PATH:$HOME/.local/bin"
+
+# pnpm (Homebrew-managed)
+export PNPM_HOME="/Users/jth/Library/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+
+# ~/bin
+case ":$PATH:" in
+  *":$HOME/bin:"*) ;;
+  *) export PATH="$PATH:$HOME/bin" ;;
+esac
+
+# Claude Code
+export DISABLE_AUTOUPDATER=1
+export NO_UPDATE_NOTIFIER=1
+export NPM_CONFIG_UPDATE_NOTIFIER=false
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 10. MODERN CLI TOOLS (if available)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if command -v eza &> /dev/null; then
+    alias ls='eza --icons --group-directories-first'
+    alias ll='eza -l --icons --group-directories-first'
+    alias la='eza -la --icons --group-directories-first'
+    alias lt='eza --tree --level=2 --icons'
+    alias l='eza -lah --icons --group-directories-first'
+    alias ls-rec='eza -D -s changed -r'
+    alias ls-dirs='eza -D'
+else
+    alias ls='ls -G'
+    alias ll='ls -lh'
+    alias la='ls -lah'
+    alias l='ls -lah'
+fi
+
+if command -v bat &> /dev/null; then
+    alias cat='bat --paging=never'
+    alias catt='bat'
+fi
+
+if command -v rg &> /dev/null; then
+    alias grep='rg'
+fi
+
+if command -v fzf &> /dev/null; then
+    eval "$(fzf --zsh)" 2> >(grep -v "can't change option: zle" >&2)
+    export FZF_DEFAULT_OPTS="
+        --height 40%
+        --layout=reverse
+        --border
+        --inline-info
+        --color=fg:#d0d0d0,bg:#121212,hl:#5f87af
+        --color=fg+:#d0d0d0,bg+:#262626,hl+:#5fd7ff
+        --color=info:#afaf87,prompt:#d7005f,pointer:#af5fff
+        --color=marker:#87ff00,spinner:#af5fff,header:#87afaf
+    "
+    if command -v fd &> /dev/null; then
+        export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+        export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    fi
+fi
+
+# Git aliases
+alias g='git'
+alias ga='git add'
+alias gaa='git add --all'
+alias gc='git commit -v'
+alias gcm='git commit -m'
+alias gco='git checkout'
+alias gd='git diff'
+alias gl='git pull'
+alias gp='git push'
+alias gst='git status'
+alias glog='git log --oneline --graph --decorate'
+
+# Utility aliases
+alias venva='source .venv/bin/activate'
+alias secure-reboot='sudo fdesetup authrestart'
+alias restart-screensharing='sudo launchctl kickstart -k system/com.apple.screensharing'
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PROMPT - Powerlevel10k
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
+eval "$(/opt/homebrew/bin/brew shellenv)"
+alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"

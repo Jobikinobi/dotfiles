@@ -1,0 +1,28 @@
+[user]
+	name = jobikinobi
+	email = joe@joeherrmann.com
+	signingKey = 
+[filter "lfs"]
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+[init]
+	defaultBranch = main
+[credential]
+	helper = 
+	helper = /usr/local/share/gcm-core/git-credential-manager
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+[gpg]
+	format = 
+	program = gpg
+[commit]
+	gpgSign = false
+[tag]
+	forceSignAnnotated = false
+[gpg "ssh"]
+	program = 
+	allowedSignersFile = 
+[coderabbit]
+	machineId = cli/029e830d8e0544d49d8ff9e9e93fa735

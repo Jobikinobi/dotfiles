@@ -1,0 +1,24 @@
+theme = "onedark"
+
+[editor]
+line-number = "relative"
+mouse = true
+auto-completion = true
+auto-format = true
+auto-pairs = true
+rulers = [80, 120]
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"
+
+[editor.file-picker]
+hidden = false
+git-ignore = true
+git-global = true
+
+[editor.statusline]
+left = ["mode", "spinner", "file-name", "file-modification-indicator"]
+center = ["diagnostics", "workspace-diagnostics"]
+right = ["selections", "position", "file-encoding"]

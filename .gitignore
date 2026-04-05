@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+
+# SSH private keys — never commit these
+dotfiles/.ssh/id_*
+dotfiles/.ssh/known_hosts
+
+# Sensitive configs
+dotfiles/.claude.json
+dotfiles/.config/gcloud/
+dotfiles/.config/anthropic/
+
+# AWS credentials
+dotfiles/.aws/credentials

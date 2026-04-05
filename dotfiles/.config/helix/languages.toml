@@ -1,0 +1,56 @@
+# Global language server configuration
+[language-server]
+
+# TypeScript/JavaScript
+# typescript-language-server = { command = "typescript-language-server", args = ["--stdio"] }
+
+# Python
+pyls = { command = "pylsp" }
+
+# Rust
+# rust-analyzer = { command = "rust-analyzer" }
+
+# HTML/CSS/JSON
+# html-language-server = { command = "vscode-html-language-server", args = ["--stdio"] }
+# css-language-server = { command = "vscode-css-language-server", args = ["--stdio"] }
+# json-language-server = { command = "vscode-json-language-server", args = ["--stdio"] }
+
+# Configure advanced settings for specific language servers
+# [language-server.rust-analyzer.config]
+# inlayHints.typeHints.enable = true
+# inlayHints.parameterHints.enable = true
+
+# Language-specific settings
+# [[language]]
+# name = "rust"
+# scope = "source.rust"
+# file-types = ["rs"]
+# roots = ["Cargo.toml", "Cargo.lock"]
+# auto-format = true
+# language-servers = ["rust-analyzer"]
+
+# [[language]]
+# name = "javascript"
+# scope = "source.js"
+# file-types = ["js", "jsx"]
+# shebangs = ["node"]
+# roots = ["package.json", "tsconfig.json"]
+# language-servers = ["typescript-language-server"]
+# auto-format = true
+
+# [[language]]
+# name = "typescript"
+# scope = "source.ts"
+# file-types = ["ts", "tsx"]
+# roots = ["package.json", "tsconfig.json"]
+# language-servers = ["typescript-language-server"]
+# auto-format = true
+
+[[language]]
+name = "python"
+scope = "source.python"
+file-types = ["py"]
+shebangs = ["python"]
+roots = ["pyproject.toml", "setup.py", "poetry.lock", "requirements.txt"]
+language-servers = ["pyls"]
+auto-format = true
