@@ -1,0 +1,6 @@
+[filesystem "Homebrew|23.0.2|/dev/disk3s1"]
+	timestampResolution = 2000 nanoseconds
+	minRacyThreshold = 0 nanoseconds
+[filesystem "JetBrains s.r.o.|21.0.6|/dev/disk3s1"]
+	timestampResolution = 12000 nanoseconds
+	minRacyThreshold = 0 nanoseconds
