@@ -252,3 +252,29 @@ source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
 export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
 eval "$(/opt/homebrew/bin/brew shellenv)"
 alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# MAC SETUP — bootstrap & environment shortcuts
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Install Homebrew on a fresh Mac
+alias install-brew='/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+
+# Restore full Mac environment from dotfiles repo
+alias mac-restore='brew install chezmoi && chezmoi init --apply Jobikinobi'
+
+# Update dotfiles repo with current state
+alias mac-save='cd /Volumes/mac-setup && brew bundle dump --file=brewfile/Brewfile --force && cp ~/.zshrc dotfiles/.zshrc && cp ~/.gitconfig dotfiles/.gitconfig && git add -A && git commit -m "update: $(date +%Y-%m-%d)" && git push && cd -'
+
+# Check what has drifted from the saved Brewfile
+alias mac-check='brew bundle check --file=/Volumes/mac-setup/brewfile/Brewfile'
+
+# AWS via Doppler
+alias aws-login='doppler run --project master --config prd -- aws configure'
+alias aws-sso='aws sso login --profile hole-admin'
+alias aws-who='aws sts get-caller-identity'
+
+# S3 deep archive
+alias s3-backup='aws s3 sync'
+alias s3-ls-mipds='aws s3 ls s3://hole-foia-deep-archive/MIPDS/ --human-readable --summarize'
+alias s3-ls-scratch='aws s3 ls s3://hole-foia-deep-archive/mipds-scratch/ --human-readable --summarize'
