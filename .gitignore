@@ -1,3 +1,6 @@
+# System folders that shouldn't be tracked
+Library/
+
 # macOS
 .DS_Store
 .Spotlight-V100

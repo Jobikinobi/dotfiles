@@ -40,6 +40,14 @@ echo ""
 echo "→ AWS: configure via Doppler after setup:"
 echo "    doppler run --project master --config prd -- aws configure"
 
-# ── 6. Done ──────────────────────────────────────────────────────────────────
+# ── 6. LaunchAgent (auto daily save) ─────────────────────────────────────────
+echo "→ Installing daily auto-save launchd agent..."
+cp "$SETUP_DIR/launchagents/com.jth.mac-save.plist" ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.jth.mac-save.plist
+echo "  ✓ mac-save will run daily at 9am"
+
+# ── 7. Done ──────────────────────────────────────────────────────────────────
 echo ""
 echo "✓ Done. Open a new terminal for changes to take effect."
+echo ""
+echo "  Your environment is restored from: https://github.com/Jobikinobi/dotfiles"
