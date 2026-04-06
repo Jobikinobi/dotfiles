@@ -38,23 +38,35 @@ else
   echo "✓ Node already installed ($(node --version))"
 fi
 
-# ── Claude Code ──────────────────────────────────────────────────────────────
-if ! command -v claude &>/dev/null; then
-  echo "→ Installing Claude Code..."
-  npm install -g @anthropic-ai/claude-code
-  echo "✓ Claude Code installed"
+# ── uv (Python package manager) ──────────────────────────────────────────────
+if ! command -v uv &>/dev/null; then
+  echo "→ Installing uv..."
+  brew install uv
+  echo "✓ uv installed"
 else
-  echo "✓ Claude Code already installed"
+  echo "✓ uv already installed ($(uv --version))"
 fi
 
-# ── Cloudflare Wrangler ──────────────────────────────────────────────────────
-if ! command -v wrangler &>/dev/null; then
-  echo "→ Installing Cloudflare Wrangler..."
-  npm install -g wrangler
-  echo "✓ Wrangler installed"
-else
-  echo "✓ Wrangler already installed"
-fi
+# ── npm global tools ─────────────────────────────────────────────────────────
+eval "$(fnm env)"
+
+NPM_TOOLS=(
+  "@anthropic-ai/claude-code"   # Claude Code
+  "wrangler"                    # Cloudflare Wrangler
+  "ctx7"                        # Context7 documentation CLI
+  "@mem0/cli"                   # Mem0 AI memory layer
+)
+
+for pkg in "${NPM_TOOLS[@]}"; do
+  tool_name="${pkg##*/}"        # strip scope prefix
+  if ! npm list -g "$pkg" &>/dev/null; then
+    echo "→ Installing $pkg..."
+    npm install -g "$pkg"
+    echo "✓ $tool_name installed"
+  else
+    echo "✓ $tool_name already installed"
+  fi
+done
 
 # ── Supabase CLI ─────────────────────────────────────────────────────────────
 if ! command -v supabase &>/dev/null; then
@@ -63,5 +75,14 @@ if ! command -v supabase &>/dev/null; then
   echo "✓ Supabase CLI installed"
 else
   echo "✓ Supabase CLI already installed"
+fi
+
+# ── Doppler (secrets management) ─────────────────────────────────────────────
+if ! command -v doppler &>/dev/null; then
+  echo "→ Installing Doppler..."
+  brew install doppler
+  echo "✓ Doppler installed"
+else
+  echo "✓ Doppler already installed"
 fi
 {{- end -}}
