@@ -1,0 +1,40 @@
+{{- if eq .chezmoi.os "darwin" -}}
+#!/bin/zsh
+set -e
+export PATH="/opt/homebrew/bin:$PATH"
+
+# ── Go ───────────────────────────────────────────────────────────────────────
+if ! command -v go &>/dev/null; then
+  echo "→ Installing Go..."
+  brew install go
+else
+  echo "✓ Go already installed ($(go version))"
+fi
+
+# ── Rust (via rustup) ────────────────────────────────────────────────────────
+if ! command -v rustup &>/dev/null; then
+  echo "→ Installing Rust via rustup..."
+  brew install rustup
+  rustup-init -y --no-modify-path
+  source "$HOME/.cargo/env"
+  echo "✓ Rust installed ($(rustc --version))"
+else
+  echo "✓ Rust already installed ($(rustc --version))"
+fi
+
+# ── Node (via fnm) ──────────────────────────────────────────────────────────
+if ! command -v fnm &>/dev/null; then
+  echo "→ Installing fnm (Fast Node Manager)..."
+  brew install fnm
+fi
+
+if ! command -v node &>/dev/null; then
+  echo "→ Installing Node LTS..."
+  eval "$(fnm env)"
+  fnm install --lts
+  fnm default lts-latest
+  echo "✓ Node installed ($(node --version))"
+else
+  echo "✓ Node already installed ($(node --version))"
+fi
+{{- end -}}

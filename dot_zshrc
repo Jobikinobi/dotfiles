@@ -152,11 +152,16 @@ bindkey '^H' backward-kill-word
 # 9. PATH & ENVIRONMENT
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Node.js (Homebrew)
-export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+# Node.js (fnm)
+if command -v fnm &>/dev/null; then
+  eval "$(fnm env --use-on-cd)"
+fi
 
 # Go
 export PATH="$HOME/go/bin:$PATH"
+
+# Rust
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 
 # pipx / uv
 export PATH="$PATH:$HOME/.local/bin"
