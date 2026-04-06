@@ -5,11 +5,21 @@ fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Modern ZSH Configuration with Zinit
-# Optimized for: macOS, Homebrew, Development Workflow
+# Managed by chezmoi — edit ~/dotfiles/dot_zshrc.tmpl, not this file
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 1. ZINIT INITIALIZATION
+# 1. HOMEBREW (must be first so everything else finds brew-installed tools)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if [[ -f /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -f /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 2. ZINIT INITIALIZATION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
@@ -22,7 +32,7 @@ fi
 source "${ZINIT_HOME}/zinit.zsh"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 2. COMPLETIONS SETUP - CUSTOM + OH-MY-ZSH
+# 3. COMPLETIONS + OH-MY-ZSH SNIPPETS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 fpath=(~/.zsh/completions /opt/homebrew/share/zsh/site-functions $fpath)
@@ -33,10 +43,6 @@ zinit snippet OMZP::docker
 zinit snippet OMZP::kubectl
 zinit snippet OMZP::npm
 zinit snippet OMZP::command-not-found
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 3. INITIALIZE COMPLETION SYSTEM
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 autoload -Uz compinit
 if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
@@ -49,18 +55,11 @@ zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path ~/.zsh/cache
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 4. COMPLETION STYLES - FISH-LIKE BEHAVIOR
+# 4. COMPLETION STYLES (fish-like)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-setopt COMPLETE_IN_WORD
-setopt ALWAYS_TO_END
-setopt AUTO_MENU
-setopt AUTO_LIST
-setopt AUTO_PARAM_SLASH
-
-unsetopt BEEP
-unsetopt LIST_BEEP
-unsetopt HIST_BEEP
+setopt COMPLETE_IN_WORD ALWAYS_TO_END AUTO_MENU AUTO_LIST AUTO_PARAM_SLASH
+unsetopt BEEP LIST_BEEP HIST_BEEP
 
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
 zstyle ':completion:*' completer _complete _match _approximate
@@ -80,7 +79,7 @@ zstyle ':completion:*' special-dirs true
 zstyle ':completion:*' list-dirs-first true
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 5. MODERN PLUGINS VIA ZINIT
+# 5. PLUGINS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 zinit light zsh-users/zsh-autosuggestions
@@ -93,23 +92,16 @@ zinit light zsh-users/zsh-completions
 zinit light Aloxaf/fzf-tab
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 6. HISTORY CONFIGURATION
+# 6. HISTORY
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 HISTFILE=~/.zsh_history
 HISTSIZE=50000
 SAVEHIST=50000
 
-setopt EXTENDED_HISTORY
-setopt HIST_EXPIRE_DUPS_FIRST
-setopt HIST_IGNORE_DUPS
-setopt HIST_IGNORE_ALL_DUPS
-setopt HIST_FIND_NO_DUPS
-setopt HIST_IGNORE_SPACE
-setopt HIST_SAVE_NO_DUPS
-setopt HIST_REDUCE_BLANKS
-setopt HIST_VERIFY
-setopt SHARE_HISTORY
+setopt EXTENDED_HISTORY HIST_EXPIRE_DUPS_FIRST HIST_IGNORE_DUPS
+setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS HIST_IGNORE_SPACE
+setopt HIST_SAVE_NO_DUPS HIST_REDUCE_BLANKS HIST_VERIFY SHARE_HISTORY
 
 autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
 zle -N up-line-or-beginning-search
@@ -118,22 +110,13 @@ bindkey "^[[A" up-line-or-beginning-search
 bindkey "^[[B" down-line-or-beginning-search
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 7. NAVIGATION & DIRECTORY STACK
+# 7. NAVIGATION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-setopt AUTO_CD
-setopt AUTO_PUSHD
-setopt PUSHD_IGNORE_DUPS
-setopt PUSHD_MINUS
-setopt PUSHD_SILENT
-setopt PUSHD_TO_HOME
+setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_MINUS PUSHD_SILENT PUSHD_TO_HOME
 
 alias d='dirs -v | head -20'
-alias 1='cd -'
-alias 2='cd -2'
-alias 3='cd -3'
-alias 4='cd -4'
-alias 5='cd -5'
+alias 1='cd -' 2='cd -2' 3='cd -3' 4='cd -4' 5='cd -5'
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 8. KEY BINDINGS
@@ -149,13 +132,11 @@ bindkey '^[[3;5~' kill-word
 bindkey '^H' backward-kill-word
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 9. PATH & ENVIRONMENT
+# 9. PATH & TOOLCHAINS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Node.js (fnm)
-if command -v fnm &>/dev/null; then
-  eval "$(fnm env --use-on-cd)"
-fi
+# Node (fnm)
+command -v fnm &>/dev/null && eval "$(fnm env --use-on-cd)"
 
 # Go
 export PATH="$HOME/go/bin:$PATH"
@@ -163,32 +144,33 @@ export PATH="$HOME/go/bin:$PATH"
 # Rust
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 
-# pipx / uv
+# Python (uv) / pipx
 export PATH="$PATH:$HOME/.local/bin"
 
-# pnpm (Homebrew-managed)
-export PNPM_HOME="/Users/jth/Library/pnpm"
+# pnpm
+export PNPM_HOME="{{ .chezmoi.homeDir }}/Library/pnpm"
 case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
+  *":$PNPM_HOME:"*) ;; *) export PATH="$PNPM_HOME:$PATH" ;;
 esac
 
 # ~/bin
 case ":$PATH:" in
-  *":$HOME/bin:"*) ;;
-  *) export PATH="$PATH:$HOME/bin" ;;
+  *":$HOME/bin:"*) ;; *) export PATH="$PATH:$HOME/bin" ;;
 esac
 
-# Claude Code
+# direnv
+command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
+
+# Suppress update nags
 export DISABLE_AUTOUPDATER=1
 export NO_UPDATE_NOTIFIER=1
 export NPM_CONFIG_UPDATE_NOTIFIER=false
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. MODERN CLI TOOLS (if available)
+# 10. MODERN CLI REPLACEMENTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-if command -v eza &> /dev/null; then
+if command -v eza &>/dev/null; then
     alias ls='eza --icons --group-directories-first'
     alias ll='eza -l --icons --group-directories-first'
     alias la='eza -la --icons --group-directories-first'
@@ -197,22 +179,13 @@ if command -v eza &> /dev/null; then
     alias ls-rec='eza -D -s changed -r'
     alias ls-dirs='eza -D'
 else
-    alias ls='ls -G'
-    alias ll='ls -lh'
-    alias la='ls -lah'
-    alias l='ls -lah'
+    alias ls='ls -G' ll='ls -lh' la='ls -lah' l='ls -lah'
 fi
 
-if command -v bat &> /dev/null; then
-    alias cat='bat --paging=never'
-    alias catt='bat'
-fi
+command -v bat &>/dev/null && alias cat='bat --paging=never' catt='bat'
+command -v rg &>/dev/null && alias grep='rg'
 
-if command -v rg &> /dev/null; then
-    alias grep='rg'
-fi
-
-if command -v fzf &> /dev/null; then
+if command -v fzf &>/dev/null; then
     eval "$(fzf --zsh)" 2> >(grep -v "can't change option: zle" >&2)
     export FZF_DEFAULT_OPTS="
         --height 40%
@@ -224,62 +197,65 @@ if command -v fzf &> /dev/null; then
         --color=info:#afaf87,prompt:#d7005f,pointer:#af5fff
         --color=marker:#87ff00,spinner:#af5fff,header:#87afaf
     "
-    if command -v fd &> /dev/null; then
+    if command -v fd &>/dev/null; then
         export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
         export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
     fi
 fi
 
-# Git aliases
-alias g='git'
-alias ga='git add'
-alias gaa='git add --all'
-alias gc='git commit -v'
-alias gcm='git commit -m'
-alias gco='git checkout'
-alias gd='git diff'
-alias gl='git pull'
-alias gp='git push'
-alias gst='git status'
-alias glog='git log --oneline --graph --decorate'
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 11. GIT ALIASES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Utility aliases
+alias g='git' ga='git add' gaa='git add --all'
+alias gc='git commit -v' gcm='git commit -m'
+alias gco='git checkout' gd='git diff'
+alias gl='git pull' gp='git push'
+alias gst='git status' glog='git log --oneline --graph --decorate'
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 12. UTILITY ALIASES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 alias venva='source .venv/bin/activate'
 alias secure-reboot='sudo fdesetup authrestart'
 alias restart-screensharing='sudo launchctl kickstart -k system/com.apple.screensharing'
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PROMPT - Powerlevel10k
+# 13. DOTFILES MANAGEMENT (chezmoi)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
-eval "$(/opt/homebrew/bin/brew shellenv)"
-alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# MAC SETUP — bootstrap & environment shortcuts
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-# Install Homebrew on a fresh Mac
 alias install-brew='/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+alias mac-restore='brew install chezmoi && chezmoi init --apply {{ .github_user }}'
+alias mac-save='chezmoi re-add && brew bundle dump --file="$(chezmoi source-path)/dot_Brewfile" --force && cd "$(chezmoi source-path)" && git add -A && git diff --cached --quiet || git commit -m "auto-save: $(date +%Y-%m-%d)" && git push && cd -'
+alias mac-check='chezmoi diff'
+alias mac-edit='chezmoi edit'
 
-# Restore full Mac environment from dotfiles repo
-alias mac-restore='brew install chezmoi && chezmoi init --apply Jobikinobi'
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 14. CLOUD & INFRASTRUCTURE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Update dotfiles repo with current state
-alias mac-save='cd /Volumes/mac-setup && brew bundle dump --file=brewfile/Brewfile --force && cp ~/.zshrc dotfiles/.zshrc && cp ~/.gitconfig dotfiles/.gitconfig && git add -A && git commit -m "update: $(date +%Y-%m-%d)" && git push && cd -'
-
-# Check what has drifted from the saved Brewfile
-alias mac-check='brew bundle check --file=/Volumes/mac-setup/brewfile/Brewfile'
-
-# AWS via Doppler
 alias aws-login='doppler run --project master --config prd -- aws configure'
 alias aws-sso='aws sso login --profile hole-admin'
 alias aws-who='aws sts get-caller-identity'
-
-# S3 deep archive
-alias s3-backup='aws s3 sync'
 alias s3-ls-mipds='aws s3 ls s3://hole-foia-deep-archive/MIPDS/ --human-readable --summarize'
 alias s3-ls-scratch='aws s3 ls s3://hole-foia-deep-archive/mipds-scratch/ --human-readable --summarize'
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 15. PLATFORM-SPECIFIC
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Docker (Colima)
+[[ -S "${HOME}/.colima/default/docker.sock" ]] && export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
+
+# Tailscale
+[[ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]] && alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PROMPT — Powerlevel10k
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if [[ -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
+  source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
+fi
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
