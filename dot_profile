@@ -1,2 +1,2 @@
-. "/Users/jth/.deno/env"
-. "$HOME/.cargo/env"
+[ -f "/Users/jth/.deno/env" ] && . "/Users/jth/.deno/env"
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
