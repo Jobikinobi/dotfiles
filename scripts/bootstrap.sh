@@ -15,6 +15,9 @@ else
   echo "✓ Homebrew already installed"
 fi
 
+# ── 1b. Ensure brew is on PATH (needed after fresh install) ──────────────────
+eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || eval "$(/usr/local/bin/brew shellenv)" 2>/dev/null || true
+
 # ── 2. Packages ──────────────────────────────────────────────────────────────
 echo "→ Installing packages from Brewfile..."
 brew bundle --file="$SETUP_DIR/brewfile/Brewfile" --no-lock
