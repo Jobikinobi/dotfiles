@@ -27,16 +27,19 @@ mac-restore     # pulls repo + restores full environment
 
 ## What Gets Restored
 
-| Component | Tool | Location |
+| Component | Tool | Source file |
 |---|---|---|
-| CLI tools, GUI apps, VS Code extensions | Homebrew Bundle | `brewfile/Brewfile` |
-| Shell config (zsh, aliases, PATH) | copied directly | `dotfiles/.zshrc` |
-| Git identity and config | copied directly | `dotfiles/.gitconfig` |
-| Terminal themes (p10k) | copied directly | `dotfiles/.p10k.zsh` |
-| Fish shell config | copied directly | `dotfiles/.config/fish/` |
-| SSH keys | **manual step** — see below | `dotfiles/.ssh/` |
+| CLI tools, GUI apps, VS Code extensions | Homebrew Bundle | `dot_Brewfile` |
+| Shell config (zsh, aliases, PATH) | chezmoi | `dot_zshrc` |
+| Git identity and config | chezmoi | `dot_gitconfig` |
+| Terminal themes (p10k) | chezmoi | `dot_p10k.zsh` |
+| Fish shell config | chezmoi | `dot_config/fish/` |
+| Editor configs (helix, kitty, btop, htop) | chezmoi | `dot_config/*/` |
+| GitHub CLI config | chezmoi | `dot_config/gh/` |
+| SSH config (public only) | chezmoi | `private_dot_ssh/` |
+| SSH keys | **manual step** — see below | — |
 | AWS credentials | Doppler — see below | — |
-| Daily auto-save agent | launchd | `launchagents/com.jth.mac-save.plist` |
+| Daily auto-save agent | launchd (run_once) | `com.jth.mac-save.plist` |
 
 ---
 
@@ -73,7 +76,7 @@ s3-ls-scratch   # list mipds-scratch backup in S3 Deep Archive
 ## Auto-Save (Daily at 9am)
 
 A launchd agent runs `mac-save` every morning at 9am silently in the background.
-Installed automatically by `bootstrap.sh`.
+Installed automatically by chezmoi on first apply (`run_once_after_install-launchagent.sh.tmpl`).
 
 ```zsh
 # Check it's running
@@ -197,26 +200,57 @@ this account. $0/month. No action needed.
 
 ---
 
-## Repo Structure
+## Repo Structure (chezmoi)
 
 ```
-dotfiles/
-├── README.md                          # this file
-├── brewfile/
-│   └── Brewfile                       # all packages, casks, extensions
-├── dotfiles/
-│   ├── .zshrc                         # shell config + all aliases
-│   ├── .zshenv / .zprofile            # env vars loaded at login
-│   ├── .gitconfig                     # git identity + settings
-│   ├── .npmrc                         # npm config
-│   ├── .p10k.zsh                      # Powerlevel10k prompt theme
-│   ├── .config/fish/                  # fish shell config
-│   ├── .config/btop/                  # btop system monitor config
-│   ├── .config/kitty/                 # kitty terminal config
-│   └── .config/helix/                 # helix editor config (no runtime/)
-├── scripts/
-│   ├── bootstrap.sh                   # one-command restore script
-│   └── backup-excludes.txt            # CCC/rsync exclusion list
-└── launchagents/
-    └── com.jth.mac-save.plist         # daily auto-save agent
+dotfiles/                                  # chezmoi source directory
+├── README.md
+├── .chezmoiignore                         # files chezmoi skips
+├── dot_zshrc                              # → ~/.zshrc
+├── dot_zshenv                             # → ~/.zshenv
+├── dot_zprofile                           # → ~/.zprofile
+├── dot_bash_profile                       # → ~/.bash_profile
+├── dot_bashrc                             # → ~/.bashrc
+├── dot_gitconfig                          # → ~/.gitconfig
+├── dot_p10k.zsh                           # → ~/.p10k.zsh
+├── dot_profile                            # → ~/.profile
+├── dot_viminfo                            # → ~/.viminfo
+├── dot_Brewfile                           # → ~/.Brewfile (Homebrew packages)
+├── dot_config/
+│   ├── btop/                              # → ~/.config/btop/
+│   ├── fish/                              # → ~/.config/fish/
+│   ├── gh/                                # → ~/.config/gh/
+│   ├── helix/                             # → ~/.config/helix/
+│   ├── htop/                              # → ~/.config/htop/
+│   └── kitty/                             # → ~/.config/kitty/
+├── private_dot_ssh/
+│   └── config                             # → ~/.ssh/config
+├── run_once_before_install-packages.sh.tmpl   # installs Homebrew + Brewfile
+├── run_once_after_install-launchagent.sh.tmpl # installs daily auto-save agent
+├── com.jth.mac-save.plist                 # launchd plist (used by run_once)
+└── scripts/
+    ├── migrate-to-chezmoi.sh              # migration script (one-time use)
+    └── backup-excludes.txt                # CCC/rsync exclusion list
+```
+
+## Managing dotfiles
+
+```zsh
+# See what changed on disk vs chezmoi source
+chezmoi diff
+
+# Pull changes from disk back into source
+chezmoi re-add
+
+# Apply source to disk
+chezmoi apply
+
+# Add a new file to chezmoi
+chezmoi add ~/.some-config
+
+# Remove a file from chezmoi management
+chezmoi forget ~/.some-config
+
+# Undo everything chezmoi has done
+chezmoi purge
 ```

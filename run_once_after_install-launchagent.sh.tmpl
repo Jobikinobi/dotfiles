@@ -1,0 +1,14 @@
+{{- if eq .chezmoi.os "darwin" -}}
+#!/bin/zsh
+PLIST="$HOME/Library/LaunchAgents/com.jth.mac-save.plist"
+
+# Only install if not already loaded
+if ! launchctl list 2>/dev/null | grep -q com.jth.mac-save; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  if [[ -f "$SCRIPT_DIR/com.jth.mac-save.plist" ]]; then
+    cp "$SCRIPT_DIR/com.jth.mac-save.plist" "$PLIST"
+    launchctl load "$PLIST" 2>/dev/null
+    echo "  ✓ mac-save launchd agent installed"
+  fi
+fi
+{{- end -}}

@@ -1,0 +1,11 @@
+# Repo files that aren't dotfiles
+README.md
+LICENSE
+Dockerfile.test
+scripts/**
+com.jth.mac-save.plist
+
+# OS junk
+.DS_Store
+.Spotlight-V100
+.Trashes
