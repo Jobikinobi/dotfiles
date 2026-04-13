@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Cross-platform search plugin for nnn
+# macOS: uses Spotlight (mdfind) with type specifiers
+# Linux: uses locate (if available) or find as fallback
+#
+# Type specifiers (macOS Spotlight):
+#   app:slack     → applications
+#   folder:proj   → folders only
+#   img:vacation  → images
+#   pdf:report    → PDFs
+#   txt:notes     → text files
+#   md:readme     → markdown files
+#   code:main     → source code
+#   (no prefix)   → search everything
+#
+# On Linux, type specifiers filter by extension instead.
+
+read -rp "Search: " input
+[ -z "$input" ] && exit
+
+OS="$(uname)"
+
+# Preview command (works on both platforms)
+preview_cmd='if [ -d {} ]; then tree -C -L 1 {} 2>/dev/null || ls -la {}; else bat --color=always --style=numbers --line-range=:100 {} 2>/dev/null || head -100 {}; fi'
+
+if [ "$OS" = "Darwin" ]; then
+    # macOS: use Spotlight (mdfind)
+    case "$input" in
+        app:*)    query="${input#app:}";    results=$(mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == '*${query}*'wc") ;;
+        folder:*) query="${input#folder:}"; results=$(mdfind "kMDItemContentType == 'public.folder' && kMDItemDisplayName == '*${query}*'wc") ;;
+        img:*)    query="${input#img:}";    results=$(mdfind "kMDItemContentTypeTree == 'public.image' && kMDItemDisplayName == '*${query}*'wc") ;;
+        pdf:*)    query="${input#pdf:}";    results=$(mdfind "kMDItemContentType == 'com.adobe.pdf' && kMDItemDisplayName == '*${query}*'wc") ;;
+        txt:*)    query="${input#txt:}";    results=$(mdfind "kMDItemContentType == 'public.plain-text' && kMDItemDisplayName == '*${query}*'wc") ;;
+        md:*)     query="${input#md:}";     results=$(mdfind "kMDItemContentType == 'net.daringfireball.markdown' && kMDItemDisplayName == '*${query}*'wc") ;;
+        code:*)   query="${input#code:}";   results=$(mdfind "kMDItemContentTypeTree == 'public.source-code' && kMDItemDisplayName == '*${query}*'wc") ;;
+        *)        query="$input";           results=$(mdfind -name "$query") ;;
+    esac
+    # Fallback to name search if attribute query returned nothing
+    [ -z "$results" ] && results=$(mdfind -name "$query" 2>/dev/null)
+else
+    # Linux: use locate or find
+    case "$input" in
+        app:*)    query="${input#app:}";    results=$(find /usr/share/applications /usr/local/share/applications ~/.local/share/applications -iname "*${query}*.desktop" 2>/dev/null) ;;
+        folder:*) query="${input#folder:}"; results=$(locate -i "$query" 2>/dev/null | while read -r f; do [ -d "$f" ] && echo "$f"; done) ;;
+        img:*)    query="${input#img:}";    results=$(locate -i "$query" 2>/dev/null | grep -iE '\.(jpg|jpeg|png|gif|svg|webp|bmp|tiff)$') ;;
+        pdf:*)    query="${input#pdf:}";    results=$(locate -i "$query" 2>/dev/null | grep -iE '\.pdf$') ;;
+        txt:*)    query="${input#txt:}";    results=$(locate -i "$query" 2>/dev/null | grep -iE '\.txt$') ;;
+        md:*)     query="${input#md:}";     results=$(locate -i "$query" 2>/dev/null | grep -iE '\.md$') ;;
+        code:*)   query="${input#code:}";   results=$(locate -i "$query" 2>/dev/null | grep -iE '\.(py|js|ts|go|rs|rb|java|c|cpp|h|sh|zsh)$') ;;
+        *)        query="$input"
+                  if command -v locate &>/dev/null; then
+                      results=$(locate -i "$query" 2>/dev/null)
+                  else
+                      results=$(find / -maxdepth 5 -iname "*${query}*" 2>/dev/null)
+                  fi ;;
+    esac
+fi
+
+[ -z "$results" ] && { echo "No results found for: $query"; read -rp "Press Enter to continue..."; exit; }
+
+result=$(echo "$results" | fzf \
+    --preview "$preview_cmd" \
+    --preview-window=right:50% \
+    --header="Select file/dir (ESC to cancel)")
+
+[ -z "$result" ] && exit
+
+if [ -d "$result" ]; then
+    nnn "$result"
+else
+    nnn "$(dirname "$result")"
+fi

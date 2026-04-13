@@ -166,6 +166,12 @@ export DISABLE_AUTOUPDATER=1
 export NO_UPDATE_NOTIFIER=1
 export NPM_CONFIG_UPDATE_NOTIFIER=false
 
+# Default editor: Helix (hx) — used by nnn, git, and anything that respects $EDITOR
+if command -v hx &>/dev/null; then
+    export EDITOR=hx
+    export VISUAL=hx
+fi
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 10. MODERN CLI REPLACEMENTS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -217,6 +223,7 @@ alias gst='git status' glog='git log --oneline --graph --decorate'
 # 12. UTILITY ALIASES
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+alias projects='cd /Volumes/HOLE-RAID-DRIVE/Projects'
 alias venva='source .venv/bin/activate'
 alias secure-reboot='sudo fdesetup authrestart'
 alias restart-screensharing='sudo launchctl kickstart -k system/com.apple.screensharing'
@@ -250,6 +257,138 @@ alias s3-ls-scratch='aws s3 ls s3://hole-foia-deep-archive/mipds-scratch/ --huma
 
 # Tailscale
 [[ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]] && alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 16. NNN FILE MANAGER (Finder replacement)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 📖 FULL DOCS: ~/dotfiles/docs/nnn.md  (or `mem0 search "nnn shortcuts"`)
+#
+# USAGE:
+#   n              — open nnn in current directory
+#   n ~/Downloads  — open nnn at a specific path
+#
+# NAVIGATION:
+#   h/l or ←/→    — parent / enter directory
+#   j/k or ↓/↑    — move down / up
+#   b              — bookmarks menu (see NNN_BMS below)
+#   /              — filter (live search in current dir)
+#   Tab or ` or ~  — switch context (4 tabs, like Finder tabs)
+#   G              — jump to last entry
+#   '              — jump to first entry
+#   -              — last visited directory
+#   .              — toggle hidden files
+#   t              — sort menu (name, size, time, etc.)
+#
+# FILE & FOLDER OPERATIONS:
+#   Space          — toggle select (file or folder)
+#   a              — select all in directory
+#   A              — invert selection
+#   p / Ctrl+P     — COPY selected items to current dir
+#   v / Ctrl+V     — MOVE selected items to current dir
+#   x              — DELETE selected/hovered (sends to Trash)
+#   Ctrl+R         — rename hovered file/folder
+#   r              — batch rename selection in $EDITOR
+#   n              — create NEW (type 'name/' for folder, 'name' for file)
+#                    Example: 'projects/2026/q2/' creates nested folders
+#   o              — open with system default (macOS open / xdg-open)
+#   e              — edit in $EDITOR
+#   Ctrl+X         — toggle executable permission
+#   y              — copy hovered path to clipboard
+#   Y              — copy selection paths to clipboard
+#
+# SORTING (press t, then one of):
+#   n              — sort by name
+#   t              — sort by time modified
+#   s              — sort by size
+#   e              — sort by extension
+#   r              — toggle reverse order
+#   c              — clear sort (default)
+#
+# PLUGIN SHORTCUTS (press ; then the key):
+#   ;f             — fzf cd (fuzzy find directories)
+#   ;o             — fzf open (fuzzy find + open files)
+#   ;z             — fzf navigate (fuzzy search all)
+#   ;d             — git diffs
+#   ;g             — git log
+#   ;s             — git status
+#   ;r             — batch renamer (advanced, uses vidir/qmv)
+#   ;S             — search (Spotlight/mdfind on macOS, locate on Linux)
+{{ if eq .chezmoi.os "darwin" -}}
+#   ;F             — open current folder in macOS Finder
+#   ;m             — mdfind by name (quick filename search, macOS only)
+{{ else -}}
+#   ;F             — open current folder in system file manager
+{{ end -}}
+#
+# BOOKMARKS (press b then the key):
+{{ if eq .chezmoi.os "darwin" -}}
+#   p  → /Volumes/HOLE-RAID-DRIVE/Projects
+#   t  → transparency-engine
+#   f  → HOLE-FUSE
+#   a  → HOLE-Astro-Dev-Container
+{{ else -}}
+#   p  → ~/Projects
+{{ end -}}
+#   h  → $HOME
+#   d  → ~/Downloads
+#   D  → ~/Documents
+#
+# TIPS:
+#   - Select files with Space across multiple dirs, then p/v to copy/move
+#   - Ctrl+G to quit AND cd your shell to where you navigated
+#   - q to quit (shell cd's to last dir automatically via wrapper)
+#   - Type ; then Enter to browse all available plugins
+#   - Press ? for built-in help
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Options: c=context colors, E=use $EDITOR, d=detail mode,
+#          r=show cp/mv progress, u=use selection, x=xterm title + copy to clipboard
+export NNN_OPTS="cEdrux"
+
+# Delete to Trash instead of rm (1=trash-cli on Linux, macOS trash built-in)
+export NNN_TRASH=1
+
+# Smart opener — handles files by type (images, PDFs, video, etc.)
+export NNN_OPENER="${XDG_CONFIG_HOME:-$HOME/.config}/nnn/plugins/nuke"
+
+# Bookmarks: key:path pairs — access with 'b' key inside nnn
+{{ if eq .chezmoi.os "darwin" -}}
+export NNN_BMS="p:/Volumes/HOLE-RAID-DRIVE/Projects;t:/Volumes/HOLE-RAID-DRIVE/Projects/transparency-engine;f:/Volumes/HOLE-RAID-DRIVE/Projects/HOLE-FUSE;a:/Volumes/HOLE-RAID-DRIVE/Projects/AstroTruthProject/HOLE-Astro-Dev-Container;h:$HOME;d:$HOME/Downloads;D:$HOME/Documents"
+{{ else -}}
+export NNN_BMS="h:$HOME;d:$HOME/Downloads;D:$HOME/Documents;p:$HOME/Projects"
+{{ end -}}
+
+# Plugins: key:plugin pairs — access with ';' key, or Alt+key
+NNN_PLUG_GIT='d:diffs;g:!git log;s:!git status'
+NNN_PLUG_FILES='r:renamer;x:togglex'
+{{ if eq .chezmoi.os "darwin" -}}
+NNN_PLUG_SEARCH='f:fzcd;o:fzopen;z:fzz;S:spotlight;m:!mdfind -name "$nnn"*'
+NNN_PLUG_CLIP='c:cbcopy-mac;V:cbpaste-mac'
+NNN_PLUG_OS='F:!&open .'
+{{ else -}}
+NNN_PLUG_SEARCH='f:fzcd;o:fzopen;z:fzz;S:spotlight'
+NNN_PLUG_CLIP='c:x2sel'
+NNN_PLUG_OS='F:!&xdg-open .'
+{{ end -}}
+export NNN_PLUG="$NNN_PLUG_SEARCH;$NNN_PLUG_GIT;$NNN_PLUG_FILES;$NNN_PLUG_CLIP;$NNN_PLUG_OS"
+
+# File type colors (xterm 256-color hex):
+# dir=blue symlink=cyan sock=magenta pipe=brown exec=green
+export NNN_FCOLORS='c1e2272e006033f7c6d6abc4'
+
+# Archive formats nnn can extract/list
+export NNN_ARCHIVE="\\.(7z|bz2|gz|tar|tgz|zip|rar|xz|zst)$"
+
+# cd-on-quit marker file
+export NNN_TMPFILE="${XDG_CONFIG_HOME:-$HOME/.config}/nnn/.lastd"
+
+# Launch nnn, cd the shell to the last-visited directory on quit
+n() {
+    [ "${NNNLVL:-0}" -eq 0 ] || { echo "nnn is already running"; return; }
+    command nnn "$@"
+    [ -f "$NNN_TMPFILE" ] && { . "$NNN_TMPFILE"; rm -f "$NNN_TMPFILE" > /dev/null; }
+}
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PROMPT — Powerlevel10k
