@@ -1,3 +1,36 @@
 Include /Users/jth/.colima/ssh_config
+
+Host hole-dev do.theholetruth.org
+	HostName do.theholetruth.org
+	User joe
+	IdentityFile ~/.ssh/id_ed25519
+	IdentitiesOnly yes
+
+Host hole-dev-root do.theholetruth.org-root
+	HostName do.theholetruth.org
+	User root
+	IdentityFile ~/.ssh/id_ed25519
+	IdentitiesOnly yes
+
+Host foia-scraper
+	HostName 143.244.152.147
+	User root
+	IdentityFile ~/.ssh/id_ed25519
+	IdentitiesOnly yes
+
+Host mac-mini
+	HostName mac-mini
+	User jth
+	IdentityFile ~/.ssh/mac-mini
+	IdentityAgent none
+	StrictHostKeyChecking accept-new
+	UserKnownHostsFile ~/.ssh/known_hosts_tailnet
+
+Host mac-mini-lan
+	HostName 192.168.68.68
+	User jth
+	IdentityFile ~/.ssh/mac-mini
+	IdentityAgent none
+
 Host *
 	IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"

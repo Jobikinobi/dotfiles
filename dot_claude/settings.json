@@ -1,1 +1,32 @@
-{}
+{
+  "env": {
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
+  },
+  "permissions": {
+    "defaultMode": "default"
+  },
+  "enabledPlugins": {
+    "coderabbit@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "agent-auth@scalekit-auth-stack": false,
+    "full-stack-auth@scalekit-auth-stack": true,
+    "mcp-auth@scalekit-auth-stack": true
+  },
+  "extraKnownMarketplaces": {
+    "scalekit-auth-stack": {
+      "source": {
+        "source": "github",
+        "repo": "scalekit-inc/claude-code-authstack"
+      }
+    },
+    "mem0-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "mem0ai/mem0"
+      }
+    }
+  },
+  "skipDangerousModePermissionPrompt": true
+}

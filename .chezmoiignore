@@ -9,3 +9,9 @@ com.jth.mac-save.plist
 .DS_Store
 .Spotlight-V100
 .Trashes
+
+# Session state (changes constantly, not real config)
+.viminfo
+
+# Repo documentation (not a dotfile)
+docs/**
