@@ -398,3 +398,10 @@ if [[ -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
   source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
 fi
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SECRETS — baked in by chezmoi from Doppler (never hardcoded in source)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export POSTMAN_API_KEY='{{ output "doppler" "secrets" "get" "POSTMAN_API_KEY" "--plain" "-p" "backend" "-c" "prd" | trim }}'
+export MEM0_API_KEY='{{ output "doppler" "secrets" "get" "MEM0_API_KEY" "--plain" "-p" "backend" "-c" "prd" | trim }}'
