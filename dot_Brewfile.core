@@ -1,0 +1,17 @@
+# Core CLI stack — cross-platform essentials
+# Used on both macOS and Linux (Docker, VPS, etc.)
+# Full macOS Brewfile: ~/.Brewfile
+
+brew "bat"          # cat replacement
+brew "direnv"       # auto-load .envrc per project
+brew "doppler"      # secrets management
+brew "eza"          # ls replacement
+brew "fd"           # find replacement (used by fzf)
+brew "fnm"          # Node version manager
+brew "fzf"          # fuzzy finder
+brew "helix"        # text editor ($EDITOR)
+brew "jq"           # JSON processor
+brew "nnn"          # file manager
+brew "powerlevel10k" # zsh prompt theme
+brew "ripgrep"      # grep replacement
+brew "uv"           # Python package manager

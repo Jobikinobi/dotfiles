@@ -38,21 +38,17 @@ RUN mkdir /var/run/sshd \
 # Allow SSH via key (we'll inject the public key at run time)
 RUN mkdir -p /home/jth/.ssh && chown jth:jth /home/jth/.ssh && chmod 700 /home/jth/.ssh
 
-# Install Homebrew + powerlevel10k as jth
+# Install chezmoi as jth
 USER jth
 WORKDIR /home/jth
-RUN /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
-    && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" \
-    && brew install powerlevel10k
-ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
-
-# Install chezmoi
 RUN sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
 ENV PATH="/home/jth/.local/bin:${PATH}"
 
-# Initialize dotfiles (--apply runs chezmoi apply after init)
-# Using HTTPS so no SSH key is needed for the public repo
+# Initialize dotfiles and install core stack
+# chezmoi init clones the repo, apply deploys configs + runs install scripts
+# The install script installs Homebrew + core Brewfile (bat, helix, fzf, etc.)
 RUN chezmoi init --apply --no-tty Jobikinobi
+ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 
 # Switch back to root for entrypoint
 USER root

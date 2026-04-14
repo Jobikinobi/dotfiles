@@ -11,10 +11,16 @@ if ! command -v brew &>/dev/null; then
 fi
 
 # Install packages from Brewfile
+{{- if eq .chezmoi.os "darwin" }}
+# macOS: full Brewfile (all tools, casks, GUI apps)
 if [[ -f "$HOME/.Brewfile" ]]; then
   echo "→ Installing packages from Brewfile..."
   brew bundle --file="$HOME/.Brewfile"
-elif [[ -f "$SCRIPT_DIR/.Brewfile" ]]; then
-  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-  brew bundle --file="$SCRIPT_DIR/.Brewfile"
 fi
+{{- else }}
+# Linux: core Brewfile only (cross-platform CLI essentials)
+if [[ -f "$HOME/.Brewfile.core" ]]; then
+  echo "→ Installing core packages..."
+  brew bundle --file="$HOME/.Brewfile.core"
+fi
+{{- end }}
