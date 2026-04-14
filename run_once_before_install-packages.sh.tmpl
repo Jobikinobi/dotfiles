@@ -11,8 +11,10 @@ if ! command -v brew &>/dev/null; then
 fi
 
 # Install packages from Brewfile
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [[ -f "$SCRIPT_DIR/.Brewfile" ]]; then
+if [[ -f "$HOME/.Brewfile" ]]; then
   echo "→ Installing packages from Brewfile..."
-  brew bundle --file="$SCRIPT_DIR/.Brewfile" --no-lock
+  brew bundle --file="$HOME/.Brewfile"
+elif [[ -f "$SCRIPT_DIR/.Brewfile" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  brew bundle --file="$SCRIPT_DIR/.Brewfile"
 fi
