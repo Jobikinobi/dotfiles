@@ -1,0 +1,47 @@
+FROM ubuntu:24.04
+
+# Avoid interactive prompts during package install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install essentials + Homebrew Linux prerequisites
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    file \
+    git \
+    locales \
+    openssh-server \
+    procps \
+    sudo \
+    zsh \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up locale (zsh/p10k need UTF-8)
+RUN locale-gen en_US.UTF-8
+ENV LANG=en_US.UTF-8
+
+# Create a non-root user (chezmoi expects a real user, not root)
+RUN useradd -m -s /bin/zsh jth \
+    && echo "jth ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Set up SSH
+RUN mkdir /var/run/sshd \
+    && echo "PermitUserEnvironment yes" >> /etc/ssh/sshd_config
+
+# Allow SSH via key (we'll inject the public key at run time)
+RUN mkdir -p /home/jth/.ssh && chown jth:jth /home/jth/.ssh && chmod 700 /home/jth/.ssh
+
+# Install chezmoi as jth
+USER jth
+WORKDIR /home/jth
+RUN sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+ENV PATH="/home/jth/.local/bin:${PATH}"
+
+# Initialize dotfiles (--apply runs chezmoi apply after init)
+# Using HTTPS so no SSH key is needed for the public repo
+RUN chezmoi init --apply Jobikinobi
+
+# Switch back to root for sshd
+USER root
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D"]
