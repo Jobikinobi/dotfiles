@@ -5,24 +5,9 @@ if ! command -v brew &>/dev/null; then
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
-# Ensure brew is in PATH for this script
+# Ensure brew is in PATH for subsequent scripts
 {{- if eq .chezmoi.os "darwin" }}
 eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || eval "$(/usr/local/bin/brew shellenv)" 2>/dev/null
 {{- else }}
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 2>/dev/null
-{{- end }}
-
-# Install packages from Brewfile
-{{- if eq .chezmoi.os "darwin" }}
-# macOS: full Brewfile (all tools, casks, GUI apps)
-if [[ -f "$HOME/.Brewfile" ]]; then
-  echo "→ Installing packages from Brewfile..."
-  brew bundle --file="$HOME/.Brewfile"
-fi
-{{- else }}
-# Linux: core Brewfile only (cross-platform CLI essentials)
-if [[ -f "$HOME/.Brewfile.core" ]]; then
-  echo "→ Installing core packages..."
-  brew bundle --file="$HOME/.Brewfile.core"
-fi
 {{- end }}
