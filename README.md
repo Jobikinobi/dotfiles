@@ -2,6 +2,8 @@
 
 Personal Mac environment as code. One command restores everything on a fresh macOS install.
 
+> **Important**: The chezmoi source directory is `~/dotfiles`. Do not clone this repo anywhere else on this machine — chezmoi only reads from that path, and a second clone will drift out of sync.
+
 ---
 
 ## Quick Start (Fresh Mac)
