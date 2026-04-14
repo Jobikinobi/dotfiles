@@ -46,7 +46,10 @@ ENV PATH="/home/jth/.local/bin:${PATH}"
 
 # Initialize dotfiles (--apply runs chezmoi apply after init)
 # Using HTTPS so no SSH key is needed for the public repo
-RUN chezmoi init --apply Jobikinobi
+RUN chezmoi init --apply Jobikinobi \
+    --promptString name="Joseph T. Herrmann, M.D." \
+    --promptString email="joeherrmann@gmail.com" \
+    --promptString github_user="Jobikinobi"
 
 # Switch back to root for entrypoint
 USER root

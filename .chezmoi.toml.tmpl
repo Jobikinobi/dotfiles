@@ -1,0 +1,6 @@
+sourceDir = "{{ .chezmoi.sourceDir }}"
+
+[data]
+    name = "{{ promptStringOnce . "name" "Full name" }}"
+    email = "{{ promptStringOnce . "email" "Email address" }}"
+    github_user = "{{ promptStringOnce . "github_user" "GitHub username" }}"
