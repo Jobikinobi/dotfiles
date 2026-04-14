@@ -1,6 +1,48 @@
-{{- if eq .chezmoi.os "darwin" -}}
-#!/bin/zsh
+#!/bin/bash
 set -e
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Tailscale — cross-platform (runs on macOS and Linux)
+# ══════════════════════════════════════════════════════════════════════════════
+
+if ! command -v tailscale &>/dev/null; then
+{{- if eq .chezmoi.os "darwin" }}
+  echo "→ Tailscale: install via 'brew install --cask tailscale' or Brewfile"
+{{- else }}
+  echo "→ Installing Tailscale..."
+  curl -fsSL https://tailscale.com/install.sh | sh
+  echo "✓ Tailscale installed"
+{{- end }}
+fi
+
+{{- if ne .chezmoi.os "darwin" }}
+# On Linux, start tailscaled and join the tailnet if an auth key is available
+if command -v tailscale &>/dev/null; then
+  if ! tailscale status &>/dev/null; then
+    sudo systemctl enable --now tailscaled 2>/dev/null || true
+    if command -v doppler &>/dev/null; then
+      TS_AUTHKEY="$(doppler secrets get TAILSCALE_AUTH_KEY --plain -p backend -c prd 2>/dev/null)" || true
+      if [[ -n "$TS_AUTHKEY" ]]; then
+        echo "→ Joining tailnet..."
+        sudo tailscale up --authkey="$TS_AUTHKEY" --ssh
+        echo "✓ Joined tailnet with Tailscale SSH enabled"
+      else
+        echo "⚠ Tailscale installed but no auth key — run 'sudo tailscale up' manually"
+      fi
+    else
+      echo "⚠ Tailscale installed but Doppler not available — run 'sudo tailscale up' manually"
+    fi
+  else
+    echo "✓ Tailscale already connected"
+  fi
+fi
+{{- end }}
+
+{{- if eq .chezmoi.os "darwin" }}
+# ══════════════════════════════════════════════════════════════════════════════
+# macOS-only toolchains
+# ══════════════════════════════════════════════════════════════════════════════
+
 export PATH="/opt/homebrew/bin:$PATH"
 
 # ── Go ───────────────────────────────────────────────────────────────────────
@@ -85,4 +127,4 @@ if ! command -v doppler &>/dev/null; then
 else
   echo "✓ Doppler already installed"
 fi
-{{- end -}}
+{{- end }}
