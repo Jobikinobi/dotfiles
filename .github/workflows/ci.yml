@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # ── Linux: Build Docker image and push to GHCR ──────────────────────────────
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.test
+          push: false
+          load: true
+          tags: dotfiles-test:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify core tools are installed
+        run: |
+          docker run --rm dotfiles-test:ci /bin/bash -c '
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+            echo "=== Checking core tools ==="
+            for tool in hx bat fzf rg eza fd jq nnn doppler uv; do
+              if command -v "$tool" &>/dev/null; then
+                echo "✓ $tool"
+              else
+                echo "✗ $tool MISSING" && exit 1
+              fi
+            done
+            echo "=== Checking Node + Claude ==="
+            export PATH="/home/jth/.local/state/fnm_multishells/$(ls /home/jth/.local/state/fnm_multishells/)/bin:$PATH" 2>/dev/null || true
+            eval "$(fnm env)" 2>/dev/null || true
+            node --version || (echo "✗ node MISSING" && exit 1)
+            claude --version || (echo "✗ claude MISSING" && exit 1)
+            echo "=== All tools verified ==="
+          '
+
+      - name: Push to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.test
+          push: true
+          tags: |
+            ghcr.io/jobikinobi/dotfiles:latest
+            ghcr.io/jobikinobi/dotfiles:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── macOS: Verify chezmoi deploys correctly ─────────────────────────────────
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install chezmoi
+        run: brew install chezmoi
+
+      - name: Initialize dotfiles (dry run)
+        run: |
+          # Use the PR branch, not the default branch
+          chezmoi init --no-tty --source="$GITHUB_WORKSPACE" --exclude=scripts
+
+      - name: Apply dotfiles (skip scripts to avoid full brew install)
+        run: chezmoi apply --no-tty --exclude=scripts
+
+      - name: Verify key files deployed
+        run: |
+          echo "=== Checking deployed files ==="
+          for f in ~/.zshrc ~/.Brewfile ~/.Brewfile.core ~/.p10k.zsh ~/.ssh/config; do
+            if [[ -f "$f" ]]; then
+              echo "✓ $f"
+            else
+              echo "✗ $f MISSING" && exit 1
+            fi
+          done
+
+      - name: Verify templates rendered (no raw {{ in output)
+        run: |
+          if grep -q '{{' ~/.zshrc; then
+            echo "✗ Unrendered template tags in ~/.zshrc"
+            grep '{{' ~/.zshrc
+            exit 1
+          fi
+          echo "✓ Templates rendered correctly"
+
+      - name: Verify macOS-specific content present
+        run: |
+          grep -q "1password" ~/.ssh/config && echo "✓ 1Password SSH agent in config"
+          grep -q "/opt/homebrew" ~/.zshrc && echo "✓ Homebrew macOS path in zshrc"

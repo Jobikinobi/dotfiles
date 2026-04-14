@@ -3,6 +3,7 @@ README.md
 LICENSE
 Dockerfile.test
 entrypoint.sh
+.github/**
 scripts/**
 com.jth.mac-save.plist
 
