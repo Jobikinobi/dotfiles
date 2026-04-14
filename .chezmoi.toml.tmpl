@@ -6,7 +6,7 @@ sourceDir = "{{ .chezmoi.sourceDir }}"
     email = {{ promptStringOnce . "email" "Email address" | quote }}
     github_user = {{ promptStringOnce . "github_user" "GitHub username" | quote }}
 {{- else }}
-    name = {{ .name | default "Joseph T. Herrmann, M.D." | quote }}
-    email = {{ .email | default "joeherrmann@gmail.com" | quote }}
-    github_user = {{ .github_user | default "Jobikinobi" | quote }}
+    name = "Joseph T. Herrmann, M.D."
+    email = "joeherrmann@gmail.com"
+    github_user = "Jobikinobi"
 {{- end }}
