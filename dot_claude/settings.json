@@ -5,14 +5,16 @@
   "permissions": {
     "defaultMode": "default"
   },
+  "statusLine": {
+    "type": "command",
+    "command": "bash /Users/jth/.claude/statusline-command.sh"
+  },
   "enabledPlugins": {
     "coderabbit@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "code-review@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
-    "agent-auth@scalekit-auth-stack": false,
-    "full-stack-auth@scalekit-auth-stack": true,
-    "mcp-auth@scalekit-auth-stack": true
+    "full-stack-auth@scalekit-auth-stack": true
   },
   "extraKnownMarketplaces": {
     "scalekit-auth-stack": {
