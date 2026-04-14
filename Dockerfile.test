@@ -6,15 +6,22 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install essentials + Homebrew Linux prerequisites
 RUN apt-get update && apt-get install -y \
     build-essential \
+    ca-certificates \
     curl \
     file \
     git \
+    iptables \
     locales \
     openssh-server \
     procps \
     sudo \
     zsh \
     && rm -rf /var/lib/apt/lists/*
+
+# Copy Tailscale binaries from official image (per Tailscale docs)
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /usr/local/bin/tailscaled
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscale /usr/local/bin/tailscale
+RUN mkdir -p /var/run/tailscale /var/cache/tailscale /var/lib/tailscale
 
 # Set up locale (zsh/p10k need UTF-8)
 RUN locale-gen en_US.UTF-8
@@ -41,7 +48,12 @@ ENV PATH="/home/jth/.local/bin:${PATH}"
 # Using HTTPS so no SSH key is needed for the public repo
 RUN chezmoi init --apply Jobikinobi
 
-# Switch back to root for sshd
+# Switch back to root for entrypoint
 USER root
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 22
-CMD ["/usr/sbin/sshd", "-D"]
+ENTRYPOINT ["/entrypoint.sh"]

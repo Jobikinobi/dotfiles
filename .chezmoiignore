@@ -2,6 +2,7 @@
 README.md
 LICENSE
 Dockerfile.test
+entrypoint.sh
 scripts/**
 com.jth.mac-save.plist
 
