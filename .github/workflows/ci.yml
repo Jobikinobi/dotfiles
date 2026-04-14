@@ -41,7 +41,7 @@ jobs:
 
       - name: Verify core tools are installed
         run: |
-          docker run --rm dotfiles-test:ci /bin/bash -c '
+          docker run --rm --entrypoint /bin/bash dotfiles-test:ci -c '
             eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
             echo "=== Checking core tools ==="
             for tool in hx bat fzf rg eza fd jq nnn doppler uv; do
@@ -52,7 +52,6 @@ jobs:
               fi
             done
             echo "=== Checking Node + Claude ==="
-            export PATH="/home/jth/.local/state/fnm_multishells/$(ls /home/jth/.local/state/fnm_multishells/)/bin:$PATH" 2>/dev/null || true
             eval "$(fnm env)" 2>/dev/null || true
             node --version || (echo "✗ node MISSING" && exit 1)
             claude --version || (echo "✗ claude MISSING" && exit 1)
