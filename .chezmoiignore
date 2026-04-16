@@ -1,5 +1,6 @@
 # Repo files that aren't dotfiles
 README.md
+CLAUDE.md
 LICENSE
 Dockerfile.test
 entrypoint.sh
