@@ -16,5 +16,15 @@ com.jth.mac-save.plist
 # Session state (changes constantly, not real config)
 .viminfo
 
+# Rewrites itself every session — not worth tracking drift
+.config/htop/htoprc
+
+# Managed manually (CodeRabbit + credential helpers write to it)
+.gitconfig
+
+# Legacy bloated Brewfile — superseded by .Brewfile.core
+# Left on disk on existing machines but not managed by chezmoi
+.Brewfile
+
 # Repo documentation (not a dotfile)
 docs/**

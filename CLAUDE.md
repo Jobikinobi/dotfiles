@@ -33,10 +33,12 @@ Cross-platform development environment managed by chezmoi.
 4. `run_once_after_install-brewfile.sh.tmpl` — `brew bundle` + Node + Claude Code
 5. `run_once_after_install-launchagent.sh.tmpl` — macOS auto-save agent
 
-### Split Brewfile Strategy
-- `dot_Brewfile` — Full macOS: 100+ packages, casks, GUI apps
-- `dot_Brewfile.core` — Linux core: 13 essential CLI tools
-- `run_once_after` selects which Brewfile based on `.chezmoi.os`
+### Brewfile Strategy
+- `dot_Brewfile.core` — single cross-platform core (macOS + Linux)
+- `brew bundle` only installs, never removes — so machine-specific tools you
+  install manually with `brew install` are left alone
+- Keep this file short. If you find yourself reaching for it to track every
+  package on a machine, stop — that's not its job
 
 ## Secrets
 
