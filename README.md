@@ -1,258 +1,209 @@
-# dotfiles — jth Mac Environment
+# dotfiles — Portable Development Environment
 
-Personal Mac environment as code. One command restores everything on a fresh macOS install.
+Cross-platform environment as code. One command bootstraps a fully configured dev machine — macOS or Linux.
 
-> **Important**: The chezmoi source directory is `~/dotfiles`. Do not clone this repo anywhere else on this machine — chezmoi only reads from that path, and a second clone will drift out of sync.
+> **Source directory**: `~/dotfiles` on macOS. Do not clone elsewhere — chezmoi reads from this path only.
 
 ---
 
-## Quick Start (Fresh Mac)
+## Platform Overview
 
-Open Terminal and run these two commands:
+```
+Layer 1: Tailscale         mesh network — connects all machines
+Layer 2: chezmoi/dotfiles  identity — makes any machine "yours"  ← this repo
+Layer 3: Containers        workloads — Weaviate, transparency engine
+Layer 4: Backups           durability — R2, GHCR, Doppler
+```
 
-```zsh
-# 1. Install Homebrew
+This repo owns **Layer 2**. For container stacks and infrastructure, see [hole-devenv](https://github.com/Jobikinobi/hole-devenv).
+
+### What's Included
+
+| Component | macOS | Linux | Source |
+|-----------|:-----:|:-----:|--------|
+| Shell (zsh + Powerlevel10k + zinit) | Yes | Yes | `dot_zshrc.tmpl` |
+| Core CLI tools (bat, eza, fd, fzf, helix, jq, nnn, ripgrep, uv) | Yes | Yes | `dot_Brewfile.core` |
+| Full tool suite (100+ packages, GUI apps) | Yes | — | `dot_Brewfile` |
+| Git config + GitHub credential helper | Yes | Yes | `dot_gitconfig` |
+| SSH config (1Password agent, Tailscale hosts) | Yes | Partial | `private_dot_ssh/config.tmpl` |
+| Editor configs (helix, kitty, btop, htop) | Yes | Yes | `dot_config/` |
+| Node LTS + Claude Code | Yes | Yes | `run_once_after_install-brewfile.sh.tmpl` |
+| Tailscale auto-join | — | Yes | `run_once_before_install-toolchains.sh.tmpl` |
+| Secrets via Doppler (baked at apply time) | Yes | Optional | `dot_zshrc.tmpl` |
+| Docker image (GHCR) | — | Pre-built | `Dockerfile.test` |
+
+---
+
+## Quick Start
+
+### Fresh Mac
+
+```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# 2. Restore everything
 brew install chezmoi && chezmoi init --apply Jobikinobi
 ```
 
-Or if you've already restored once and have the aliases loaded:
+### Fresh Linux (interactive)
 
-```zsh
-install-brew    # installs Homebrew
-mac-restore     # pulls repo + restores full environment
+```bash
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Jobikinobi
+```
+
+### Docker (pre-built, instant)
+
+```bash
+docker pull ghcr.io/jobikinobi/dotfiles:latest
+docker run -d --name devbox \
+  --cap-add=NET_ADMIN --device=/dev/net/tun \
+  -e TS_AUTHKEY=tskey-auth-... \
+  -e TS_HOSTNAME=devbox \
+  -v ts-state:/var/lib/tailscale \
+  ghcr.io/jobikinobi/dotfiles:latest
+```
+
+Then: `ssh jth@devbox` (via Tailscale SSH, no keys needed).
+
+### Already restored?
+
+```bash
+mac-restore     # pull repo + restore full environment
+mac-save        # snapshot current state → commit → push
+mac-check       # show what has drifted (chezmoi diff)
 ```
 
 ---
 
-## What Gets Restored
+## Core Tool Stack (Linux + macOS)
 
-| Component | Tool | Source file |
-|---|---|---|
-| CLI tools, GUI apps, VS Code extensions | Homebrew Bundle | `dot_Brewfile` |
-| Shell config (zsh, aliases, PATH) | chezmoi | `dot_zshrc` |
-| Git identity and config | chezmoi | `dot_gitconfig` |
-| Terminal themes (p10k) | chezmoi | `dot_p10k.zsh` |
-| Fish shell config | chezmoi | `dot_config/fish/` |
-| Editor configs (helix, kitty, btop, htop) | chezmoi | `dot_config/*/` |
-| GitHub CLI config | chezmoi | `dot_config/gh/` |
-| SSH config (public only) | chezmoi | `private_dot_ssh/` |
-| SSH keys | **manual step** — see below | — |
-| AWS credentials | Doppler — see below | — |
-| Daily auto-save agent | launchd (run_once) | `com.jth.mac-save.plist` |
+Installed via `dot_Brewfile.core` on Linux, included in the full `dot_Brewfile` on macOS:
 
----
-
-## Daily Aliases
-
-These are all defined in `.zshrc` and available after restore.
-
-### Mac Setup
-
-```zsh
-install-brew    # install Homebrew on a fresh Mac
-mac-restore     # full restore from this repo on a new Mac
-mac-save        # snapshot current state → commit → push to GitHub
-mac-check       # show what has drifted from saved Brewfile
-```
-
-### AWS
-
-```zsh
-aws-login       # configure AWS credentials via Doppler (master project, prd config)
-aws-sso         # SSO login using hole-admin profile (AdministratorAccess, 12hr session)
-aws-who         # confirm which AWS account/user is active
-```
-
-### S3 Backups
-
-```zsh
-s3-ls-mipds     # list MIPDS backup in S3 Deep Archive
-s3-ls-scratch   # list mipds-scratch backup in S3 Deep Archive
-```
+| Tool | Replaces | Purpose |
+|------|----------|---------|
+| `bat` | `cat` | Syntax-highlighted file viewer |
+| `eza` | `ls` | Modern file listing with icons |
+| `fd` | `find` | Fast file finder |
+| `fzf` | — | Fuzzy finder (Ctrl+R, Ctrl+T) |
+| `helix` | `vim` | Modal editor (`$EDITOR`) |
+| `jq` | — | JSON processor |
+| `nnn` | — | Terminal file manager |
+| `ripgrep` | `grep` | Fast content search |
+| `uv` | `pip` | Python package manager |
+| `direnv` | — | Per-directory env vars |
+| `doppler` | `.env` files | Secrets management |
+| `fnm` | `nvm` | Node version manager |
+| `powerlevel10k` | — | zsh prompt theme |
 
 ---
 
-## Auto-Save (Daily at 9am)
+## Tailscale Mesh
 
-A launchd agent runs `mac-save` every morning at 9am silently in the background.
-Installed automatically by chezmoi on first apply (`run_once_after_install-launchagent.sh.tmpl`).
+All machines connected via tailnet `lemming-likert.ts.net`:
 
-```zsh
-# Check it's running
-launchctl list | grep mac-save
+| Host | Role | Access |
+|------|------|--------|
+| `jth-macstudio` | Primary workstation | Local |
+| `mac-mini` | Weaviate + Docker infrastructure | `ssh mac-mini` |
+| `hole-dev` | Transparency Engine (DigitalOcean) | `ssh root@hole-dev` |
+| `foia-scraper` | FOIA scraper (DigitalOcean) | `ssh root@foia-scraper` |
+| `macbook-air` | Laptop | Local |
 
-# Run it right now
-launchctl start com.jth.mac-save
+Docker containers join the tailnet automatically when launched with `TS_AUTHKEY`.
 
-# View last run output
-cat /tmp/mac-save.log
-cat /tmp/mac-save.error.log
+---
 
-# Disable it
-launchctl unload ~/Library/LaunchAgents/com.jth.mac-save.plist
+## Secrets Management
+
+All secrets live in **Doppler** — never hardcoded, never in `.env` files.
+
+chezmoi templates call Doppler at `chezmoi apply` time and bake values into the generated files:
+```
+# In dot_zshrc.tmpl (what git sees):
+export API_KEY='{{ output "doppler" "secrets" "get" "API_KEY" "--plain" ... | trim }}'
+
+# In ~/.zshrc (what the shell sees):
+export API_KEY='actual-value-from-doppler'
 ```
 
 ---
 
-## AWS Setup
+## CI/CD
 
-### Access Keys (default profile)
+Every PR runs two jobs (both must pass to merge):
 
-Credentials live in Doppler — never stored locally.
+| Job | What it tests |
+|-----|--------------|
+| **Linux** | Builds Docker image, verifies all core tools installed |
+| **macOS** | Runs `chezmoi apply`, verifies key files deploy and templates render |
 
-```zsh
-aws-login
-# pulls AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY from Doppler master/prd
-# sets region: us-east-1, output: json
-```
-
-### SSO Profiles
-
-Two profiles are configured in `~/.aws/config`:
-
-| Profile | Role | Session |
-|---|---|---|
-| `hole-admin` | AdministratorAccess | 12hr |
-| `hole-bedrock` | cli-bedrock-access | 12hr |
-
-SSO session name: `hole-sso`
-Account: `420073135340` (theholetruth)
-
-```zsh
-aws-sso                                    # login via browser (hole-admin)
-aws s3 ls --profile hole-admin             # use a specific profile
-aws sso login --profile hole-bedrock       # login for bedrock profile
-```
-
-### Doppler Projects
-
-| Project | Contents |
-|---|---|
-| `master` | AWS keys, root credentials |
-| `backend` | Backend service secrets, AWS SSO URL |
-| `mcp-servers` | MCP server API keys |
-| `github-workflows` | GitHub Actions secrets |
-| `frontend-web-design` | Frontend environment variables |
+On merge to main: pushes updated image to `ghcr.io/jobikinobi/dotfiles:latest`.
 
 ---
 
-## S3 Backups
+## Repo Structure
 
-Bucket: `hole-foia-deep-archive`
-Storage class: Glacier Deep Archive ($0.00099/GB/month)
-
-| Folder | Contents | Size |
-|---|---|---|
-| `MIPDS/` | Original MIPDS drive backup | ~347 GB |
-| `mipds-scratch/` | MIPDS-Scratch selected folders | growing |
-
-```zsh
-# Check MIPDS backup size
-s3-ls-mipds
-
-# Add a new folder to mipds-scratch backup
-aws s3 sync "/Volumes/MIPDS-Scrattch/FolderName" \
-  "s3://hole-foia-deep-archive/mipds-scratch/FolderName" \
-  --storage-class DEEP_ARCHIVE \
-  --only-show-errors &
 ```
-
-> **Note:** The `hole-foia-deep-archive` bucket has a lifecycle rule that immediately
-> transitions all uploaded objects to DEEP_ARCHIVE. Files cannot be downloaded
-> instantly — retrieval takes 12–48 hours and incurs a fee. This is archive-only storage.
+dotfiles/
+├── .github/workflows/ci.yml          # CI: Docker build + macOS test
+├── .chezmoi.toml.tmpl                 # chezmoi config (prompts or defaults)
+├── .chezmoiignore                     # files chezmoi skips
+│
+├── dot_zshrc.tmpl                     # → ~/.zshrc (main shell config)
+├── dot_zshenv                         # → ~/.zshenv
+├── dot_zprofile                       # → ~/.zprofile
+├── dot_gitconfig                      # → ~/.gitconfig
+├── dot_p10k.zsh                       # → ~/.p10k.zsh
+├── dot_Brewfile                       # → ~/.Brewfile (macOS full)
+├── dot_Brewfile.core                  # → ~/.Brewfile.core (Linux core)
+│
+├── dot_config/                        # → ~/.config/
+│   ├── helix/                         #   editor config
+│   ├── kitty/                         #   terminal config
+│   ├── nnn/plugins/                   #   file manager plugins
+│   ├── fish/                          #   fish shell (secondary)
+│   ├── btop/, htop/, gh/              #   tool configs
+│
+├── private_dot_ssh/config.tmpl        # → ~/.ssh/config (OS-conditional)
+│
+├── run_once_before_install-homebrew.sh.tmpl    # 1. Install Homebrew
+├── run_once_before_install-toolchains.sh.tmpl  # 2. Tailscale + macOS toolchains
+├── run_once_after_install-brewfile.sh.tmpl     # 3. brew bundle + Node + Claude
+├── run_once_after_install-launchagent.sh.tmpl  # 4. macOS auto-save agent
+│
+├── Dockerfile.test                    # Ubuntu 24.04 dev node image
+├── entrypoint.sh                      # Tailscale + sshd startup
+├── com.jth.mac-save.plist             # macOS launchd auto-save
+├── docs/                              # Project documentation
+└── scripts/                           # Legacy/utility scripts
+```
 
 ---
 
-## SSH Keys
+## Managing Dotfiles
 
-SSH private keys are **not committed to this repo** (gitignored for security).
-
-After restore, copy them manually:
-
-```zsh
-cp -r /path/to/your/backup/.ssh ~/.ssh
-chmod 700 ~/.ssh
-chmod 600 ~/.ssh/id_*
-chmod 644 ~/.ssh/id_*.pub
-```
-
-Or restore from 1Password / a secure location.
-
----
-
-## Known Issues & Notes
-
-### Apple Container Sparse Files
-`~/Library/Application Support/com.apple.container` stores virtual disk images
-pre-allocated to 512 GB each. On APFS they appear as ~2 GB, but any backup tool
-that copies to a non-APFS destination will expand them to their full allocated size
-(3.5+ TB of mostly empty space). **This folder is excluded from backups.**
-
-### CCC Backup of Mac Studio
-After deleting `com.apple.container` from the source, a fresh CCC backup should
-produce ~600–650 GB (the actual data size of the machine).
-
-### Glacier Vault (empty)
-A Glacier vault named `MIPDS-Distaster-Recovery-Backup` exists in us-east-1
-but is **empty** — the old Glacier API is no longer accepting operations for
-this account. $0/month. No action needed.
-
----
-
-## Repo Structure (chezmoi)
-
-```
-dotfiles/                                  # chezmoi source directory
-├── README.md
-├── .chezmoiignore                         # files chezmoi skips
-├── dot_zshrc                              # → ~/.zshrc
-├── dot_zshenv                             # → ~/.zshenv
-├── dot_zprofile                           # → ~/.zprofile
-├── dot_bash_profile                       # → ~/.bash_profile
-├── dot_bashrc                             # → ~/.bashrc
-├── dot_gitconfig                          # → ~/.gitconfig
-├── dot_p10k.zsh                           # → ~/.p10k.zsh
-├── dot_profile                            # → ~/.profile
-├── dot_viminfo                            # → ~/.viminfo
-├── dot_Brewfile                           # → ~/.Brewfile (Homebrew packages)
-├── dot_config/
-│   ├── btop/                              # → ~/.config/btop/
-│   ├── fish/                              # → ~/.config/fish/
-│   ├── gh/                                # → ~/.config/gh/
-│   ├── helix/                             # → ~/.config/helix/
-│   ├── htop/                              # → ~/.config/htop/
-│   └── kitty/                             # → ~/.config/kitty/
-├── private_dot_ssh/
-│   └── config                             # → ~/.ssh/config
-├── run_once_before_install-packages.sh.tmpl   # installs Homebrew + Brewfile
-├── run_once_after_install-launchagent.sh.tmpl # installs daily auto-save agent
-├── com.jth.mac-save.plist                 # launchd plist (used by run_once)
-└── scripts/
-    ├── migrate-to-chezmoi.sh              # migration script (one-time use)
-    └── backup-excludes.txt                # CCC/rsync exclusion list
-```
-
-## Managing dotfiles
-
-```zsh
-# See what changed on disk vs chezmoi source
+```bash
+# See what chezmoi would change
 chezmoi diff
 
-# Pull changes from disk back into source
-chezmoi re-add
+# Capture local changes into chezmoi source
+chezmoi re-add ~/.ssh/config          # for plain files
+# For .tmpl files: edit the template directly in ~/dotfiles/
 
-# Apply source to disk
-chezmoi apply
+# Apply chezmoi source to live files
+chezmoi apply                         # ⚠ check diff first!
 
 # Add a new file to chezmoi
 chezmoi add ~/.some-config
 
-# Remove a file from chezmoi management
-chezmoi forget ~/.some-config
-
-# Undo everything chezmoi has done
-chezmoi purge
+# Full save cycle (re-add + commit + push)
+mac-save
 ```
+
+> **Warning**: `chezmoi apply` overwrites live files with the source version. Always run `chezmoi diff` first. See [docs/chezmoi-workflow.md](docs/chezmoi-workflow.md) for details.
+
+---
+
+## Related
+
+- [hole-devenv](https://github.com/Jobikinobi/hole-devenv) — Infrastructure stacks, deployment profiles, backup automation
+- [hole-backend](https://github.com/The-HOLE-Foundation/hole-backend) — Backend services and Weaviate schemas
+- [transparency-engine](https://github.com/The-HOLE-Foundation/transparency-engine) — FOIA drafting agent

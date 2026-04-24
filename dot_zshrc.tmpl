@@ -19,7 +19,19 @@ elif [[ -f /usr/local/bin/brew ]]; then
 elif [[ -f /home/linuxbrew/.linuxbrew/bin/brew ]]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
-
+{{ if and (eq .chezmoi.os "darwin") (stdinIsATTY) -}}
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1b. KEYCHAIN UNLOCK FOR SSH SESSIONS (macOS)
+# macOS locks the login keychain after sleep/reboot. In local GUI sessions
+# SecurityAgent prompts for the password automatically, but in SSH/VS Code
+# Remote sessions there's no GUI to prompt — tools like Doppler, Supabase CLI,
+# and any localhost-redirect OAuth flow fail with errSecInteractionNotAllowed
+# (exit 36). Unlocking here restores access for the session.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if [[ -n "$SSH_CONNECTION" || -n "$VSCODE_GIT_ASKPASS_NODE" ]]; then
+  security unlock-keychain ~/Library/Keychains/login.keychain-db 2>/dev/null
+fi
+{{ end -}}
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 2. ZINIT INITIALIZATION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
