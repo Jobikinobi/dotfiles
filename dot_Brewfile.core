@@ -2,6 +2,7 @@
 # Used on both macOS and Linux (Docker, VPS, etc.)
 # Full macOS Brewfile: ~/.Brewfile
 
+brew "age"          # file encryption (used by chezmoi for secrets)
 brew "bat"          # cat replacement
 brew "direnv"       # auto-load .envrc per project
 brew "doppler"      # secrets management

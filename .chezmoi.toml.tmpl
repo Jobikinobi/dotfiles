@@ -1,4 +1,9 @@
 sourceDir = "{{ .chezmoi.sourceDir }}"
+encryption = "age"
+
+[age]
+    identity = "{{ .chezmoi.homeDir }}/.config/chezmoi/key.txt"
+    recipient = "age1l2n5sqj8eg0728vlj6che0vas474svdxej2ceypr6046z5ylwqusr00mzj"
 
 [data]
 {{- if stdinIsATTY }}
