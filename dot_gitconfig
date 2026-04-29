@@ -1,5 +1,9 @@
 [user]
 	name = Joseph T. Herrmann, M.D.
 	email = joeherrmann@gmail.com
+[credential "https://github.com"]
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = !/opt/homebrew/bin/gh auth git-credential
 [coderabbit]
 	machineId = cli/19cd3f55acb74a54a3000e0aeb64f816
