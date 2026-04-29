@@ -33,8 +33,3 @@ Host mac-mini-lan
 	User jth
 	IdentityFile ~/.ssh/mac-mini
 	IdentityAgent none
-
-{{ if eq .chezmoi.os "darwin" -}}
-Host *
-	IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-{{- end }}
