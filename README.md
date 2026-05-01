@@ -18,6 +18,8 @@ Open Terminal and run these two commands:
 brew install chezmoi && chezmoi init --apply Jobikinobi
 ```
 
+> If the repo contains encrypted secrets, set up your age key first — see [Secrets (age encryption)](#secrets-age-encryption) — otherwise `chezmoi apply` will fail to decrypt them.
+
 Or if you've already restored once and have the aliases loaded:
 
 ```zsh
@@ -179,7 +181,38 @@ chmod 600 ~/.ssh/id_*
 chmod 644 ~/.ssh/id_*.pub
 ```
 
-Or restore from 1Password / a secure location.
+Or restore from a secure location.
+
+---
+
+## Secrets (age encryption)
+
+Secrets committed to this repo are encrypted with [age](https://age-encryption.org). The private key lives at `~/.config/chezmoi/key.txt` and is **never committed**.
+
+### Add a new encrypted secret
+
+```zsh
+chezmoi add --encrypt ~/.config/some/secret-file
+```
+
+Chezmoi stores it as `encrypted_secret-file.age` (ASCII-armored, safe to push publicly). On `chezmoi apply`, it decrypts automatically.
+
+### Edit an encrypted file
+
+```zsh
+chezmoi edit ~/.config/some/secret-file
+```
+
+Decrypts in-place in your editor, re-encrypts on save.
+
+### Bootstrap a new machine
+
+1. Install age: `brew install age`
+2. Copy `~/.config/chezmoi/key.txt` from an existing machine via a secure channel (USB, `scp` over Tailscale, etc.). Never commit or email it.
+3. `chmod 600 ~/.config/chezmoi/key.txt`
+4. Run `chezmoi init --apply Jobikinobi` — encrypted files decrypt using the key
+
+If you lose the key, encrypted files in the repo are unrecoverable. Back it up somewhere safe.
 
 ---
 
