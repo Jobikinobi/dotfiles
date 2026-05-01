@@ -18,6 +18,8 @@ Open Terminal and run these two commands:
 brew install chezmoi && chezmoi init --apply Jobikinobi
 ```
 
+> If the repo contains encrypted secrets, set up your age key first — see [Secrets (age encryption)](#secrets-age-encryption) — otherwise `chezmoi apply` will fail to decrypt them.
+
 Or if you've already restored once and have the aliases loaded:
 
 ```zsh

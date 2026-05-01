@@ -24,8 +24,8 @@ fi
 if ! pgrep -x tailscaled &>/dev/null; then
   echo "→ Tailscale SSH: starting tailscaled via 'sudo brew services start tailscale'"
   sudo brew services start tailscale || {
-    echo "⚠ Tailscale SSH: failed to start tailscaled, skipping"
-    exit 0
+    echo "⚠ Tailscale SSH: failed to start tailscaled — resolve and re-apply chezmoi"
+    exit 1
   }
   # Give the daemon a moment to come up and attach utun
   for _ in 1 2 3 4 5; do
@@ -38,7 +38,7 @@ fi
 # user needs to run 'sudo tailscale up' manually first.
 if ! tailscale status &>/dev/null; then
   echo "⚠ Tailscale SSH: node not logged in — run 'sudo tailscale up' then re-apply chezmoi"
-  exit 0
+  exit 1
 fi
 
 # No-op if SSH server is already enabled.
@@ -52,6 +52,6 @@ if sudo tailscale set --ssh; then
   echo "✓ Tailscale SSH: enabled — peers can now 'tailscale ssh' into this host"
 else
   echo "⚠ Tailscale SSH: 'tailscale set --ssh' failed (often caused by orphaned GUI system extension at /Applications/Tailscale.app)"
-  exit 0
+  exit 1
 fi
 {{- end -}}
