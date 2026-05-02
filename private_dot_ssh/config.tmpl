@@ -7,6 +7,19 @@ Include ~/.orbstack/ssh/config
 Include /Users/jth/.colima/ssh_config
 
 {{ end -}}
+Host jth-macstudio
+	HostName jth-macstudio
+	User jth
+
+Host windev
+	HostName joe-gaming-pc-1
+	User joe
+	IdentityFile ~/.ssh/joe-laptop
+	IdentitiesOnly yes
+	IdentityAgent none
+	StrictHostKeyChecking accept-new
+	UserKnownHostsFile ~/.ssh/known_hosts_tailnet
+
 Host hole-dev do.theholetruth.org
 	HostName do.theholetruth.org
 	User joe
