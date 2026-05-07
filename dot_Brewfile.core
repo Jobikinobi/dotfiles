@@ -5,6 +5,7 @@
 # So this file defines what chezmoi auto-installs on a fresh machine.
 # Anything you've brewed manually stays put.
 
+brew "age"          # file encryption (used by chezmoi for secrets)
 # ── CLI essentials ──────────────────────────────────────────────────────────
 brew "bat"          # cat replacement
 brew "direnv"       # auto-load .envrc per project

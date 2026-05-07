@@ -1,0 +1,57 @@
+{{- if eq .chezmoi.os "darwin" -}}
+#!/bin/bash
+# Enable Tailscale SSH server on macOS via homebrew tailscaled.
+# Idempotent: skips if tailscale isn't installed, daemon isn't running,
+# node isn't logged in, or RunSSH is already true.
+
+if ! command -v tailscale &>/dev/null; then
+  echo "→ Tailscale SSH: tailscale CLI not found, skipping (install via Brewfile first)"
+  exit 0
+fi
+
+# Refuse to run alongside the GUI (Tailscale.app). Its sandboxed system
+# extension cannot run the SSH server, and starting homebrew tailscaled
+# alongside it causes a version-mismatch flap (GUI extension wins).
+if [[ -d /Applications/Tailscale.app ]] || systemextensionsctl list 2>/dev/null | grep -q "io.tailscale.ipn.macsys.*activated"; then
+  echo "⚠ Tailscale SSH: Tailscale.app (GUI) is present — SSH server cannot run in sandboxed GUI builds."
+  echo "  To enable: rm -rf /Applications/Tailscale.app, reboot to clear the system extension,"
+  echo "  then run 'sudo brew services start tailscale' and re-apply chezmoi."
+  exit 0
+fi
+
+# Ensure tailscaled is running under brew services. On macOS the daemon must
+# run as root (bound label 'homebrew.mxcl.tailscale') to manage utun + DNS.
+if ! pgrep -x tailscaled &>/dev/null; then
+  echo "→ Tailscale SSH: starting tailscaled via 'sudo brew services start tailscale'"
+  sudo brew services start tailscale || {
+    echo "⚠ Tailscale SSH: failed to start tailscaled — resolve and re-apply chezmoi"
+    exit 1
+  }
+  # Give the daemon a moment to come up and attach utun
+  for _ in 1 2 3 4 5; do
+    tailscale status &>/dev/null && break
+    sleep 1
+  done
+fi
+
+# If the node isn't logged into a tailnet yet, don't attempt to toggle prefs —
+# user needs to run 'sudo tailscale up' manually first.
+if ! tailscale status &>/dev/null; then
+  echo "⚠ Tailscale SSH: node not logged in — run 'sudo tailscale up' then re-apply chezmoi"
+  exit 1
+fi
+
+# No-op if SSH server is already enabled.
+if tailscale debug prefs 2>/dev/null | grep -q '"RunSSH": true'; then
+  echo "✓ Tailscale SSH: already enabled"
+  exit 0
+fi
+
+echo "→ Tailscale SSH: enabling via 'sudo tailscale set --ssh' (will prompt for sudo)"
+if sudo tailscale set --ssh; then
+  echo "✓ Tailscale SSH: enabled — peers can now 'tailscale ssh' into this host"
+else
+  echo "⚠ Tailscale SSH: 'tailscale set --ssh' failed (often caused by orphaned GUI system extension at /Applications/Tailscale.app)"
+  exit 1
+fi
+{{- end -}}

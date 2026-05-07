@@ -7,6 +7,19 @@ Include ~/.orbstack/ssh/config
 Include /Users/jth/.colima/ssh_config
 
 {{ end -}}
+Host jth-macstudio
+	HostName jth-macstudio
+	User jth
+
+Host windev
+	HostName joe-gaming-pc-1
+	User joe
+	IdentityFile ~/.ssh/joe-laptop
+	IdentitiesOnly yes
+	IdentityAgent none
+	StrictHostKeyChecking accept-new
+	UserKnownHostsFile ~/.ssh/known_hosts_tailnet
+
 Host hole-dev do.theholetruth.org
 	HostName do.theholetruth.org
 	User joe
@@ -38,8 +51,3 @@ Host mac-mini-lan
 	User jth
 	IdentityFile ~/.ssh/mac-mini
 	IdentityAgent none
-
-{{ if eq .chezmoi.os "darwin" -}}
-Host *
-	IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-{{- end }}
