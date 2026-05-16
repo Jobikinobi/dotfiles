@@ -1,0 +1,119 @@
+#cloud-config
+
+package_update: true
+
+packages:
+  - curl
+  - git
+  - sudo
+  - zsh
+  - ca-certificates
+  - build-essential
+  - procps
+  - file
+  - passwd
+
+write_files:
+  - path: /usr/local/bin/linux-bootstrap
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      TARGET_USER="${1:-}"
+
+      if [[ -z "$TARGET_USER" ]] || ! id "$TARGET_USER" >/dev/null 2>&1; then
+        TARGET_USER="$(awk -F: '$3 >= 1000 && $1 != "nobody" && $1 != "ubuntu" {print $1; exit}' /etc/passwd)"
+      fi
+
+      if [[ -z "$TARGET_USER" ]] || ! id "$TARGET_USER" >/dev/null 2>&1; then
+        TARGET_USER="$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1; exit}' /etc/passwd)"
+      fi
+
+      if [[ -z "$TARGET_USER" ]]; then
+        echo "Could not determine target user" >&2
+        exit 1
+      fi
+
+      echo "Using target user: $TARGET_USER"
+
+      # Ensure sudo access for the login user.
+      usermod -aG sudo "$TARGET_USER" || true
+
+      # Ensure passwordless sudo for convenience in ephemeral/dev machines.
+      SUDOERS_FILE="/etc/sudoers.d/90-dotfiles-${TARGET_USER}"
+      printf '%s\n' "$TARGET_USER ALL=(ALL) NOPASSWD:ALL" > "$SUDOERS_FILE"
+      chmod 0440 "$SUDOERS_FILE"
+
+      if ! command -v brew >/dev/null 2>&1; then
+        echo "Installing Homebrew for Linux..."
+        su - "$TARGET_USER" -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+      fi
+
+      # Make brew available to all future login shells.
+      cat > /etc/profile.d/linuxbrew.sh <<'PROFILE'
+      if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      elif [ -x "$HOME/.linuxbrew/bin/brew" ]; then
+        eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
+      fi
+      PROFILE
+      chmod 0644 /etc/profile.d/linuxbrew.sh
+
+      # Make brew immediately discoverable in common PATHs.
+      if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+        ln -sf /home/linuxbrew/.linuxbrew/bin/brew /usr/local/bin/brew
+      fi
+
+      if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      elif [[ -x /home/$TARGET_USER/.linuxbrew/bin/brew ]]; then
+        eval "$(/home/$TARGET_USER/.linuxbrew/bin/brew shellenv)"
+      fi
+
+      if ! su - "$TARGET_USER" -c 'command -v chezmoi >/dev/null 2>&1'; then
+        echo "Installing chezmoi..."
+        su - "$TARGET_USER" -c '
+          if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          elif [[ -x "$HOME/.linuxbrew/bin/brew" ]]; then
+            eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
+          fi
+          brew install chezmoi
+        '
+      fi
+
+      echo "Bootstrap complete for $TARGET_USER"
+
+  - path: /usr/local/bin/dotfiles-restore
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      TARGET_USER="${1:-}"
+      if [[ -z "$TARGET_USER" ]] || ! id "$TARGET_USER" >/dev/null 2>&1; then
+        TARGET_USER="$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1; exit}' /etc/passwd)"
+      fi
+
+      if [[ -z "$TARGET_USER" ]]; then
+        echo "Could not determine target user" >&2
+        exit 1
+      fi
+
+      su - "$TARGET_USER" -c '
+        if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        elif [[ -x "$HOME/.linuxbrew/bin/brew" ]]; then
+          eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
+        fi
+
+        command -v chezmoi >/dev/null 2>&1 || brew install chezmoi
+        chezmoi init --apply Jobikinobi
+      '
+
+      echo "Dotfiles restore complete for $TARGET_USER"
+
+final_message: 'Cloud-init complete. Run: sudo linux-bootstrap <user> && sudo dotfiles-restore <user>'
