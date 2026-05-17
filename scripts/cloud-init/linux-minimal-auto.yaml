@@ -1,0 +1,26 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+packages:
+  - build-essential
+  - gcc
+  - git
+  - curl
+
+runcmd:
+  # Create the log file directory and set permissions
+  - mkdir -p /var/log/custom-setup
+  - echo "=== Starting AI Dev Setup ===" >> /var/log/custom-setup/install-trace.txt
+  # Set environment for ubuntu user
+  - export HOME=/home/ubuntu
+  - export USER=ubuntu
+  # Install Homebrew for ubuntu user, log output
+  - (
+      sudo -u ubuntu -i curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh |
+      sudo -u ubuntu -i NONINTERACTIVE=1 bash
+    ) >> /var/log/custom-setup/install-trace.txt 2>&1
+  # Add Homebrew shellenv to bashrc/profile, log errors
+  - echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/ubuntu/.bashrc 2>> /var/log/custom-setup/install-trace.txt
+  - echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/ubuntu/.profile 2>> /var/log/custom-setup/install-trace.txt
+  - chown ubuntu:ubuntu /home/ubuntu/.bashrc /home/ubuntu/.profile 2>> /var/log/custom-setup/install-trace.txt
+  - echo "=== Setup Finished ===" >> /var/log/custom-setup/install-trace.txt

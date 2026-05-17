@@ -71,6 +71,81 @@ mac-save        # snapshot current state → commit → push
 mac-check       # show what has drifted (chezmoi diff)
 ```
 
+## Linux Cloud-Init Bootstrap (Two-Step Handoff)
+
+Use [`scripts/cloud-init/linux-dotfiles-handoff.yaml`](scripts/cloud-init/linux-dotfiles-handoff.yaml) as user-data when creating a new Linux VM (Ubuntu/Debian family).
+
+OrbStack example:
+
+```bash
+orb create ubuntu dotfiles-dev -c scripts/cloud-init/linux-dotfiles-handoff.yaml
+```
+
+What it does on first boot:
+
+1. Installs base prerequisites (`curl`, `git`, `sudo`, build toolchain, `zsh`)
+2. Creates two helper commands:
+  - `linux-bootstrap` (phase 1, set passwordless sudo + install Homebrew + install `chezmoi`)
+  - `dotfiles-restore` (phase 2, deploy dotfiles)
+
+Post-init deployment step:
+
+```bash
+sudo linux-bootstrap <your-linux-username>
+sudo dotfiles-restore <your-linux-username>
+```
+
+This runs:
+
+```bash
+chezmoi init --apply Jobikinobi
+```
+
+Notes:
+
+- On OrbStack, do not set a `users:` block in this file. OrbStack creates its own default login user matching your macOS username, and overriding user handling can cause first-boot setup conflicts.
+- `linux-bootstrap` is run manually after first login (this is more reliable on OrbStack than first-boot auto-run hooks for this workload).
+- `linux-bootstrap` configures passwordless sudo for the target user (`NOPASSWD`) to keep machine bring-up frictionless.
+- Helper scripts auto-detect the first non-system user when no username is passed.
+- The cloud-init file is designed to prepare immediately on first boot, then hand off cleanly to dotfiles deployment as a separate, explicit step.
+
+### OrbStack Smoke Test
+
+Use this quick checklist after creating a fresh machine:
+
+1. Create machine with cloud-init:
+
+```bash
+orb create ubuntu dotfiles-dev -c scripts/cloud-init/linux-dotfiles-handoff.yaml
+```
+
+2. SSH in and run bootstrap phase:
+
+```bash
+orb ssh dotfiles-dev
+sudo linux-bootstrap <your-linux-username>
+```
+
+3. Run restore phase:
+
+```bash
+sudo dotfiles-restore <your-linux-username>
+```
+
+4. Validate tooling and shell profile:
+
+```bash
+chezmoi doctor
+chezmoi diff
+zsh -lic 'command -v brew && command -v chezmoi && echo ok'
+```
+
+5. If secrets are used, verify encrypted file handling after key setup:
+
+```bash
+chezmoi apply --dry-run
+```
+
 ---
 
 ## Core Tool Stack (Linux + macOS)
