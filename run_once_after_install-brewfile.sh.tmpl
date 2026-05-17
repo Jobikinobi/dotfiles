@@ -1,5 +1,9 @@
 #!/bin/bash
 # Install packages from Brewfile (runs AFTER files are deployed so Brewfiles exist)
+#
+# Philosophy: chezmoi only auto-installs the CORE set. Anything else you want
+# on a given machine, install manually with `brew install`. `brew bundle` does
+# not remove unlisted packages, so your machine-specific installs stay put.
 
 # Ensure brew is in PATH
 {{- if eq .chezmoi.os "darwin" }}
@@ -8,19 +12,11 @@ eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || eval "$(/usr/local/bin/
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 2>/dev/null
 {{- end }}
 
-{{- if eq .chezmoi.os "darwin" }}
-# macOS: full Brewfile (all tools, casks, GUI apps)
-if [[ -f "$HOME/.Brewfile" ]]; then
-  echo "→ Installing packages from Brewfile..."
-  brew bundle --file="$HOME/.Brewfile"
-fi
-{{- else }}
-# Linux: core Brewfile only (cross-platform CLI essentials)
+# Cross-platform core Brewfile
 if [[ -f "$HOME/.Brewfile.core" ]]; then
   echo "→ Installing core packages..."
   brew bundle --file="$HOME/.Brewfile.core"
 fi
-{{- end }}
 
 # ── Node + Claude Code (cross-platform, needs fnm from brew) ────────────────
 if command -v fnm &>/dev/null; then

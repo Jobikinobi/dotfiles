@@ -1,8 +1,12 @@
 # Core CLI stack — cross-platform essentials
 # Used on both macOS and Linux (Docker, VPS, etc.)
-# Full macOS Brewfile: ~/.Brewfile
+#
+# `brew bundle` only INSTALLS — it never removes packages that aren't listed.
+# So this file defines what chezmoi auto-installs on a fresh machine.
+# Anything you've brewed manually stays put.
 
 brew "age"          # file encryption (used by chezmoi for secrets)
+# ── CLI essentials ──────────────────────────────────────────────────────────
 brew "bat"          # cat replacement
 brew "direnv"       # auto-load .envrc per project
 brew "doppler"      # secrets management
@@ -16,3 +20,13 @@ brew "nnn"          # file manager
 brew "powerlevel10k" # zsh prompt theme
 brew "ripgrep"      # grep replacement
 brew "uv"           # Python package manager
+
+# ── Git tooling ─────────────────────────────────────────────────────────────
+brew "git"
+brew "gh"           # GitHub CLI
+brew "git-filter-repo"
+
+# ── Language toolchains ─────────────────────────────────────────────────────
+brew "go"
+brew "rustup"
+brew "pyenv"
