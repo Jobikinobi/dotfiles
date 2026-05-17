@@ -22,9 +22,5 @@ com.jth.mac-save.plist
 # Managed manually (CodeRabbit + credential helpers write to it)
 .gitconfig
 
-# Legacy bloated Brewfile — superseded by .Brewfile.core
-# Left on disk on existing machines but not managed by chezmoi
-.Brewfile
-
 # Repo documentation (not a dotfile)
 docs/**
