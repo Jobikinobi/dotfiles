@@ -1,0 +1,958 @@
+#!/usr/bin/env bash
+# setup-github-governance.sh — Stage 1c bootstrap for Legal-Assistant-v3
+#
+# Implements on GitHub the conventions specified abstractly in
+# docs/conventions/{labels,milestones,projects,issues,branches-and-worktrees}.md.
+#
+# Idempotent: re-running converges to the same state. Safe to re-run if a step
+# fails partway through.
+#
+# Requires:
+#   - gh CLI authenticated as a user with admin rights on the repo
+#   - jq
+#   - Token scopes: repo, project, workflow, delete_repo (delete_repo is unused
+#     here but is what the active session has)
+#
+# Usage:
+#   bash scripts/setup-github-governance.sh           # apply
+#   bash scripts/setup-github-governance.sh --dry-run # show what would happen
+#
+# After running:
+#   - docs/conventions/SETUP-LOG.md should be updated with what was created.
+#   - The Project v2 will exist with default views; custom Status options and
+#     workflow automation are GUI-configured; the script prints a checklist.
+
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Config
+# -----------------------------------------------------------------------------
+
+REPO="The-HOLE-Foundation/Legal-Assistant-v3"
+ORG="The-HOLE-Foundation"
+PROJECT_TITLE="Legal-Assistant-v3 — work"
+DEFAULT_MILESTONE="0-extraction-and-bootstrap"
+
+DRY_RUN=0
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRY_RUN=1
+  echo "[dry-run mode — no mutations will be performed]" >&2
+fi
+
+# -----------------------------------------------------------------------------
+# Pre-flight
+# -----------------------------------------------------------------------------
+
+require_tool() {
+  local tool=$1
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "ERROR: '$tool' not found in PATH" >&2
+    exit 2
+  fi
+}
+
+require_tool gh
+require_tool jq
+
+if ! gh auth status >/dev/null 2>&1; then
+  echo "ERROR: 'gh' is not authenticated" >&2
+  exit 2
+fi
+
+# Verify the repo exists and we have access
+gh api "repos/$REPO" >/dev/null 2>&1 || {
+  echo "ERROR: cannot access $REPO via gh API" >&2
+  exit 2
+}
+
+# -----------------------------------------------------------------------------
+# mutate(): wrap a mutating gh command so --dry-run echoes instead of executing
+# -----------------------------------------------------------------------------
+
+mutate() {
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf 'DRY: %s\n' "$*"
+  else
+    "$@"
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Labels
+# -----------------------------------------------------------------------------
+#
+# Idempotency notes:
+# - `gh label create --force` is the native idempotent form (creates if absent;
+#   updates color/description if present). Using it eliminates any
+#   pre-existence check, which avoids a subtle bug: piping `gh label list`
+#   into `grep -Fxq NAME` can race-condition on SIGPIPE (grep -q exits early
+#   on first match, upstream gh gets SIGPIPE, pipefail flips the function's
+#   exit, set -e bails). Symptom: `gh label create` fails with
+#   "label already exists; use --force to update".
+# - For deletion, `gh label delete` returns HTTP 404 + exit 1 if the label is
+#   absent. We swallow the error and only echo when the deletion actually
+#   fired (stdout test on `gh label delete` is unreliable; use `2>/dev/null`
+#   to discard the 404 line and `|| true` to keep set -e happy).
+
+ensure_label() {
+  local name=$1 color=$2 description=$3
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf 'DRY: gh label create --force %s (color=%s)\n' "$name" "$color"
+    return 0
+  fi
+  gh label create "$name" --repo "$REPO" \
+    --color "$color" --description "$description" --force >/dev/null
+  echo "  ✓ ensured label: $name"
+}
+
+delete_label_if_present() {
+  local name=$1
+  if [[ $DRY_RUN -eq 1 ]]; then
+    printf 'DRY: gh label delete %s (if present)\n' "$name"
+    return 0
+  fi
+  if gh label delete "$name" --repo "$REPO" --yes 2>/dev/null; then
+    echo "  - deleted default label: $name"
+  fi
+}
+
+seed_labels() {
+  # type:* — exactly one per issue. Family color: green-blue.
+  ensure_label "type:feat"     "0e8a16" "New functionality (mirrors feat/ branch type)"
+  ensure_label "type:fix"      "b60205" "Bug fix (mirrors fix/)"
+  ensure_label "type:chore"    "1d76db" "Infra / config / housekeeping (mirrors chore/)"
+  ensure_label "type:docs"     "0075ca" "Documentation only"
+  ensure_label "type:refactor" "5319e7" "Code reorganization, no behavior change"
+  ensure_label "type:test"     "0052cc" "Test additions / fixes only"
+  ensure_label "type:decision" "8b5cf6" "Tracks a decision; closes when recorded"
+  ensure_label "type:audit"    "6f42c1" "Investigative work whose deliverable is a finding"
+
+  # area:* — one or more per issue. Family color: cyan.
+  ensure_label "area:corpus"     "1abc9c" "Document corpus content + organization"
+  ensure_label "area:ingestion"  "16a085" "Document parsing, chunking, embedding pipeline"
+  ensure_label "area:weaviate"   "0e9aa7" "Weaviate schema, collections, queries, deployment"
+  ensure_label "area:mcp"        "00bcd4" "MCP server surface — tools, schemas, transports"
+  ensure_label "area:enrichment" "00838f" "CF Workers / R2 / D1 enrichment pipeline"
+  ensure_label "area:provenance" "006064" "Bates-numbered chain of custody"
+  ensure_label "area:v2-prod"    "455a64" "Anything touching the running v2 instance"
+  ensure_label "area:infra"      "546e7a" "Repo / build / CI / Doppler / Tailscale / deploy"
+  ensure_label "area:planning"   "78909c" "Planning docs, ADRs, decision records, conventions"
+
+  # status:* — optional, reflects state. Active states get attention colors;
+  # terminal states get gray.
+  ensure_label "status:in-progress"    "fbca04" "Branch / worktree active, work moving"
+  ensure_label "status:blocked"        "e99695" "Paused on external input or another issue"
+  ensure_label "status:needs-decision" "d4c5f9" "Paused pending a type:decision issue"
+  ensure_label "status:proposal"       "fef2c0" "Open candidate; not yet committed; may close without action"
+  ensure_label "status:wontfix"        "cccccc" "Closed: not going to do this"
+  ensure_label "status:duplicate"      "cfd3d7" "Closed; link the surviving issue"
+  ensure_label "status:obsolete"       "bdbdbd" "Closed; underlying premise no longer holds"
+
+  echo "  ... removing GitHub default labels not in our taxonomy"
+  delete_label_if_present "bug"
+  delete_label_if_present "documentation"
+  delete_label_if_present "duplicate"            # superseded by status:duplicate
+  delete_label_if_present "enhancement"
+  delete_label_if_present "good first issue"
+  delete_label_if_present "help wanted"
+  delete_label_if_present "invalid"
+  delete_label_if_present "question"
+  delete_label_if_present "wontfix"              # superseded by status:wontfix
+}
+
+# -----------------------------------------------------------------------------
+# Milestones
+# -----------------------------------------------------------------------------
+
+milestone_number_by_title() {
+  # Echo the milestone number for a given title, or empty string.
+  # Note: `gh api --jq` does NOT pass --arg through to jq (gh treats it as
+  # an unknown arg). Embed $title directly. This is safe because all our
+  # milestone titles are kebab-case and contain no quote/backslash chars.
+  local title=$1
+  gh api "repos/$REPO/milestones?state=all&per_page=100" \
+    --jq ".[] | select(.title == \"$title\") | .number" 2>/dev/null
+}
+
+ensure_milestone() {
+  local title=$1 description=$2
+  local number
+  number=$(milestone_number_by_title "$title")
+  if [[ -n "$number" ]]; then
+    mutate gh api -X PATCH "repos/$REPO/milestones/$number" \
+      -f title="$title" -f description="$description" -f state=open >/dev/null
+    echo "  ✓ updated milestone: $title (#$number)"
+  else
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf 'DRY: gh api -X POST repos/%s/milestones (title=%s)\n' "$REPO" "$title"
+    else
+      gh api -X POST "repos/$REPO/milestones" \
+        -f title="$title" -f description="$description" -f state=open >/dev/null
+      number=$(milestone_number_by_title "$title")
+      echo "  + created milestone: $title (#$number)"
+    fi
+  fi
+}
+
+seed_milestones() {
+  ensure_milestone "0-extraction-and-bootstrap" "$(cat <<'EOF'
+## Goal
+Move the legal-assistant code out of `hole-backend` into `Legal-Assistant-v3` with workspace scaffolding in place and the v2 production system unaffected.
+
+## Scope (in)
+- Pre-extraction verification (sanity checks per `docs/planning/extraction-plan.md` §6)
+- Side-branch import + `--allow-unrelated-histories` merge of filtered hole-backend history into `main` (no force-push; existing main lineage preserved as a merge parent)
+- Bootstrap PR adding the Python/uv workspace scaffolding (pyproject.toml, uv.lock, .python-version, .mcp.json, GHA workflow replacement, Postman repo-sync scaffold, README, agent_hints.py shared file)
+- Phase 1E cleanup PR on `hole-backend` (separate session)
+- Issue transfers from `hole-backend` per manifest §4.1
+- Self-bootstrap of governance artifacts (this milestone's meta-issue)
+- Pre-Stage-3 plan corrections (issue #18; last gate before extraction)
+
+## Scope (out)
+- Renaming any in-scope code/files (deferred to post-transplant work)
+- Resolving any deferred decision (`docs/planning/deferred-decisions.md`) — those have their own milestones
+- Building any new corpus / pipeline / MCP features
+- Migrating the deployed-elsewhere MCP server code (D-9; Stage 3 milestone)
+- Postman cloud-collection import (diagnostic input, not bootstrap; tracked in milestone `3-v2-diagnostics`)
+- Root `package.json` / `turbo.json` (project is Python-through-and-through; one self-contained CF Worker subapp manages itself; no monorepo coordination tooling needed)
+
+## Definition of done
+- Imported history visible in `Legal-Assistant-v3:main` via the merge commit; `pre-extraction-baseline` tag pushed at SHA `a90a80e`
+- `feature-hole-legal-assistant-mcp` branch carries the carried mcp-v2 commits (8 of 9 — see Stage 2 issue #3 closure for the benign 9-vs-8 explanation)
+- Bootstrap PR merged; `uv sync` succeeds; `build-and-test` workflow passes
+- §1 paths removed from `hole-backend` via Phase 1E PR; hole-backend test suite passes
+- `CLAUDE.md` collapsed in `hole-backend` (3 systems → 2); cross-link to this repo present
+- All §4.1 issues transferred and retagged to this repo's taxonomy
+- Mem0 entries updated per manifest §8
+EOF
+)"
+
+  ensure_milestone "1-corpus-consolidation" "$(cat <<'EOF'
+## Goal
+Bring all corpus sources (R2 buckets, local clones, Azure JSONs, Weaviate exports) into one accountable place so subsequent stages have a single inventory to reason from.
+
+## Scope (in)
+- Inventory every R2 bucket, local clone, and embedded dataset that could feed the v3 pipeline
+- Decide and document the data-archive storage strategy (D-8) — direct git, Git LFS, or R2-pointed manifest
+- Disposition for stray RAID clones (D-3) and the legacy `hole-langchain` repo (D-1)
+- Single `docs/corpus-inventory.md` (or equivalent) that lists every source with size, last-modified, and disposition
+
+## Scope (out)
+- Cleaning / deduplicating / normalizing the corpus (next milestone, `2-corpus-cleaning`)
+- Re-ingestion through `unstructured` (depends on v3 design)
+- v2 production tool inventory (separate milestone, `3-v2-diagnostics`)
+
+## Definition of done
+- Corpus inventory committed in repo, current as of close date
+- D-1, D-3, D-8 closed with recorded outcomes (in this milestone or as follow-up issues filed in the right milestone)
+- No "what about that other folder" surprises remain
+EOF
+)"
+
+  ensure_milestone "2-corpus-cleaning" "$(cat <<'EOF'
+## Goal
+Take the consolidated corpus from `1-corpus-consolidation` and produce a clean, deduplicated, validated working set ready for re-ingestion.
+
+## Scope (in)
+- Deduplication across the inventoried sources
+- Format normalization (encoding, metadata, file naming)
+- Validation: every artifact has the metadata needed to support Bates-numbered provenance downstream
+- Quarantine / disposition for items that fail validation
+
+## Scope (out)
+- New ingestion runs (depends on v3 ingestion design, milestone `6-v3-design`)
+- Schema design choices for the new pipeline
+
+## Definition of done
+- Working corpus passes validation (every document has source, page count, original-file pointer)
+- Deduplication report committed
+- Items unfit for ingestion are explicitly quarantined with rationale, not silently dropped
+EOF
+)"
+
+  ensure_milestone "3-v2-diagnostics" "$(cat <<'EOF'
+## Goal
+Establish ground truth on what the running v2 system actually exposes, what's used, what's broken — so v3 design choices are made with data, not speculation.
+
+## Scope (in)
+- Inventory v2 MCP tools and link each to its source code (D-9 surfaces the deployed-code location)
+- Disposition for `apps/legal-research-mcp` (D-6) and `apps/langchain-backend` (D-7)
+- Identify the actually-deployed MCP server code (D-9) — currently reported as "deployed elsewhere", not from `packages/hole-langchain/`
+- Tool-usage signal where available (logs, traces)
+
+## Scope (out)
+- Tool-surface reduction decisions (D-5; deferred to `6-v3-design` until diagnostics inform the cut)
+- v3 redesign tech-stack choice (D-4; same dependency)
+- Migrating the deployed code into this repo (separate follow-up issue, opened from D-9 outcome)
+
+## Definition of done
+- v2-tool-inventory document in repo
+- D-6, D-7, D-9 each closed with a recorded outcome
+- Subsequent migration / consolidation work is filed as scoped issues for the appropriate next milestone
+EOF
+)"
+
+  ensure_milestone "4-azure-corpus-analysis" "$(cat <<'EOF'
+## Goal
+Understand what the prior Azure Document Intelligence pipeline produced for the casefile, what's missing for courtroom use (the provenance gap), and how that constrains the unstructured-based replacement.
+
+## Scope (in)
+- Analyze the ~253 MB / 405 files of `_enriched.json` + `_extracted.json` output from the Azure non-profit grant
+- Identify the provenance gap: what fields Azure captured vs. what's needed for chunk → page → Bates-stamp → original-document chain
+- Side-by-side comparison set against unstructured output once available
+- Disposition for `Jobikinobi/HOLE-Legal-Intelligence-alpha` (D-2) — likely legacy lineage of this project
+
+## Scope (out)
+- Re-running Azure (grant exhausted)
+- New ingestion pipeline implementation
+
+## Definition of done
+- Azure-output gap analysis document in repo
+- D-2 closed with recorded outcome
+- Concrete metadata-schema requirements for the unstructured pipeline are derivable from this analysis
+EOF
+)"
+
+  ensure_milestone "5-current-schema-analysis" "$(cat <<'EOF'
+## Goal
+Understand what's currently in the Weaviate schema (`billofreviewv2` and siblings) and decide per-collection: keep / migrate / rebuild.
+
+## Scope (in)
+- Inventory of every Weaviate collection currently deployed (Mac Mini Colima + local OrbStack)
+- Per-collection assessment: schema, vector counts, source data lineage, courtroom-provenance fitness
+- Migration plan for collections that survive the v3 redesign
+
+## Scope (out)
+- New schema design (depends on `6-v3-design`)
+- Re-ingestion runs
+
+## Definition of done
+- Schema-inventory + assessment document in repo
+- Per-collection disposition recorded (keep / migrate / rebuild / drop)
+- `billofreviewv2` (the load-bearing case-law collection) explicitly assessed and protected — not re-ingested without a migration plan
+EOF
+)"
+
+  ensure_milestone "6-v3-design" "$(cat <<'EOF'
+## Goal
+Convert the ground-truth output of milestones 1–5 into v3 architecture: ingestion pipeline (unstructured), MCP tool surface (reduced), and metadata schema that preserves Bates-numbered provenance from chunk to original document.
+
+## Scope (in)
+- Tech-stack choice (D-4): keep LangChain/LangGraph or rebuild as FastMCP
+- Tool-surface reduction (D-5)
+- Ingestion-pipeline design (chunking strategy, metadata schema, provenance fields)
+- Decision: retain `docs/reference/unstructured-llms-full.txt` as in-repo doc vs. fetch upstream (D-11)
+
+## Scope (out)
+- Implementation (will spawn its own milestone(s) once design lands)
+- Photos / videos ingest (D-10; future wave, post-v3-text-pipeline)
+
+## Definition of done
+- v3 architecture ADR(s) committed
+- D-4, D-5, D-11 closed with recorded outcomes
+- Implementation milestones / issues filed for the design's first implementable slice
+EOF
+)"
+}
+
+# -----------------------------------------------------------------------------
+# Project (Projects v2)
+# -----------------------------------------------------------------------------
+
+# Returns the project number for ORG / TITLE if it exists; otherwise empty.
+project_number_by_title() {
+  local title=$1
+  gh project list --owner "$ORG" --limit 100 --format json 2>/dev/null \
+    | jq -r --arg t "$title" '.projects[] | select(.title == $t) | .number'
+}
+
+ensure_project() {
+  local existing
+  existing=$(project_number_by_title "$PROJECT_TITLE")
+  if [[ -n "$existing" ]]; then
+    echo "  ✓ project exists: $PROJECT_TITLE (#$existing)"
+    PROJECT_NUMBER=$existing
+  else
+    if [[ $DRY_RUN -eq 1 ]]; then
+      echo "DRY: gh project create --owner $ORG --title \"$PROJECT_TITLE\""
+      PROJECT_NUMBER=""
+      return
+    fi
+    gh project create --owner "$ORG" --title "$PROJECT_TITLE" >/dev/null
+    PROJECT_NUMBER=$(project_number_by_title "$PROJECT_TITLE")
+    echo "  + created project: $PROJECT_TITLE (#$PROJECT_NUMBER)"
+  fi
+}
+
+# Add a single issue to the project. Idempotent — gh project item-add returns
+# success if already added (it dedupes on URL).
+project_add_issue_url() {
+  local url=$1
+  if [[ -z "${PROJECT_NUMBER:-}" ]]; then
+    return 0
+  fi
+  mutate gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$url" >/dev/null 2>&1 || true
+}
+
+# -----------------------------------------------------------------------------
+# Issues
+# -----------------------------------------------------------------------------
+
+# Echo the number of an issue with the given exact title (open or closed),
+# or empty string. Searches state:all in this repo only.
+#
+# All filtering happens inside gh's --jq invocation to avoid SIGPIPE races
+# with downstream grep/head pipeline stages under `set -o pipefail`. The
+# embedded $title is safe — none of our seeded issue titles contain
+# quote/backslash characters.
+issue_number_by_title() {
+  local title=$1
+  gh issue list --repo "$REPO" --state all --limit 200 \
+    --json number,title \
+    --jq "[.[] | select(.title == \"$title\")][0].number // empty"
+}
+
+# ensure_issue TITLE LABELS_CSV MILESTONE_TITLE BODY
+# Creates the issue if not present, else updates labels/milestone/body.
+ensure_issue() {
+  local title=$1 labels_csv=$2 milestone=$3 body=$4
+  local number
+  number=$(issue_number_by_title "$title")
+  if [[ -n "$number" ]]; then
+    # Update labels (replace), milestone, and body
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf 'DRY: gh issue edit %s (labels=%s, milestone=%s)\n' "$number" "$labels_csv" "$milestone"
+    else
+      # gh issue edit --add-label appends; we want exact set, so wipe first.
+      # Pull current labels and remove them, then add desired set.
+      local current
+      current=$(gh issue view "$number" --repo "$REPO" --json labels --jq '[.labels[].name] | join(",")')
+      if [[ -n "$current" ]]; then
+        gh issue edit "$number" --repo "$REPO" --remove-label "$current" >/dev/null
+      fi
+      gh issue edit "$number" --repo "$REPO" \
+        --add-label "$labels_csv" \
+        --milestone "$milestone" \
+        --body "$body" >/dev/null
+    fi
+    echo "  ✓ updated issue #$number: $title"
+  else
+    if [[ $DRY_RUN -eq 1 ]]; then
+      printf 'DRY: gh issue create (title=%s, labels=%s, milestone=%s)\n' "$title" "$labels_csv" "$milestone"
+      ISSUE_URL=""
+    else
+      ISSUE_URL=$(gh issue create --repo "$REPO" \
+        --title "$title" \
+        --label "$labels_csv" \
+        --milestone "$milestone" \
+        --body "$body")
+      number=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+      echo "  + created issue #$number: $title"
+    fi
+  fi
+  # Add to project (idempotent)
+  if [[ -n "${number:-}" ]]; then
+    project_add_issue_url "https://github.com/$REPO/issues/$number"
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Foundational issue bodies
+# -----------------------------------------------------------------------------
+
+seed_issues() {
+  # === Stage 0 / 1c — bootstrap meta-issue =================================
+
+  ensure_issue \
+    "Bootstrap GitHub governance for Legal-Assistant-v3 (Stage 1c)" \
+    "type:chore,area:infra,area:planning" \
+    "$DEFAULT_MILESTONE" \
+    "$(cat <<'EOF'
+## Context
+Stage 1c of the bootstrap sequence specified in `docs/planning/extraction-plan.md` §2. Stage 1a (governance protocol definitions) and Stage 1b (documentation reconciliation) landed direct-to-`main` under the bootstrap exception (commits `2301b88`, `6b36f52`). This issue tracks the third and final bootstrap-exception commit: standing up the GitHub-side artifacts that the Stage 1a conventions describe in the abstract — labels, milestones, project board, foundational issues, and the `build-and-test` workflow stub that satisfies the org ruleset's required check.
+
+## Acceptance criteria
+- [x] All `type:`, `area:`, `status:` labels exist per `docs/conventions/labels.md`; the 9 GitHub default labels are removed
+- [x] Milestones `0-extraction-and-bootstrap` through `6-v3-design` exist with the body structure required by `docs/conventions/milestones.md` (Goal / Scope in / Scope out / Definition of done)
+- [x] Projects v2 board `Legal-Assistant-v3 — work` exists and contains every foundational issue
+- [x] Foundational issues filed (this issue + Stage 2/3/4 work-issues + bootstrap-PR umbrella + issue-transfer issue + D-1..D-9 + D-11 as `type:decision` issues, each in its target milestone)
+- [x] `.github/workflows/build-and-test.yml` stub committed so post-bootstrap PRs can pass the org-ruleset's required check
+- [x] `docs/conventions/SETUP-LOG.md` records what was created (label colors, milestone numbers, project number, issue-creation summary, manual GUI steps deferred)
+- Out of scope: Custom Project Status field options (Backlog / In progress / In review / Blocked / Done) and auto-add workflow — Projects v2 GUI configuration; verified post-create rather than scripted
+
+## Plan
+Single bash script (`scripts/setup-github-governance.sh`) creates labels, milestones, project, issues; idempotent so re-runs converge. The build-and-test workflow stub lands in the same commit. After the script runs, this issue closes; subsequent changes to conventions or governance flow through the normal PR process.
+
+## Decisions deferred
+- Custom Status field options + project workflow automation: configure in GH GUI; capture in SETUP-LOG.md as a manual checklist item to complete soon
+- Whether to use Projects v2 "Iteration" field for sprint-style scheduling: not today; current rhythm is milestone-driven
+EOF
+)"
+
+  # === Stage 2 — pre-extraction verification ===============================
+
+  ensure_issue \
+    "Run pre-extraction verification (Stage 2)" \
+    "type:chore,area:infra,area:planning" \
+    "$DEFAULT_MILESTONE" \
+    "$(cat <<'EOF'
+## Context
+`docs/planning/extraction-plan.md` §2 sequences Stage 2 between governance bootstrap (Stage 1c, just landed) and the actual extraction (Stage 3). Stage 2 is a checklist of read-only confirmations: source state is what the manifest assumes, branches we plan to carry exist with the expected tip commits, the only legal-→-FOIA bridge file (`packages/schemas/foia_schemas/agent_hints.py`) is still the only one, and the inverse leak (FOIA → legal imports) is still zero.
+
+## Acceptance criteria
+- [ ] `/Volumes/HOLE-RAID-DRIVE/Projects/hole-backend` is clean on `main`; HEAD matches `origin/main`
+- [ ] All 26 paths listed in `docs/planning/extraction-plan.md` §3 exist in source (verified again at execution time)
+- [ ] Branch `feature-hole-legal-assistant-mcp` carries 9 unmerged commits under §3 paths; `legal-mcp-tool-remediation` has 7 commits (per manifest §D8 — closes-not-carries; do not pull)
+- [ ] `feature-substrate-planning` and `feature-legal-corpus-weaviate-handoff` checked: legal-only ⇒ carry, cross-cutting or merged-and-redundant ⇒ skip
+- [ ] `agent_hints.py` is the only legal→FOIA import bridge (8 import sites in `packages/hole-langchain`); zero FOIA→legal imports
+- [ ] `gh` token has admin rights on destination + `delete_repo` if needed (already verified during Stage 0)
+- Out of scope: any actual filter-repo or push (those are Stage 3)
+
+## Plan
+Run the verification commands listed in `docs/planning/extraction-plan.md` §6 step 4. Each check produces a yes/no answer; capture the actual numbers/paths in this issue's comments before closing. If any check fails, do not proceed — file a sub-issue for the discrepancy.
+
+## Decisions deferred
+None — this is a pure verification step.
+EOF
+)"
+
+  # === Stage 3 — extraction execution (repurposes existing issue #1) =====
+
+  ensure_issue \
+    "Extract legal-assistant code from hole-backend monorepo (Stage 3)" \
+    "type:chore,area:infra,area:planning" \
+    "$DEFAULT_MILESTONE" \
+    "$(cat <<'EOF'
+## Context
+Stage 3 of `docs/planning/extraction-plan.md` — execute `git filter-repo` against `hole-backend`, force-push the filtered history to `Legal-Assistant-v3`, cherry-pick the governance commits forward, and open the bootstrap PR. The plan's §6 specifies the corrected filter-repo invocation (uses `--refs main feature-hole-legal-assistant-mcp` rather than `--refs main` — that's the manifest §4.3 carriage requirement that the original prompt doc dropped).
+
+## Acceptance criteria
+- [ ] `pre-extraction-baseline` tag pushed to destination as ripcord
+- [ ] Filter-repo runs cleanly; sanity checks per §6 step 4 all pass
+- [ ] Imported history visible on `Legal-Assistant-v3:main`; commit count plausible (in the hundreds)
+- [ ] `feature-hole-legal-assistant-mcp` branch on destination carries the 9 mcp-v2 commits
+- [ ] Governance commits `2301b88` (Stage 1a) and `6b36f52` (Stage 1b) and the Stage 1c commit are preserved in `main` post-extraction
+- [ ] `agent_hints.py` shared file copied per manifest §3
+- [ ] Bootstrap PR opened (umbrella issue #5 / Stage 3 follow-up — this issue closes when filter-repo lands; the bootstrap-PR work is its own issue)
+- Out of scope: the bootstrap PR's content (separate umbrella issue), the Phase 1E cleanup PR on hole-backend (separate Stage 4 issue)
+
+## Plan
+Follow `docs/planning/extraction-plan.md` §6 verbatim. Single throwaway clone; one filter-repo invocation with all 26 paths and explicit `--refs main feature-hole-legal-assistant-mcp`; cherry-pick destination governance forward; force-push.
+
+If anything goes wrong post-push: `git push --force destination pre-extraction-baseline:main` rolls back to the pre-extraction state.
+
+## Decisions deferred
+- Whether to use Postman dedicated workspace for the imported collections (manifest §6.4) — JTH decision at execution time, captured here when made
+- Doppler `legal-assistant-v3` project provisioning — JTH provisions; this issue's closure does not block on it
+EOF
+)"
+
+  # === Bootstrap PR umbrella — workspace scaffolding =====================
+
+  ensure_issue \
+    "Bootstrap PR — workspace scaffolding after extraction (Stage 3 follow-up)" \
+    "type:chore,area:infra" \
+    "$DEFAULT_MILESTONE" \
+    "$(cat <<'EOF'
+## Context
+After Stage 3's side-branch import + `--allow-unrelated-histories` merge lands the imported hole-backend history on `main`, the repo needs the workspace files it didn't have before extraction so it's actually runnable. This issue owns the post-extraction bootstrap PR — making the imported code installable, testable, and consistent with the project's identity as a Python project. Per `docs/planning/extraction-plan.md` §7. (See issue #4 body on GitHub for the canonical AC; this template seeds it.)
+
+## Acceptance criteria
+
+### Python / uv workspace
+- [ ] `pyproject.toml` — workspace root; declares Python workspace members (`packages/hole-langchain`, `packages/hole-legal-assistant-v2`, `packages/legal-schemas`); drops FOIA-only deps inherited from hole-backend's tree
+- [ ] `uv.lock` — generated by `uv sync`; committed
+- [ ] `.python-version` — pins the project's Python interpreter; committed
+- [ ] `agent_hints.py` — copied from source's `packages/schemas/foia_schemas/agent_hints.py` (manifest §3)
+
+### Postman repo-sync scaffold
+- [ ] `.postman/resources.yaml` — Postman repo-link config
+- [ ] `postman/{collections,environments,flows,globals,mocks,specs}/` directory skeleton with `.gitkeep`s
+- [ ] `postman/README.md` brief note: this scaffold receives the cloud-collection import (separate issue under milestone 3)
+
+### CI / GHA / MCP / Repo identity
+- [ ] `.github/workflows/build-and-test.yml` — replace the Stage 1c stub with a real Python pipeline; preserve job name `build-and-test` so the org ruleset's required check resolves
+- [ ] Additional workflows per manifest §6.3 (`python-tests.yml`, `cf-worker-deploy.yml`) if needed
+- [ ] `.mcp.json` with `mem0-mcp`, `hole-legal-research`, `hole-legal-research-http` entries (manifest §6.5)
+- [ ] `README.md` — human-facing intro
+- [ ] `.gitignore` extended for `.venv/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`, etc.
+
+### Acceptance gate
+- [ ] `uv sync` clean; `uv run pytest` runs without import errors (tests may xfail/skip with reason — full pass is not the bar)
+- [ ] PR opens via normal flow — branch `chore/extracted-repo-bootstrap-4`, CodeRabbit + Copilot review pass, merged when feedback is nitpick-only
+
+### Out of scope
+- **Root `package.json` / `turbo.json`** — *intentionally NOT in this PR.* Project is Python-through-and-through; the one JS subapp (`apps/CF-legal-enrichment-queue/`) is self-contained with its own `package.json` and `wrangler` workflow.
+- **FastMCP migration / runtime redesign** — D-4 (issue #10) under milestone `6-v3-design`. Bootstrap doesn't pick the future framework.
+- **Postman cloud collection import** — separate issue under milestone `3-v2-diagnostics`.
+- Doppler `legal-assistant-v3` provisioning (JTH); migration of deployed-elsewhere MCP code (D-9 / milestone 3).
+
+## Plan
+1. Branch `chore/extracted-repo-bootstrap-4` from post-extraction `main`
+2. Adapt `pyproject.toml` from `hole-backend` source, keeping only legal-side workspace members
+3. Wire workflows; ensure `build-and-test` job retains its name so the org ruleset check resolves
+4. Move local uncommitted scaffolding (`.postman/`, `postman/`, `.python-version`, `pyproject.toml`, `uv.lock`, `README.md`) onto the branch coherently
+5. `uv sync`; iterate until tests at least import cleanly
+6. Open PR; address CodeRabbit + Copilot
+
+## Decisions deferred
+- LangChain/LangGraph vs FastMCP framework choice → D-4 / milestone `6-v3-design`. Bootstrap doesn't pick.
+- Whether to add `cf-worker-deploy.yml` immediately or defer — sub-decision in this PR's review.
+EOF
+)"
+
+  # === Stage 4 — Phase 1E cleanup PR on hole-backend ====================
+
+  ensure_issue \
+    "Open Phase 1E cleanup PR on hole-backend (Stage 4)" \
+    "type:chore,area:infra" \
+    "$DEFAULT_MILESTONE" \
+    "$(cat <<'EOF'
+## Context
+After the extraction lands here (Stage 3), `hole-backend` still contains the §3 paths. Per `docs/planning/extraction-plan.md` §9 + manifest §7, a separate PR removes them and updates the monorepo's CLAUDE.md, README, pyproject, package.json, turbo, .mcp.json, docs, tools, and skills-lock. This work is executed from a Claude Code session opened in `/Volumes/HOLE-RAID-DRIVE/Projects/hole-backend`, **not** in this repo. Tracking it here keeps the `0-extraction-and-bootstrap` milestone honest.
+
+## Acceptance criteria
+- [ ] New branch on `hole-backend`: `chore/legal-assistant-extraction-cleanup-2` (the original `chore-legal-assistant-extraction` already merged via PR #287; do not reopen)
+- [ ] `git rm -rf` of all 26 §3 paths
+- [ ] Manifest §7.1 (CLAUDE.md collapse 3→2), §7.2 (README), §7.3 (pyproject), §7.4 (package.json), §7.5 (turbo), §7.6 (.mcp.json), §7.7 (docs pruning), §7.8 (tools), §7.9 (skills-lock) all applied
+- [ ] Manifest §8 mem0 entry updates applied via mem0 MCP tools
+- [ ] hole-backend test suite passes; no orphan imports; `uv sync` clean
+- [ ] PR opens to hole-backend `main`; cross-links to PR #287 in body
+- [ ] PR merged; verify locally that hole-backend on `main` no longer contains §3 paths
+
+## Plan
+Open separate Claude Code session in hole-backend. Follow manifest §7 + §8 verbatim. Standard PR review flow on hole-backend.
+
+## Decisions deferred
+- None expected; if a deferred-decision surfaces during cleanup, file in `docs/planning/deferred-decisions.md` and move on.
+EOF
+)"
+
+  # === Issue transfers per manifest §4.1 ================================
+
+  ensure_issue \
+    "Transfer in-scope hole-backend issues to Legal-Assistant-v3" \
+    "type:chore,area:planning" \
+    "$DEFAULT_MILESTONE" \
+    "$(cat <<'EOF'
+## Context
+Manifest §4.1 lists hole-backend issues that follow the legal-assistant code into this repo. The list was authored 2026-05; verify it at execution time (it may have grown by the time Stage 3 runs). After transfer, retag to this repo's taxonomy (`docs/conventions/labels.md`) — source labels won't map exactly.
+
+## Acceptance criteria
+- [ ] Re-verify the list of in-scope hole-backend issues at execution time (re-run the gh queries the manifest used)
+- [ ] Transfer each to `The-HOLE-Foundation/Legal-Assistant-v3` via `gh issue transfer`
+- [ ] PR #230 is **not** transferred (manifest §D8 — closes-not-carries)
+- [ ] After transfer, retag to this repo's `type:` / `area:` labels; assign the appropriate milestone (default: `0-extraction-and-bootstrap` if extraction-related; otherwise the milestone matching its content)
+- [ ] Transferred issues appear in this repo's project board
+
+## Plan
+```bash
+for n in 207 209 210 222 231 232 233 234 235 236 237 \
+         257 258 259 \
+         266 267 268 269 270 274 283 \
+         82 62 63 65 84; do
+  gh issue transfer "$n" The-HOLE-Foundation/Legal-Assistant-v3
+done
+```
+
+…then triage by hand to apply labels and milestones. Expect this to be the noisiest housekeeping step in the milestone.
+
+## Decisions deferred
+- None — by definition, transferring an issue does not change its scope; if a transferred issue is itself a deferred-decision, that's its own normal-flow handling here.
+EOF
+)"
+
+  # === Decision issues D-1 .. D-9, D-11 =================================
+
+  ensure_issue \
+    "D-1 — Decide disposition of legacy The-HOLE-Foundation/hole-langchain repo" \
+    "type:decision,area:planning,area:corpus" \
+    "1-corpus-consolidation" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-1.
+
+`The-HOLE-Foundation/hole-langchain` (created 2026-03) was the original home of the legal-assistant code before it was integrated into `hole-backend`. Now being re-extracted here. The 2026-03 repo still exists. Disposition (archive / delete / keep as historical) deferred until post-transplant — when the diff between `hole-langchain` HEAD and the corresponding paths in `Legal-Assistant-v3` reveals whether unique content exists.
+
+## Acceptance criteria
+- [ ] `Legal-Assistant-v3` Stage 3 extraction is complete (depends on `0-extraction-and-bootstrap` milestone closing)
+- [ ] One-pass diff produced between `hole-langchain` HEAD and the corresponding paths in `Legal-Assistant-v3`
+- [ ] Diff finding documented in `docs/planning/deferred-decisions.md` (move D-1 from "Open" to "Closed" with the resolution)
+- [ ] Action taken (archive / delete / keep), if any
+
+## Plan
+After extraction lands, clone `hole-langchain` into a throwaway location, diff against equivalent paths here, decide.
+
+## Decisions deferred
+None — this issue *is* the decision.
+
+## Owner
+JTH
+EOF
+)"
+
+  ensure_issue \
+    "D-2 — Decide disposition of Jobikinobi/HOLE-Legal-Intelligence-alpha" \
+    "type:decision,area:planning,area:corpus" \
+    "4-azure-corpus-analysis" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-2.
+
+Private repo discovered 2026-05-07 during Stage 0 audit. May be legacy lineage of *this* project (alpha-era). Investigating now is premature scope-widening; defer to post-transplant data-archaeology pass.
+
+## Acceptance criteria
+- [ ] Inspect repo contents (clone + survey)
+- [ ] Determine relationship to current project: parallel effort? legacy lineage? unrelated?
+- [ ] Resolution recorded in `deferred-decisions.md`
+
+## Plan
+Pull during Azure-corpus analysis. Likely a 30-minute survey.
+
+## Decisions deferred
+None — this issue *is* the decision.
+
+## Owner
+JTH
+EOF
+)"
+
+  ensure_issue \
+    "D-3 — Disposition of stray RAID-resident legal-assistant clones" \
+    "type:decision,area:planning,area:corpus" \
+    "1-corpus-consolidation" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-3.
+
+Local clones discovered 2026-05-07: `hole-cloudflare-legal-assistant-mcp`, `HOLE/Github/hole-legal-mcp`, `HOLE/Github/Side-Projects:TemplateProjects/hole-legal-mcp-1`, `Azure-legal-intelligencev2/hole-legal-intelligence-v2`. None obviously corresponding to a current GitHub repo. The Azure-prefixed ones are explicitly legacy-lineage of this project (per project-purpose memory) — don't delete blindly.
+
+## Acceptance criteria
+- [ ] Each clone surveyed for unique content
+- [ ] Per-clone disposition recorded (delete / preserve in archive / mine for content into v3)
+- [ ] Resolution recorded in `deferred-decisions.md`
+
+## Plan
+Folded into the corpus-consolidation work; survey each clone alongside the bucket inventory.
+
+## Decisions deferred
+None — this issue *is* the decision.
+
+## Owner
+JTH
+EOF
+)"
+
+  ensure_issue \
+    "D-4 — Decide v3 redesign: keep LangChain/LangGraph or rebuild as FastMCP" \
+    "type:decision,area:mcp,area:planning" \
+    "6-v3-design" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-4.
+
+Manifest §D8 calls for a v3 redesign that "shrinks the MCP tool surface." Open question: keep the LangChain/LangGraph stack or rebuild atop FastMCP to mirror the `foia-search` MCP in `hole-backend`. Trade-offs: LangChain has the in-place implementation; FastMCP is leaner and consistent with the FOIA-side; rebuild cost non-trivial but recoupable.
+
+## Acceptance criteria
+- [ ] v2 tool inventory complete (depends on `3-v2-diagnostics` milestone — D-9 surfaces deployed-code location)
+- [ ] Tools-to-code linkage mapped
+- [ ] Decision recorded as ADR in `docs/adr/` with rationale, trade-offs evaluated, migration shape
+- [ ] `deferred-decisions.md` updated
+
+## Plan
+Consume diagnostics output. ADR draft → review → record.
+
+## Decisions deferred
+- D-5 (which specific tools survive) follows this decision
+
+## Owner
+JTH
+EOF
+)"
+
+  ensure_issue \
+    "D-5 — Decide MCP tool-surface reduction (which tools survive v3 redesign)" \
+    "type:decision,area:mcp,area:planning" \
+    "6-v3-design" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-5.
+
+Manifest §D8: tool surface should shrink to "a smaller set focused on doing a few things really well." Specifics — which tools survive, which merge, which get cut — depend on D-4 (tech-stack choice) and on the diagnostics wave (which tools are actually used).
+
+## Acceptance criteria
+- [ ] D-4 decided (tech-stack chosen)
+- [ ] v2 tool-usage signal collected (logs/traces from the running v2 production system)
+- [ ] Cut/keep/merge decision per tool, recorded as ADR
+- [ ] Courtroom-provenance constraint explicitly checked against each cut — anything load-bearing for chunk → page → Bates-stamp survives
+
+## Plan
+ADR with per-tool table.
+
+## Decisions deferred
+None — this issue *is* the decision.
+
+## Owner
+JTH
+EOF
+)"
+
+  ensure_issue \
+    "D-6 — Decide disposition of apps/legal-research-mcp" \
+    "type:decision,area:mcp,area:planning" \
+    "3-v2-diagnostics" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-6.
+
+The app exists in `hole-backend`. Manifest §1.2 + §9 flagged its purpose as "verify before move." Move proceeds anyway (extraction-plan §5 contradiction-resolution #5); disposition (keep / merge into `apps/legal-mcp-container/` / cut) remains open. Becomes obvious once read in extracted-repo context alongside `apps/legal-mcp-container/`.
+
+## Acceptance criteria
+- [ ] Read both apps post-extraction; identify purpose and overlap
+- [ ] Decide: keep separate / merge / cut
+- [ ] Resolution recorded
+
+## Plan
+Sub-issue under v2 diagnostics; 1-day timebox for the read-through.
+
+## Owner
+JTH
+EOF
+)"
+
+  ensure_issue \
+    "D-7 — Decide disposition of apps/langchain-backend" \
+    "type:decision,area:mcp,area:planning" \
+    "3-v2-diagnostics" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-7.
+
+Same situation as D-6 — moves with extraction, purpose unknown. Read post-extraction; decide.
+
+## Acceptance criteria
+- [ ] Read post-extraction
+- [ ] Decide: keep / merge / cut
+- [ ] Resolution recorded
+
+## Owner
+JTH
+EOF
+)"
+
+  ensure_issue \
+    "D-8 — Decide data-archive storage strategy (Azure JSONs + Weaviate backups)" \
+    "type:decision,area:corpus,area:infra" \
+    "1-corpus-consolidation" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-8.
+
+Legacy data lineage (Azure ~253 MB; Weaviate backup ~3.4 GB; canonical in R2 bucket `hole-r2:hole-legal-assistant`) "belongs in this project, not merely referenced" per JTH. 3.4 GB doesn't fit plain git. Three viable approaches:
+1. Direct git for small + R2-pointed manifest for large
+2. Git LFS for everything (paid storage)
+3. R2-pointed manifest for both with restore script (cleanest repo, slowest local bootstrap)
+
+## Acceptance criteria
+- [ ] Storage cost (LFS) and restore-latency benchmarks gathered for each option
+- [ ] Courtroom-grade auditability of the chosen mechanism documented (chain of custody for the archive itself)
+- [ ] Decision recorded as ADR; D-8 closed in `deferred-decisions.md`
+- [ ] Implementation issue filed against the next milestone
+
+## Plan
+ADR-driven decision after corpus inventory completes.
+
+## Owner
+JTH
+EOF
+)"
+
+  ensure_issue \
+    "D-9 — Identify the actually-deployed MCP server code location" \
+    "type:decision,area:mcp,area:v2-prod" \
+    "3-v2-diagnostics" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-9.
+
+The MCP server currently running in production on the Mac Mini (Colima) is reportedly running from code "deployed elsewhere," not directly from `packages/hole-langchain/` in `hole-backend`. The location isn't identified.
+
+This is a load-bearing diagnostics step: until we know what code is actually serving the v2 production MCP, we can't make defensible v3 redesign decisions, and we can't safely retire any v2 deployment.
+
+## Acceptance criteria
+- [ ] Source repo / branch / commit serving the running production MCP identified
+- [ ] Path-to-code mapping documented (which MCP tools resolve to which files)
+- [ ] Follow-up issue filed: "Migrate the deployed-elsewhere MCP code into this repo" (separate milestone, scoped at execution time)
+
+## Plan
+Inspect the running container on Mac Mini Colima; trace to source. May involve checking deploy artifacts, container image labels, the MCP config used by the production stdio client.
+
+## Owner
+JTH
+EOF
+)"
+
+  ensure_issue \
+    "D-11 — Decide whether to retain docs/reference/unstructured-llms-full.txt long-term" \
+    "type:decision,area:planning,area:ingestion" \
+    "6-v3-design" \
+    "$(cat <<'EOF'
+## Context
+See `docs/planning/deferred-decisions.md` D-11.
+
+`docs/reference/unstructured-llms-full.txt` is 4 MB of llms.txt content from the `unstructured` library. Useful while building the ingestion pipeline; unclear whether it should live in-repo long-term vs. fetched fresh from upstream when needed.
+
+## Acceptance criteria
+- [ ] v3 ingestion pipeline shipped and `unstructured` integration stable
+- [ ] Retrospective: was the in-repo copy used? Would upstream fetch have been fine?
+- [ ] Decide: keep / drop / replace with a script that fetches on demand
+- [ ] `deferred-decisions.md` updated
+
+## Plan
+Trivial post-design retro; resolve concurrent with v3 design closure.
+
+## Owner
+JTH
+EOF
+)"
+
+  echo ""
+  echo "  Note: D-10 (photos/videos ingest) intentionally NOT filed as an issue."
+  echo "  Convention requires every issue have a milestone; D-10's target stage"
+  echo "  is post-Stage-6+ and that milestone doesn't exist yet. D-10 stays in"
+  echo "  docs/planning/deferred-decisions.md only until the milestone is defined."
+}
+
+# -----------------------------------------------------------------------------
+# Main
+# -----------------------------------------------------------------------------
+
+main() {
+  echo "=== Stage 1c — bootstrap GitHub governance for $REPO ==="
+  echo ""
+  echo "1. Labels"
+  seed_labels
+  echo ""
+  echo "2. Milestones"
+  seed_milestones
+  echo ""
+  echo "3. Project (Projects v2 — '$PROJECT_TITLE')"
+  ensure_project
+  echo ""
+  echo "4. Foundational issues"
+  seed_issues
+  echo ""
+  echo "=== Done ==="
+  echo ""
+  echo "Manual GUI follow-ups (recorded in docs/conventions/SETUP-LOG.md):"
+  echo "  - Project Status field options: replace defaults with"
+  echo "    Backlog / In progress / In review / Blocked / Done (per docs/conventions/projects.md)"
+  echo "  - Project Workflows: enable 'Auto-add issues and PRs from $REPO',"
+  echo "    'Item closed → Done', 'Pull request linked → In review'"
+  echo "  - Project saved views: Active, Backlog, In review, Blocked / decisions"
+  echo "    (filter strings in docs/conventions/projects.md)"
+  echo "  - Verify the org ruleset 'New-Work-Goes-On-Worktrees' is what's enforcing"
+  echo "    PRs-required + 'build-and-test' status check; nothing to change here."
+}
+
+main "$@"
