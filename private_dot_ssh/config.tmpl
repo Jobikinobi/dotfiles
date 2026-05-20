@@ -7,9 +7,63 @@ Include ~/.orbstack/ssh/config
 Include /Users/jth/.colima/ssh_config
 
 {{ end -}}
-Host jth-macstudio
+# =============================================================================
+# Homelab — LAN-first; tailscale aliases are fallbacks
+# Documentation: ~/.local/share/infra/
+# =============================================================================
+
+# --- Proxmox hypervisor (root-only by design) ---
+Host pve proxmox
+	HostName 192.168.68.16
+	User root
+	IdentityFile ~/.ssh/id_ed25519_pve
+	IdentitiesOnly yes
+	PreferredAuthentications publickey,password,keyboard-interactive
+	ForwardAgent no
+	UserKnownHostsFile ~/.ssh/known_hosts
+
+# Tailscale fallback for PVE (off-LAN only; node not yet joined as of 2026-05-20)
+Host pve-ts
+	HostName ts-pve
+	User root
+	IdentityFile ~/.ssh/id_ed25519_pve
+	IdentitiesOnly yes
+	UserKnownHostsFile ~/.ssh/known_hosts_tailnet
+
+# --- PVE admin LXC (CTID 100, jth, key-only) ---
+Host pve-admin
+	HostName 192.168.68.60
+	User jth
+	IdentityFile ~/.ssh/id_ed25519_pve_admin
+	IdentitiesOnly yes
+	PreferredAuthentications publickey
+	ForwardAgent no
+	ServerAliveInterval 30
+	UserKnownHostsFile ~/.ssh/known_hosts
+
+# --- Mac Studio workstation ---
+Host macstudio jth-macstudio
+	HostName 192.168.68.168
+	User jth
+	IdentityFile ~/.ssh/id_ed25519_macstudio
+	IdentitiesOnly yes
+	PreferredAuthentications publickey,password,keyboard-interactive
+	ForwardAgent no
+	ServerAliveInterval 30
+	ServerAliveCountMax 6
+	UserKnownHostsFile ~/.ssh/known_hosts
+
+# Tailscale fallback for Mac Studio (off-LAN only)
+Host macstudio-ts
 	HostName jth-macstudio
 	User jth
+	IdentityFile ~/.ssh/id_ed25519_macstudio
+	IdentitiesOnly yes
+	UserKnownHostsFile ~/.ssh/known_hosts_tailnet
+
+# =============================================================================
+# Legacy / external
+# =============================================================================
 
 Host windev
 	HostName joe-gaming-pc-1
