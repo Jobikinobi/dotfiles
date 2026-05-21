@@ -41,6 +41,19 @@ Host pve-admin
 	ServerAliveInterval 30
 	UserKnownHostsFile ~/.ssh/known_hosts
 
+# --- dev-control VM (Coder + Docker + Postgres) ---
+# Pending VM build — see docs/personal-codespaces.md
+# Key id_ed25519_dev_control lands in the follow-up PR that actually builds the VM
+Host dev-control
+	HostName 192.168.68.20
+	User jth
+	IdentityFile ~/.ssh/id_ed25519_dev_control
+	IdentitiesOnly yes
+	PreferredAuthentications publickey
+	ForwardAgent no
+	ServerAliveInterval 30
+	UserKnownHostsFile ~/.ssh/known_hosts
+
 # --- Mac Studio workstation ---
 Host macstudio jth-macstudio
 	HostName 192.168.68.168
