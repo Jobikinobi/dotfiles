@@ -1,0 +1,57 @@
+{{- if ne .chezmoi.os "darwin" -}}
+#!/bin/bash
+# Apt prerequisites for Linux dotfiles bootstrap.
+#
+# Runs BEFORE the homebrew install script because:
+#   - The Linuxbrew installer needs build-essential, procps, curl, file, git
+#     already present.
+#   - Everything downstream of this assumes zsh is installed and the user's
+#     login shell is zsh (the .zshrc never runs in bash).
+#
+# Idempotent: only installs missing packages; only changes the login shell
+# if it isn't already zsh.
+set -e
+
+# Detect apt; skip on non-Debian/Ubuntu Linux gracefully.
+if ! command -v apt-get >/dev/null 2>&1; then
+  echo "→ No apt-get — skipping apt prereq install (not a Debian/Ubuntu system)"
+  exit 0
+fi
+
+NEEDED_PACKAGES=(
+  build-essential
+  ca-certificates
+  curl
+  file
+  git
+  gnupg
+  procps
+  zsh
+)
+
+MISSING=()
+for pkg in "${NEEDED_PACKAGES[@]}"; do
+  if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+    MISSING+=("$pkg")
+  fi
+done
+
+if [[ ${#MISSING[@]} -gt 0 ]]; then
+  echo "→ Installing apt prereqs: ${MISSING[*]}"
+  sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${MISSING[@]}"
+fi
+
+# Set zsh as the default shell for the current user (idempotent).
+ZSH_PATH="$(command -v zsh)"
+if [[ -n "$ZSH_PATH" ]]; then
+  if ! grep -qx "$ZSH_PATH" /etc/shells; then
+    echo "$ZSH_PATH" | sudo tee -a /etc/shells > /dev/null
+  fi
+  CURRENT_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
+  if [[ "$CURRENT_SHELL" != "$ZSH_PATH" ]]; then
+    echo "→ Setting login shell to zsh for $USER"
+    sudo chsh -s "$ZSH_PATH" "$USER"
+  fi
+fi
+{{- end -}}
