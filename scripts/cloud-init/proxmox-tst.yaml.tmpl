@@ -1,0 +1,107 @@
+#cloud-config
+# Proxmox cloud-init user-data for a fresh Ubuntu/Debian VM that boots, joins
+# the tailnet, and applies the Jobikinobi/dotfiles chezmoi flow autonomously.
+#
+# This is a TEMPLATE — render it before uploading to /var/lib/vz/snippets/ on pve.
+# Required substitutions:
+#   __HOSTNAME__          host short name, e.g. tst-01
+#   __TAILSCALE_AUTHKEY__ a tag:server reusable auth key from Doppler
+#                         (doppler secrets get TAILSCALE_AUTHKEY_SERVER --plain -p backend -c dev)
+#   __CHEZMOI_BRANCH__    chezmoi source branch to apply (defaults to main)
+#
+# Usage on pve:
+#   sed -e "s|__HOSTNAME__|tst-01|g" \
+#       -e "s|__TAILSCALE_AUTHKEY__|${TS_KEY}|g" \
+#       -e "s|__CHEZMOI_BRANCH__|feat/chezmoi-linux-bootstrap-19|g" \
+#       proxmox-tst.yaml.tmpl > /var/lib/vz/snippets/tst-01-user.yaml
+#   qm set <VMID> --cicustom "user=local:snippets/tst-01-user.yaml"
+
+hostname: __HOSTNAME__
+manage_etc_hosts: localhost
+
+users:
+  - name: jth
+    gecos: Joseph T. Herrmann, M.D.
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: [sudo, adm]
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGd21xodn8bnXQN9Ud0XZy9l+ow30AL2llbwOztxoFnL jth@workstation
+
+package_update: true
+package_upgrade: false
+packages:
+  - build-essential
+  - ca-certificates
+  - curl
+  - file
+  - git
+  - gnupg
+  - jq
+  - procps
+  - qemu-guest-agent
+  - zsh
+
+write_files:
+  - path: /usr/local/bin/tst-bootstrap-chezmoi
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      # Bootstraps chezmoi for user jth and applies the dotfiles branch.
+      # Idempotent: chezmoi's run_once_* hashing handles re-runs.
+      set -euo pipefail
+
+      TARGET_USER="jth"
+      CHEZMOI_BRANCH="__CHEZMOI_BRANCH__"
+      CHEZMOI_SOURCE="Jobikinobi"
+
+      if ! id "$TARGET_USER" >/dev/null 2>&1; then
+        echo "✗ user $TARGET_USER does not exist; aborting" >&2
+        exit 1
+      fi
+
+      # Install chezmoi to ~/.local/bin (no brew dependency).
+      sudo -u "$TARGET_USER" -H sh -c '
+        mkdir -p "$HOME/.local/bin"
+        if ! command -v chezmoi >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/chezmoi" ]; then
+          echo "→ Installing chezmoi to $HOME/.local/bin"
+          sh -c "$(curl -fsLS https://get.chezmoi.io)" -- -b "$HOME/.local/bin"
+        fi
+      '
+
+      # Apply chezmoi.
+      sudo -u "$TARGET_USER" -H bash -c "
+        export PATH=\"\$HOME/.local/bin:\$PATH\"
+        cd \"\$HOME\"
+        if [ -d \"\$HOME/.local/share/chezmoi/.git\" ]; then
+          echo '→ chezmoi source already initialized; pulling and re-applying'
+          chezmoi git -- pull --ff-only --quiet || true
+          chezmoi git -- checkout '$CHEZMOI_BRANCH' || true
+          chezmoi apply --verbose
+        else
+          echo '→ chezmoi init --apply --branch $CHEZMOI_BRANCH $CHEZMOI_SOURCE'
+          chezmoi init --apply --branch '$CHEZMOI_BRANCH' '$CHEZMOI_SOURCE'
+        fi
+      "
+
+      echo '✓ chezmoi bootstrap complete'
+
+runcmd:
+  - [ systemctl, enable, --now, qemu-guest-agent ]
+
+  # Install + enroll Tailscale (root context)
+  - sh -c "curl -fsSL https://tailscale.com/install.sh | sh"
+  - [ systemctl, enable, --now, tailscaled ]
+  - tailscale up --authkey="__TAILSCALE_AUTHKEY__" --advertise-tags=tag:server --ssh --hostname=__HOSTNAME__
+
+  # Bootstrap chezmoi as user jth
+  - /usr/local/bin/tst-bootstrap-chezmoi
+
+final_message: |
+  ============================================================
+  cloud-init complete for __HOSTNAME__ at $UPTIME
+  Tailscale: $(tailscale ip -4 2>/dev/null | head -1)
+  Login as jth via: ssh jth@__HOSTNAME__   (over tailnet, MagicDNS)
+  ============================================================
