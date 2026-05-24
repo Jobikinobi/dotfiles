@@ -43,15 +43,19 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
 fi
 
 # Set zsh as the default shell for the current user (idempotent).
+# Use `id -un` rather than $USER because $USER isn't set in some non-login
+# contexts (e.g. Docker `RUN` steps where `USER jth` sets the uid but not the
+# env var). Fall back to `whoami` if id isn't available, which is paranoia.
+TARGET_USER="$(id -un 2>/dev/null || whoami 2>/dev/null || true)"
 ZSH_PATH="$(command -v zsh)"
-if [[ -n "$ZSH_PATH" ]]; then
+if [[ -n "$ZSH_PATH" && -n "$TARGET_USER" ]]; then
   if ! grep -qx "$ZSH_PATH" /etc/shells; then
     echo "$ZSH_PATH" | sudo tee -a /etc/shells > /dev/null
   fi
-  CURRENT_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
+  CURRENT_SHELL="$(getent passwd "$TARGET_USER" | cut -d: -f7)"
   if [[ "$CURRENT_SHELL" != "$ZSH_PATH" ]]; then
-    echo "→ Setting login shell to zsh for $USER"
-    sudo chsh -s "$ZSH_PATH" "$USER"
+    echo "→ Setting login shell to zsh for $TARGET_USER"
+    sudo chsh -s "$ZSH_PATH" "$TARGET_USER"
   fi
 fi
 {{- end -}}
