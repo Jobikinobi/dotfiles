@@ -5,8 +5,8 @@ set -e
 # Toolchains — cross-platform
 #
 # Runs AFTER the Brewfile.core install (lexically `install-brewfile` < `install-toolchains`),
-# so the static binaries this script initializes (rustup, fnm, supabase tap)
-# are already on PATH via brew.
+# so the static binaries this script initializes (fnm, supabase tap) are
+# already on PATH via brew.
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Ensure brew is on PATH
@@ -22,10 +22,14 @@ if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
 fi
 {{- end }}
 
-# Rust: rustup-init (rustup itself comes from Brewfile.core)
-if command -v rustup-init >/dev/null 2>&1 && [[ ! -f "$HOME/.cargo/env" ]]; then
-  echo "→ Initializing rustup..."
-  rustup-init -y --no-modify-path --default-toolchain stable
+# Rust: install via official rustup-init script. We deliberately don't use
+# `brew install rustup` because Linuxbrew ships only the `rustup` binary
+# without ~/.cargo/bin proxies for `cargo` / `rustc`; the upstream installer
+# does it right on both macOS and Linux. .zshrc already sources ~/.cargo/env.
+if [[ ! -f "$HOME/.cargo/env" ]]; then
+  echo "→ Installing Rust via the official rustup-init script..."
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --no-modify-path --default-toolchain stable
 fi
 [[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
 
