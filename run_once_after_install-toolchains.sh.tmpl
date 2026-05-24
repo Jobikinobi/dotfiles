@@ -1,0 +1,62 @@
+#!/bin/bash
+set -e
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Toolchains — cross-platform
+#
+# Runs AFTER the Brewfile.core install (lexically `install-brewfile` < `install-toolchains`),
+# so the static binaries this script initializes (rustup, fnm, supabase tap)
+# are already on PATH via brew.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Ensure brew is on PATH
+{{- if eq .chezmoi.os "darwin" }}
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+{{- else }}
+if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+{{- end }}
+
+# Rust: rustup-init (rustup itself comes from Brewfile.core)
+if command -v rustup-init >/dev/null 2>&1 && [[ ! -f "$HOME/.cargo/env" ]]; then
+  echo "→ Initializing rustup..."
+  rustup-init -y --no-modify-path --default-toolchain stable
+fi
+[[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
+
+# Node via fnm (fnm itself is in Brewfile.core)
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(fnm env --shell bash)" 2>/dev/null || true
+  if ! command -v node >/dev/null 2>&1; then
+    echo "→ Installing Node LTS via fnm..."
+    fnm install --lts
+    fnm default lts-latest
+  fi
+fi
+
+# npm globals (cross-platform tools we want everywhere)
+if command -v npm >/dev/null 2>&1; then
+  NPM_TOOLS=(
+    "@anthropic-ai/claude-code"
+    "wrangler"
+    "ctx7"
+    "@mem0/cli"
+  )
+  for pkg in "${NPM_TOOLS[@]}"; do
+    if ! npm list -g --depth=0 "$pkg" >/dev/null 2>&1; then
+      echo "→ Installing $pkg..."
+      npm install -g "$pkg" 2>&1 | tail -3
+    fi
+  done
+fi
+
+# Supabase CLI via brew tap (not in core Brewfile because it needs a tap)
+if ! command -v supabase >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
+  echo "→ Installing Supabase CLI..."
+  brew install supabase/tap/supabase
+fi
