@@ -4,31 +4,45 @@
 # Philosophy: chezmoi only auto-installs the CORE set. Anything else you want
 # on a given machine, install manually with `brew install`. `brew bundle` does
 # not remove unlisted packages, so your machine-specific installs stay put.
+set -e
 
-# Ensure brew is in PATH
+# Ensure brew is on PATH. Don't swallow stderr — if shellenv fails we want to know.
 {{- if eq .chezmoi.os "darwin" }}
-eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || eval "$(/usr/local/bin/brew shellenv)" 2>/dev/null
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
 {{- else }}
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 2>/dev/null
+if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
 {{- end }}
 
-# Cross-platform core Brewfile
+if ! command -v brew >/dev/null 2>&1; then
+  echo "✗ brew not on PATH after shellenv — aborting Brewfile install"
+  exit 1
+fi
+
+# Cross-platform core Brewfile.
+# Note: `brew bundle` without a subcommand prints help; the install action
+# requires the explicit `install` subcommand on current Homebrew.
 if [[ -f "$HOME/.Brewfile.core" ]]; then
-  echo "→ Installing core packages..."
-  brew bundle --file="$HOME/.Brewfile.core"
+  echo "→ Installing core packages from ~/.Brewfile.core..."
+  brew bundle install --file="$HOME/.Brewfile.core"
 fi
 
 # ── Node + Claude Code (cross-platform, needs fnm from brew) ────────────────
-if command -v fnm &>/dev/null; then
-  eval "$(fnm env)"
-  if ! command -v node &>/dev/null; then
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(fnm env --shell bash)"
+  if ! command -v node >/dev/null 2>&1; then
     echo "→ Installing Node LTS..."
     fnm install --lts
     fnm default lts-latest
     echo "✓ Node installed ($(node --version))"
   fi
 
-  if ! npm list -g @anthropic-ai/claude-code &>/dev/null; then
+  if ! npm list -g --depth=0 @anthropic-ai/claude-code >/dev/null 2>&1; then
     echo "→ Installing Claude Code..."
     npm install -g @anthropic-ai/claude-code
     echo "✓ Claude Code installed"
