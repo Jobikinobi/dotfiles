@@ -2,17 +2,20 @@
 # Proxmox cloud-init user-data for a fresh Ubuntu/Debian VM that boots, joins
 # the tailnet, and applies the Jobikinobi/dotfiles chezmoi flow autonomously.
 #
-# This is a TEMPLATE. The render step replaces three sentinels that ONLY appear
-# in data fields below (never in this doc block):
+# This is a TEMPLATE. The render step (sed) substitutes three placeholders that
+# appear ONLY in data fields below. The doc references them by name without the
+# literal substitution syntax, so the renderer never touches this comment block:
 #
-#   @@HOSTNAME@@           — short hostname, e.g. tst-01
-#   @@TAILSCALE_AUTHKEY@@  — a tag:server reusable auth key from Doppler
-#                            (doppler secrets get TAILSCALE_AUTHKEY_SERVER --plain -p backend -c dev)
-#   @@CHEZMOI_BRANCH@@     — chezmoi source branch to apply (defaults to main)
+#   HOSTNAME placeholder        — short hostname, e.g. tst-01
+#   TAILSCALE_AUTHKEY placeholder — a tag:server reusable auth key from Doppler
+#                                 (doppler secrets get TAILSCALE_AUTHKEY_SERVER --plain -p backend -c dev)
+#   CHEZMOI_BRANCH placeholder  — chezmoi source branch to apply (defaults to main)
 #
-# Why @@…@@ rather than __…__ : the render is sed-based, and putting the same
-# literal in both this doc block AND a data field would substitute the key into
-# the doc comments at render time, leaving a plaintext copy in the snippet.
+# In the data fields below the actual sentinel form is the bracketed name
+# surrounded by double-at signs (see the runcmd / write_files / hostname / etc.
+# entries). This doc block deliberately avoids writing the literal sentinel
+# form so the sed substitution can't accidentally inline the auth key into
+# these comments at render time.
 #
 # Secrets hygiene the operator should follow:
 #   1. Use SINGLE-USE, EPHEMERAL, tag:server-scoped auth keys (Tailscale
