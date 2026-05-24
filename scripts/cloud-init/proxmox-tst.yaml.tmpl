@@ -2,21 +2,41 @@
 # Proxmox cloud-init user-data for a fresh Ubuntu/Debian VM that boots, joins
 # the tailnet, and applies the Jobikinobi/dotfiles chezmoi flow autonomously.
 #
-# This is a TEMPLATE — render it before uploading to /var/lib/vz/snippets/ on pve.
-# Required substitutions:
-#   __HOSTNAME__          host short name, e.g. tst-01
-#   __TAILSCALE_AUTHKEY__ a tag:server reusable auth key from Doppler
-#                         (doppler secrets get TAILSCALE_AUTHKEY_SERVER --plain -p backend -c dev)
-#   __CHEZMOI_BRANCH__    chezmoi source branch to apply (defaults to main)
+# This is a TEMPLATE. The render step replaces three sentinels that ONLY appear
+# in data fields below (never in this doc block):
 #
-# Usage on pve:
-#   sed -e "s|__HOSTNAME__|tst-01|g" \
-#       -e "s|__TAILSCALE_AUTHKEY__|${TS_KEY}|g" \
-#       -e "s|__CHEZMOI_BRANCH__|feat/chezmoi-linux-bootstrap-19|g" \
+#   @@HOSTNAME@@           — short hostname, e.g. tst-01
+#   @@TAILSCALE_AUTHKEY@@  — a tag:server reusable auth key from Doppler
+#                            (doppler secrets get TAILSCALE_AUTHKEY_SERVER --plain -p backend -c dev)
+#   @@CHEZMOI_BRANCH@@     — chezmoi source branch to apply (defaults to main)
+#
+# Why @@…@@ rather than __…__ : the render is sed-based, and putting the same
+# literal in both this doc block AND a data field would substitute the key into
+# the doc comments at render time, leaving a plaintext copy in the snippet.
+#
+# Secrets hygiene the operator should follow:
+#   1. Use SINGLE-USE, EPHEMERAL, tag:server-scoped auth keys (Tailscale
+#      dashboard → Settings → Keys). Limits blast radius if the rendered
+#      snippet leaks.
+#   2. chmod 600 the rendered snippet immediately on upload to pve.
+#   3. The rendered snippet is consumed by cloud-init and lives at
+#      /var/lib/cloud/instance/user-data.txt inside the VM (root 0400 by
+#      default). It is NOT exposed in `ps` because we use `--auth-key=file:`
+#      (see runcmd below).
+#
+# Render + upload + clone procedure:
+#   TS_KEY=$(doppler secrets get TAILSCALE_AUTHKEY_SERVER --plain -p backend -c dev)
+#   sed -e "s|@@HOSTNAME@@|tst-01|g" \
+#       -e "s|@@TAILSCALE_AUTHKEY@@|${TS_KEY}|g" \
+#       -e "s|@@CHEZMOI_BRANCH@@|feat/chezmoi-linux-bootstrap-19|g" \
 #       proxmox-tst.yaml.tmpl > /var/lib/vz/snippets/tst-01-user.yaml
-#   qm set <VMID> --cicustom "user=local:snippets/tst-01-user.yaml"
+#   chmod 600 /var/lib/vz/snippets/tst-01-user.yaml
+#   unset TS_KEY
+#   qm clone <TEMPLATE_VMID> <VMID> --name tst-01 --full --storage data2-btrfs
+#   qm set <VMID> --cicustom "user=local:snippets/tst-01-user.yaml" --ipconfig0 ip=dhcp
+#   qm start <VMID>
 
-hostname: __HOSTNAME__
+hostname: @@HOSTNAME@@
 manage_etc_hosts: localhost
 
 users:
@@ -44,6 +64,12 @@ packages:
   - zsh
 
 write_files:
+  - path: /run/ts-authkey
+    permissions: '0600'
+    owner: root:root
+    content: |
+      @@TAILSCALE_AUTHKEY@@
+
   - path: /usr/local/bin/tst-bootstrap-chezmoi
     permissions: '0755'
     owner: root:root
@@ -54,7 +80,7 @@ write_files:
       set -euo pipefail
 
       TARGET_USER="jth"
-      CHEZMOI_BRANCH="__CHEZMOI_BRANCH__"
+      CHEZMOI_BRANCH="@@CHEZMOI_BRANCH@@"
       CHEZMOI_SOURCE="Jobikinobi"
 
       if ! id "$TARGET_USER" >/dev/null 2>&1; then
@@ -91,17 +117,16 @@ write_files:
 runcmd:
   - [ systemctl, enable, --now, qemu-guest-agent ]
 
-  # Install + enroll Tailscale (root context)
+  # Install + enroll Tailscale. The auth key is read from /run/ts-authkey
+  # (tmpfs, mode 0600, root) via tailscale's `file:` URI so it never appears
+  # in process arguments / `ps` output. The file is deleted immediately after.
   - sh -c "curl -fsSL https://tailscale.com/install.sh | sh"
   - [ systemctl, enable, --now, tailscaled ]
-  - tailscale up --authkey="__TAILSCALE_AUTHKEY__" --advertise-tags=tag:server --ssh --hostname=__HOSTNAME__
+  - sh -c "tailscale up --auth-key=file:/run/ts-authkey --advertise-tags=tag:server --ssh --hostname=@@HOSTNAME@@ && shred -u /run/ts-authkey 2>/dev/null || rm -f /run/ts-authkey"
 
   # Bootstrap chezmoi as user jth
   - /usr/local/bin/tst-bootstrap-chezmoi
 
 final_message: |
-  ============================================================
-  cloud-init complete for __HOSTNAME__ at $UPTIME
-  Tailscale: $(tailscale ip -4 2>/dev/null | head -1)
-  Login as jth via: ssh jth@__HOSTNAME__   (over tailnet, MagicDNS)
-  ============================================================
+  cloud-init complete for @@HOSTNAME@@ ($UPTIME s).
+  Login as jth via: ssh jth@@@HOSTNAME@@   (over tailnet, MagicDNS)
