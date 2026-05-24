@@ -27,6 +27,7 @@ docs/**
 
 # Skip age-encrypted files when the recipient's private key isn't bootstrapped.
 # Include both target paths and source paths for safety across chezmoi contexts.
+# (Some flows evaluate ignore rules against target paths, others against source names.)
 # Without this, `chezmoi apply` fails on fresh VMs / test rigs that don't yet
 # have ~/.config/chezmoi/key.txt — even though these files are not load-bearing
 # for the rest of the deploy.
