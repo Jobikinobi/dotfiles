@@ -26,10 +26,14 @@ com.jth.mac-save.plist
 docs/**
 
 # Skip age-encrypted files when the recipient's private key isn't bootstrapped.
+# .chezmoiignore patterns match TARGET paths (the decrypted destination),
+# not source paths — so we list the decrypted names explicitly.
 # Without this, `chezmoi apply` fails on fresh VMs / test rigs that don't yet
-# have ~/.config/chezmoi/key.txt — even though those files are not load-bearing
+# have ~/.config/chezmoi/key.txt — even though these files are not load-bearing
 # for the rest of the deploy.
 {{- if not (stat (joinPath .chezmoi.homeDir ".config/chezmoi/key.txt")) }}
-encrypted_*
-**/encrypted_*
+.local/share/infra/**
+.ssh/id_ed25519_pve_admin
+.ssh/id_ed25519_macstudio
+.ssh/id_ed25519_pve
 {{- end }}
