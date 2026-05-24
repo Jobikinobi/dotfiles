@@ -44,10 +44,16 @@ WORKDIR /home/jth
 RUN sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
 ENV PATH="/home/jth/.local/bin:${PATH}"
 
-# Initialize dotfiles and install core stack
-# chezmoi init clones the repo, apply deploys configs + runs install scripts
-# The install script installs Homebrew + core Brewfile (bat, helix, fzf, etc.)
-RUN chezmoi init --apply --no-tty Jobikinobi
+# Initialize dotfiles and install core stack.
+# chezmoi init clones the repo, apply deploys configs + runs install scripts.
+# The install script installs Homebrew + core Brewfile (bat, helix, fzf, etc.).
+#
+# CHEZMOI_BRANCH defaults to `main` (production behaviour), but the workflow
+# passes the PR's head ref on pull_request events so that PRs which fix bugs
+# in main are actually tested against their own fix instead of main's broken
+# state.
+ARG CHEZMOI_BRANCH=main
+RUN chezmoi init --apply --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 
 # Switch back to root for entrypoint
