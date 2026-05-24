@@ -30,5 +30,8 @@ brew "git-filter-repo"
 brew "lazygit"
 # ── Language toolchains ─────────────────────────────────────────────────────
 brew "go"
-brew "rustup"
 brew "pyenv"
+# Rust is installed via the official rustup-init script (see
+# run_once_after_install-toolchains.sh.tmpl) — Linuxbrew's rustup formula
+# only ships the `rustup` binary without `cargo`/`rustc` proxies in
+# ~/.cargo/bin, so we use the upstream installer for cross-platform parity.

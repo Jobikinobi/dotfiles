@@ -38,6 +38,8 @@ jobs:
           tags: dotfiles-test:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            CHEZMOI_BRANCH=${{ github.head_ref || github.ref_name }}
 
       - name: Verify core tools are installed
         run: |
@@ -70,6 +72,8 @@ jobs:
             ghcr.io/jobikinobi/dotfiles:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            CHEZMOI_BRANCH=main
 
   # ── macOS: Verify chezmoi deploys correctly ─────────────────────────────────
   macos:
