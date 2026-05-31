@@ -20,12 +20,12 @@ brew "nnn"          # file manager
 brew "powerlevel10k" # zsh prompt theme
 brew "ripgrep"      # grep replacement
 brew "uv"           # Python package manager
-
+brew "lazyssh"
 # ── Git tooling ─────────────────────────────────────────────────────────────
 brew "git"
 brew "gh"           # GitHub CLI
 brew "git-filter-repo"
-
+brew "lazygit"
 # ── Language toolchains ─────────────────────────────────────────────────────
 brew "go"
 brew "rustup"
