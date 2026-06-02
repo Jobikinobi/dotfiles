@@ -1,0 +1,23 @@
+# Legal profile — Legal-Assistant-v3
+# https://github.com/The-HOLE-Foundation/Legal-Assistant-v3
+#
+# Activated by adding "legal" to `projects` in ~/.config/chezmoi/chezmoi.toml.
+# See docs/profiles/legal.md for what this installs and what is manual.
+#
+# Anything that already lives in dot_Brewfile.core is intentionally NOT
+# duplicated here. As of 2026-06-02 core already provides:
+#   pyenv, uv, doppler, go, git, gh, lazygit, jq, fd, ripgrep
+# So this file only carries OS-level deps that are *specific* to the
+# legal-assistant workflow.
+
+# ── PDF / OCR pipeline ──────────────────────────────────────────────────────
+# Required by `av-ocr-rebuild --optimize`: Ghostscript is the post-OCR
+# linearization + size-reduction pass. See packages/av-ocr-rebuild/README.md
+# in Legal-Assistant-v3.
+brew "ghostscript"
+
+# TODO(CEO Q1 — pending): Tesseract OCR fallback for non-macOS hosts.
+# Apple Vision OCR (the primary OCR engine in av-ocr-rebuild) is macOS-only,
+# so Linux containers in the `legal` profile currently have no OCR backend.
+# If the CEO confirms Tesseract is the chosen Linux fallback, uncomment:
+# brew "tesseract"

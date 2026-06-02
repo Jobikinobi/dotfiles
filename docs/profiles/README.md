@@ -6,9 +6,9 @@ A **profile** is the per-project slice of this dotfiles repo: the brew formulae,
 
 | Key | Repo | Brewfile | run_once | Docs | Notes |
 |---|---|---|---|---|---|
-| _none yet_ | — | — | — | — | Filled in by T3–T5. |
+| `legal` | [Legal-Assistant-v3](https://github.com/The-HOLE-Foundation/Legal-Assistant-v3) | [`dot_Brewfile.legal`](../../dot_Brewfile.legal) | [`run_once_after_install-project-legal.sh.tmpl`](../../run_once_after_install-project-legal.sh.tmpl) | [`legal.md`](legal.md) | OCR fallback pending CEO Q1 ([THE-51](/THE/issues/THE-51)). |
 
-> Rows land in subsequent tasks: `legal` ([THE-…](/THE/issues/THE-51)) in T3, `godocs` in T4, `oversight` in T5. Until then the table is intentionally empty — adding a row is part of adding a profile, not part of this scaffold.
+> Remaining rows land in subsequent tasks: `godocs` in T4, `oversight` in T5.
 
 ## Adding a new project
 
