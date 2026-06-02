@@ -87,7 +87,15 @@ RUN if [ -n "${CHEZMOI_PROJECT}" ]; then \
 # Step 3: apply with the correct projects list in place. This is where the
 # per-project brewfile loop in run_once_after_install-brewfile.sh.tmpl
 # actually fires for the active profile.
-RUN chezmoi apply --no-tty
+#
+# --exclude=encrypted: the repo contains age-encrypted ssh keys
+# (.ssh/id_ed25519_*.age). The decryption key (~/.config/chezmoi/key.txt) is
+# never present in CI by design (binary-presence-only verification, no
+# secrets), and standalone `chezmoi apply` errors on encrypted files when
+# encryption is configured but no key is available. The legacy
+# `chezmoi init --apply` path was apparently tolerant of this; the split
+# init/apply path isn't, so we exclude encrypted files explicitly.
+RUN chezmoi apply --no-tty --exclude=encrypted
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 
 # Switch back to root for entrypoint
