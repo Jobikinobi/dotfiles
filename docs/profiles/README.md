@@ -118,6 +118,60 @@ The list is expanded by chezmoi at apply time, so the rendered script is plain b
 
 Per-project run-once scripts (`run_once_after_install-project-<key>.sh.tmpl`) self-gate with the `has` idiom shown in *Data variables* above. They run on every machine but exit early when their key is not in `.projects`.
 
+## Verification
+
+Each profile doc declares the binaries it promises to put on `PATH` in a fenced ` ```text ` block under a fixed `## Installed binaries` heading. [`scripts/test-profile.sh`](../../scripts/test-profile.sh) parses that block and turns it into a build+assert harness — the verification gate that catches profile drift before it lands on `main`.
+
+### The convention
+
+In each `docs/profiles/<key>.md`, immediately after the "What this profile installs" prose, add a section that looks like this:
+
+````markdown
+## Installed binaries
+
+<one-sentence explanation>
+
+```text
+gs
+tesseract
+# Lines starting with `#` are comments. Blank lines are ignored.
+```
+````
+
+Rules:
+
+- The heading must be exactly `## Installed binaries`.
+- The block must be a fenced ` ```text ` block. Other languages are ignored by the parser.
+- One binary name per line. **Binary names, not formula names** — e.g. `gs` not `ghostscript`, `aws` not `awscli`, `mutool` not `mupdf-tools`.
+- Lines starting with `#` and blank lines are ignored, so you can annotate why a brew is intentionally not asserted (keg-only formulae like `go@1.25` whose PATH wiring lives in `~/.zshrc.d/`, for example).
+- An **empty block** (only comments and blanks) means "this profile installs nothing beyond the core baseline" — the harness enforces that invariant with a `brew list --formula` diff against a fresh core build. This is how [`oversight.md`](oversight.md) is verified.
+
+### Running the harness
+
+```bash
+# Validate a populated profile end-to-end. Builds Dockerfile.test with
+# CHEZMOI_PROJECT=<key> baked in, then asserts each declared binary is
+# on PATH via `docker run --rm <image> command -v <bin>`.
+scripts/test-profile.sh --project legal
+scripts/test-profile.sh --project godocs
+
+# Validate the docs-only invariant. Builds both core and oversight images,
+# diffs `brew list --formula`, and fails if oversight has any extras.
+scripts/test-profile.sh --project oversight
+
+# Build the core baseline only (no per-profile asserts).
+scripts/test-profile.sh --project core
+
+# Build from a non-default branch. Useful when iterating on profile changes
+# in a feature branch — the harness pushes --branch through as a build-arg
+# so chezmoi clones the right ref inside the container.
+scripts/test-profile.sh --project legal --branch my-feature-branch
+```
+
+Exit codes: `0` on success, non-zero on any missing binary or any docs-only extra. Failures print the offending profile + binary so the cause is obvious in CI logs.
+
+Run requirements: a reachable Docker daemon (`docker info` succeeds). No Tailscale, Doppler, or external network access beyond Docker Hub / GHCR is required — profile verification is binary-presence only, not a full functional smoke. Build cache is reused across profile keys (no `--no-cache` by default) so reruns are fast.
+
 ## Provisioning a container
 
 Once a profile exists, stand up a per-project LXD container on the canonical Proxmox host with [`scripts/provision-lxd.sh`](../../scripts/provision-lxd.sh):

@@ -22,6 +22,15 @@ Nothing. [`dot_Brewfile.oversight`](../../dot_Brewfile.oversight) is intentional
 
 Already provided by [`dot_Brewfile.core`](../../dot_Brewfile.core) and therefore not duplicated here: `git`, `gh`, `lazygit`, `jq`, `fd`, `ripgrep`, `pyenv`, `uv`, `doppler`, `go`.
 
+## Installed binaries
+
+[`scripts/test-profile.sh`](../../scripts/test-profile.sh) parses the block below to assert per-profile binaries are on `PATH`. For `oversight` the block is **intentionally empty**: docs-only in v1 means zero extras beyond the core baseline. The harness treats an empty block as an invariant — it builds the `core` image and the `oversight` image, diffs `brew list --formula` between them, and fails if the oversight image installed anything extra. Promotion to a real profile starts by listing the new binaries here. See [`docs/profiles/README.md#verification`](README.md#verification) for the parser convention.
+
+```text
+# Intentionally empty — oversight is docs-only in v1.
+# The harness enforces this via a brew-list diff against the core image.
+```
+
 The [`run_once_after_install-project-oversight.sh.tmpl`](../../run_once_after_install-project-oversight.sh.tmpl) script self-gates with `{{ if not (has "oversight" .projects) }}exit 0{{ end }}`. On activation it prints a single line:
 
 > oversight profile is docs-only in v1; promote when a container workload is defined.

@@ -15,6 +15,15 @@ Brews from [`dot_Brewfile.legal`](../../dot_Brewfile.legal):
 
 Already provided by [`dot_Brewfile.core`](../../dot_Brewfile.core) and therefore not duplicated here: `pyenv`, `uv`, `doppler`, `go`, `git`, `gh`, `lazygit`, `jq`, `fd`, `ripgrep`.
 
+## Installed binaries
+
+[`scripts/test-profile.sh`](../../scripts/test-profile.sh) asserts each entry below is on `PATH` inside an applied container (`docker run --rm <image> command -v <bin>`). Names are binary names, not brew formula names — e.g. `gs` (not `ghostscript`). Lines starting with `#` and blank lines are ignored. See [`docs/profiles/README.md#verification`](README.md#verification) for the parser convention.
+
+```text
+gs
+tesseract
+```
+
 The [`run_once_after_install-project-legal.sh.tmpl`](../../run_once_after_install-project-legal.sh.tmpl) script self-gates with `{{ if not (has "legal" .projects) }}exit 0{{ end }}` and on activation:
 
 - Defensively installs `uv` via `curl -LsSf https://astral.sh/uv/install.sh | sh` when `uv` is not already on PATH (the brew formula is the primary install).

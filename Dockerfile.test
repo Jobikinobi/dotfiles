@@ -53,6 +53,27 @@ ENV PATH="/home/jth/.local/bin:${PATH}"
 # in main are actually tested against their own fix instead of main's broken
 # state.
 ARG CHEZMOI_BRANCH=main
+
+# CHEZMOI_PROJECT pre-seeds the rendered chezmoi.toml so the apply step
+# activates a single project profile (e.g. legal, godocs, oversight). Empty
+# string = core baseline (no per-project Brewfile or run_once branch runs).
+# Mirrors the cloud-init pre-seed in scripts/provision-lxd.sh: writing the
+# config before `chezmoi init` makes chezmoi skip rendering the .toml.tmpl
+# (it only renders when the destination is absent), which is how our values
+# survive the non-interactive default branch in .chezmoi.toml.tmpl.
+ARG CHEZMOI_PROJECT=""
+RUN mkdir -p "$HOME/.config/chezmoi" \
+    && if [ -n "${CHEZMOI_PROJECT}" ]; then \
+         printf '%s\n' \
+           '[data]' \
+           '    name = "Joseph T. Herrmann, M.D."' \
+           '    email = "joeherrmann@gmail.com"' \
+           '    github_user = "Jobikinobi"' \
+           "    projects = [\"${CHEZMOI_PROJECT}\"]" \
+           "    lxd_profile = \"${CHEZMOI_PROJECT}\"" \
+           > "$HOME/.config/chezmoi/chezmoi.toml"; \
+       fi
+
 RUN chezmoi init --apply --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 

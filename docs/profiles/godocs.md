@@ -23,6 +23,23 @@ LibreOffice is installed by the [run_once script](../../run_once_after_install-p
 
 Already provided by [`dot_Brewfile.core`](../../dot_Brewfile.core) and therefore not duplicated here: `git`, `gh`, `lazygit`, `jq`, `fd`, `ripgrep`, `doppler`, `uv`, `pyenv`, unversioned `go`.
 
+## Installed binaries
+
+[`scripts/test-profile.sh`](../../scripts/test-profile.sh) asserts each entry below is on `PATH` inside an applied container (`docker run --rm <image> command -v <bin>`). Names are binary names, not brew formula names — e.g. `aws` (not `awscli`), `mutool` (not `mupdf-tools`). Lines starting with `#` and blank lines are ignored. See [`docs/profiles/README.md#verification`](README.md#verification) for the parser convention.
+
+```text
+rclone
+aws
+mutool
+# soffice is installed by run_once_after_install-project-godocs.sh.tmpl
+# (apt libreoffice on Linux, brew cask on macOS) — assert it on PATH too.
+soffice
+# go@1.25 is intentionally NOT asserted: it is a keg-only brew formula whose
+# PATH wiring lives in ~/.zshrc.d/godocs-go125.zsh and only fires for
+# interactive shells. The core profile already provides an unversioned `go`
+# on PATH for non-interactive `command -v` checks.
+```
+
 The [`run_once_after_install-project-godocs.sh.tmpl`](../../run_once_after_install-project-godocs.sh.tmpl) script self-gates with `{{ if not (has "godocs" .projects) }}exit 0{{ end }}` and on activation:
 
 - Installs LibreOffice per the platform branch above.
