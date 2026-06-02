@@ -379,14 +379,6 @@ else
   for bin in "${declared_binaries[@]}"; do
     if binary_on_path_in_image "$profile_tag" "$bin"; then
       printf '  ✓ %s\n' "$bin"
-      # THE-79 forensic mode: even successful assertions emit a one-line
-      # provenance summary. The PR #41 acceptance leg passed despite the
-      # regression branch commenting out `brew "tesseract"` — proving the
-      # fix's login-shell hypothesis was incomplete. We need the actual
-      # path each declared binary resolves to in order to identify the
-      # second source of pollution (cached layer, transitive dep, or
-      # base-image pre-staging). Remove this trace once root-caused.
-      diagnose_binary_in_image "$profile_tag" "$bin"
     else
       printf '  ✗ %s\n' "$bin" >&2
       diagnose_binary_in_image "$profile_tag" "$bin"
