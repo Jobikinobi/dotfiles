@@ -463,24 +463,41 @@ else
       on_path=1
     fi
 
+    # Three-way ownership resolution:
+    #   - formula non-empty AND in Brewfile  → brew-owned + declared (✓)
+    #   - formula non-empty AND NOT in Brewfile → brew-owned but undeclared (THE-79 leak)
+    #   - formula empty → binary is not brew-owned (apt-installed by run_once,
+    #     system binary, npm global, etc). On-PATH is the only contract we can
+    #     enforce; skip the brew-attribution check. The classic example is
+    #     `soffice` in the godocs profile — LibreOffice has no Linuxbrew formula
+    #     and is intentionally apt-installed by the run_once script, with the
+    #     docs noting it explicitly. THE-79's failure mode (binary leaked via
+    #     a transitive brew dep) can only occur when the binary IS brew-owned,
+    #     so this exemption does not weaken the attribution check.
     formula="$(formula_for_binary_in_image "$profile_tag" "$bin")"
-    if [[ -n "$formula" ]] && grep -qxF "$formula" "$declared_formulas_file"; then
+    if [[ -z "$formula" ]]; then
+      declared=1
+    elif grep -qxF "$formula" "$declared_formulas_file"; then
       declared=1
     fi
 
     if (( on_path && declared )); then
-      printf '  ✓ %s (formula=%s)\n' "$bin" "$formula"
+      if [[ -n "$formula" ]]; then
+        printf '  ✓ %s (formula=%s)\n' "$bin" "$formula"
+      else
+        printf '  ✓ %s (non-brew, on PATH)\n' "$bin"
+      fi
     elif (( ! on_path )); then
       printf '  ✗ %s (not on PATH)\n' "$bin" >&2
       diagnose_binary_in_image "$profile_tag" "$bin"
       missing+=("$bin")
     else
-      # On PATH but the owning formula is not in dot_Brewfile.<profile>.
-      # This is the THE-79 failure mode: the binary is present via some
-      # path other than the profile's Brewfile, so the profile's promise
-      # ("removing brew \"X\" removes binary X") is not actually enforced.
+      # On PATH AND brew-owned, but the owning formula is not in
+      # dot_Brewfile.<profile>. This is the THE-79 failure mode: the binary
+      # is present via a transitive brew dependency or another profile's
+      # install, not because this profile's Brewfile asked for it.
       printf '  ✗ %s (on PATH, but owning formula "%s" is NOT declared in dot_Brewfile.%s)\n' \
-        "$bin" "${formula:-<unresolved>}" "$project" >&2
+        "$bin" "$formula" "$project" >&2
       diagnose_binary_in_image "$profile_tag" "$bin"
       unowned+=("$bin")
     fi
