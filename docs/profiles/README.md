@@ -61,6 +61,28 @@ The list is expanded by chezmoi at apply time, so the rendered script is plain b
 
 Per-project run-once scripts (`run_once_after_install-project-<key>.sh.tmpl`) self-gate with the `has` idiom shown in *Data variables* above. They run on every machine but exit early when their key is not in `.projects`.
 
+## Provisioning a container
+
+Once a profile exists, stand up a per-project LXD container on the canonical Proxmox host with [`scripts/provision-lxd.sh`](../../scripts/provision-lxd.sh):
+
+```bash
+# inspect first — prints the rendered cloud-init + proposed remote command,
+# never touches Doppler or the Proxmox host
+scripts/provision-lxd.sh --project legal --name the-legal-01 --dry-run
+
+# launch for real (requires doppler login + tailnet reachability)
+scripts/provision-lxd.sh --project legal --name the-legal-01
+```
+
+The script:
+
+- validates `<key>` against `dot_Brewfile.<key>` so typos fail fast,
+- fetches a **single-use, ephemeral** Tailscale auth key from Doppler scope `dotfiles/lxd-bootstrap` (secret `TAILSCALE_AUTHKEY`),
+- renders a cloud-init that pre-seeds `~/.config/chezmoi/chezmoi.toml` with `projects = ["<key>"]` + `lxd_profile = "<key>"` and runs `chezmoi init --apply jobikinobi`,
+- SSHes to the Proxmox host (default `proxmox.lemming-likert.ts.net`; override with `--host` or `$LXD_PROXMOX_HOST`) and runs `lxc init` / `lxc config set user.user-data` / `lxc start` — the user-data is streamed over stdin so the auth key never lands in remote `ps` output.
+
+The age decryption key (`~/.config/chezmoi/key.txt`) is intentionally **not** baked into cloud-init. Provision it out-of-band after the container is reachable on the tailnet if the dotfiles include encrypted files you need on that host. See [THE-68](/THE/issues/THE-68) for the design notes.
+
 ## Related
 
 - Parent plan: [THE-51 plan document](/THE/issues/THE-51#document-plan)
