@@ -32,6 +32,18 @@ if [[ -f "$HOME/.Brewfile.core" ]]; then
   brew bundle install --file="$HOME/.Brewfile.core"
 fi
 
+# ── Per-project Brewfiles ───────────────────────────────────────────────────
+# Driven by the `projects` list in ~/.config/chezmoi/chezmoi.toml. The list
+# is expanded at apply time by chezmoi templating, so the rendered script
+# contains one literal block per active profile. File presence drives
+# installation — a key without a matching ~/.Brewfile.<key> is a no-op.
+{{- range .projects }}
+if [[ -f "$HOME/.Brewfile.{{ . }}" ]]; then
+  echo "→ Installing {{ . }} packages from ~/.Brewfile.{{ . }}..."
+  brew bundle install --file="$HOME/.Brewfile.{{ . }}"
+fi
+{{- end }}
+
 # ── Node + Claude Code (cross-platform, needs fnm from brew) ────────────────
 if command -v fnm >/dev/null 2>&1; then
   eval "$(fnm env --shell bash)"

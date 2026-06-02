@@ -43,6 +43,23 @@ In templates, gate per-project work with the existing `has` idiom:
 
 The interactive `chezmoi init` path prompts for both; the non-interactive (cloud-init pre-seed) path expects the values to be written into `~/.config/chezmoi/chezmoi.toml` before `chezmoi init` runs. Defaults are `projects = []` and `lxd_profile = ""` — a fresh machine with no answers does nothing project-specific.
 
+## How it works
+
+Per-project Brewfiles are installed by [`run_once_after_install-brewfile.sh.tmpl`](../../run_once_after_install-brewfile.sh.tmpl). After the core install block, the template ranges over `.projects` and emits one literal bash block per active profile:
+
+```gotemplate
+{{`{{- range .projects }}
+if [[ -f "$HOME/.Brewfile.{{ . }}" ]]; then
+  echo "→ Installing {{ . }} packages from ~/.Brewfile.{{ . }}..."
+  brew bundle install --file="$HOME/.Brewfile.{{ . }}"
+fi
+{{- end }}`}}
+```
+
+The list is expanded by chezmoi at apply time, so the rendered script is plain bash — no runtime loop, no dependence on a `projects` env var. File presence is the gating signal: a key in `.projects` without a matching `~/.Brewfile.<key>` is a silent no-op, which lets profiles ship with only a `run_once_after_install-project-<key>.sh.tmpl` and no brews.
+
+Per-project run-once scripts (`run_once_after_install-project-<key>.sh.tmpl`) self-gate with the `has` idiom shown in *Data variables* above. They run on every machine but exit early when their key is not in `.projects`.
+
 ## Related
 
 - Parent plan: [THE-51 plan document](/THE/issues/THE-51#document-plan)
