@@ -283,6 +283,63 @@ binary_on_path_in_image() {
   '
 }
 
+# Resolve the brew formula that owns a given binary in the image. Uses
+# `brew which-formula --explain` for accuracy. Prints the formula name on
+# stdout (empty string if no formula matches), and always returns 0. This
+# is the load-bearing check for THE-79: the matrix gate must verify that
+# the binary's source formula is the one declared in dot_Brewfile.<profile>,
+# not just that the binary happens to be on PATH (it can arrive via
+# transitive dependencies of unrelated formulas or npm/post-install hooks
+# — see THE-79 evidence comment for the regression that motivated this).
+formula_for_binary_in_image() {
+  local tag="$1" bin="$2"
+  # shellcheck disable=SC2016
+  run_in_image "$tag" '
+    if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
+    bin='"$(printf '%q' "$bin")"'
+    # First try `brew which-formula` (fast, tap-aware). Fall back to walking
+    # the symlink under $HOMEBREW_PREFIX/bin to its Cellar parent dir name,
+    # which is the canonical (formula, version) tuple.
+    out="$(brew which-formula "$bin" 2>/dev/null | head -1)"
+    if [ -n "$out" ]; then
+      printf "%s\n" "$out"
+    else
+      target="$(readlink -f "/home/linuxbrew/.linuxbrew/bin/$bin" 2>/dev/null)"
+      if [ -n "$target" ]; then
+        # /home/linuxbrew/.linuxbrew/Cellar/<formula>/<version>/bin/<bin>
+        printf "%s\n" "$target" | awk -F/ "{ for(i=1;i<=NF;i++) if(\$i==\"Cellar\") { print \$(i+1); exit } }"
+      fi
+    fi
+  ' 2>/dev/null | tr -d '[:space:]'
+}
+
+# Parse `brew "X"` formula declarations from a Brewfile. Skips commented
+# lines, `tap` / `cask` / `vscode` lines, and inline comments. Returns one
+# formula name per line on stdout.
+formulas_in_brewfile() {
+  local brewfile_path="$1"
+  [[ -f "$brewfile_path" ]] || return 0
+  # Match: optional whitespace, then `brew "..."`. Capture the quoted name.
+  # Ignore lines whose first non-whitespace character is `#`.
+  awk '
+    /^[[:space:]]*#/ { next }                       # full-line comment
+    {
+      sub(/[[:space:]]*#.*/, "")                    # strip inline comment
+      if (match($0, /^[[:space:]]*brew[[:space:]]+"[^"]+"/)) {
+        line = substr($0, RSTART, RLENGTH)
+        if (match(line, /"[^"]+"/)) {
+          name = substr(line, RSTART+1, RLENGTH-2)
+          # strip optional tap prefix (e.g., "supabase/tap/supabase")
+          n = split(name, parts, "/")
+          print parts[n]
+        }
+      }
+    }
+  ' "$brewfile_path"
+}
+
 # Diagnostic dump used when a binary-presence assertion FAILS or appears
 # anomalous. Prints (a) the PATH the test saw, (b) all hits along PATH
 # (`which -a`), (c) what `type -a` thinks the name refers to (alias,
@@ -369,20 +426,60 @@ if (( docs_only_invariant )); then
       "$PROG" "$project"
   fi
 else
-  # Populated profile: assert each declared binary is on PATH.
-  printf '%s: asserting %d binar%s on PATH inside %s:\n' \
+  # Populated profile: for each declared binary assert BOTH
+  #   (1) the binary is on PATH (integration smoke test), and
+  #   (2) the formula that owns the binary is explicitly declared in
+  #       dot_Brewfile.<profile>.
+  #
+  # (2) is the load-bearing check. THE-79 demonstrated that (1) alone is a
+  # false-positive risk: binaries can arrive in the image via transitive
+  # dependencies of unrelated formulas or npm post-install hooks, so a
+  # profile that removes `brew "tesseract"` from its Brewfile still passed
+  # the old gate because tesseract was being installed as a side effect of
+  # other tooling. The matrix gate is only credible if it verifies the
+  # profile's Brewfile is the path of record for each promised binary.
+  #
+  # `brew which-formula` is the authoritative answer for "which formula
+  # owns this binary"; formulas_in_brewfile() is the simple `brew "X"`
+  # parser for the profile Brewfile.
+  printf '%s: asserting %d binar%s on PATH AND declared in dot_Brewfile.%s inside %s:\n' \
     "$PROG" "${#declared_binaries[@]}" \
     "$( [[ ${#declared_binaries[@]} -eq 1 ]] && printf y || printf ies )" \
-    "$profile_tag"
+    "$project" "$profile_tag"
+
+  declared_formulas_file="$(mktemp)"
+  trap 'rm -f "$declared_formulas_file"' EXIT
+  formulas_in_brewfile "$brewfile" | LC_ALL=C sort -u > "$declared_formulas_file"
 
   missing=()
+  unowned=()
   for bin in "${declared_binaries[@]}"; do
+    on_path=0
+    declared=0
     if binary_on_path_in_image "$profile_tag" "$bin"; then
-      printf '  ✓ %s\n' "$bin"
-    else
-      printf '  ✗ %s\n' "$bin" >&2
+      on_path=1
+    fi
+
+    formula="$(formula_for_binary_in_image "$profile_tag" "$bin")"
+    if [[ -n "$formula" ]] && grep -qxF "$formula" "$declared_formulas_file"; then
+      declared=1
+    fi
+
+    if (( on_path && declared )); then
+      printf '  ✓ %s (formula=%s)\n' "$bin" "$formula"
+    elif (( ! on_path )); then
+      printf '  ✗ %s (not on PATH)\n' "$bin" >&2
       diagnose_binary_in_image "$profile_tag" "$bin"
       missing+=("$bin")
+    else
+      # On PATH but the owning formula is not in dot_Brewfile.<profile>.
+      # This is the THE-79 failure mode: the binary is present via some
+      # path other than the profile's Brewfile, so the profile's promise
+      # ("removing brew \"X\" removes binary X") is not actually enforced.
+      printf '  ✗ %s (on PATH, but owning formula "%s" is NOT declared in dot_Brewfile.%s)\n' \
+        "$bin" "${formula:-<unresolved>}" "$project" >&2
+      diagnose_binary_in_image "$profile_tag" "$bin"
+      unowned+=("$bin")
     fi
   done
 
@@ -392,6 +489,16 @@ else
     err "Either fix dot_Brewfile.$project / run_once_after_install-project-$project.sh.tmpl"
     err "to put these on PATH, or remove them from docs/profiles/$project.md's"
     err "'Installed binaries' block if they are not actually promised."
+    failed=1
+  fi
+
+  if (( ${#unowned[@]} > 0 )); then
+    err "✗ profile '$project' has ${#unowned[@]} declared binar$( [[ ${#unowned[@]} -eq 1 ]] && printf y || printf ies ) whose owning brew formula is NOT in dot_Brewfile.$project:"
+    for u in "${unowned[@]}"; do printf '    - %s\n' "$u" >&2; done
+    err "The binar$( [[ ${#unowned[@]} -eq 1 ]] && printf y || printf ies ) appear$( [[ ${#unowned[@]} -eq 1 ]] && printf s || printf '' ) on PATH only because"
+    err "of a transitive dependency or side-channel install (npm postinstall,"
+    err "another profile, etc.). Add an explicit \`brew \"<formula>\"\` line to"
+    err "dot_Brewfile.$project so this profile actually owns the install."
     failed=1
   fi
 fi
