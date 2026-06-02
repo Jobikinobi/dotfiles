@@ -304,7 +304,10 @@ formula_for_binary_in_image() {
     # which is the canonical (formula, version) tuple.
     out="$(brew which-formula "$bin" 2>/dev/null | head -1)"
     if [ -n "$out" ]; then
-      printf "%s\n" "$out"
+      # `brew which-formula` returns the tap-qualified name (user/tap/foo) for
+      # tap formulae; strip the prefix so the comparison matches the basenames
+      # produced by formulas_in_brewfile() and the Cellar-walk fallback below.
+      printf "%s\n" "${out##*/}"
     else
       target="$(readlink -f "/home/linuxbrew/.linuxbrew/bin/$bin" 2>/dev/null)"
       if [ -n "$target" ]; then
