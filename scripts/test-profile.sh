@@ -234,9 +234,23 @@ build_image() {
 
 # Run a one-shot command in the built image. The default ENTRYPOINT is
 # entrypoint.sh which starts tailscaled/sshd; we bypass it explicitly.
+#
+# IMPORTANT: we deliberately use `bash -c` (NOT `bash -lc`). A login shell
+# sources /etc/profile and ~/.bash_profile, both of which can mutate the
+# binary-resolution environment in ways that mask the IMAGE'S real state:
+#   - dot_bash_profile unconditionally prepends /Users/jth/micromamba/bin
+#     (a stale macOS path) and sources $HOME/.cargo/env (PATH-augmenting).
+#   - dot_bashrc prepends /opt/homebrew/opt/postgresql@15/bin (macOS path).
+#   - Future operator-installed rc snippets could alias or shadow binary
+#     names (see THE-79 for the original false-negative report — a login
+#     shell made `command -v tesseract` succeed even when brew bundle had
+#     not installed it, breaking the matrix gate's credibility).
+# A non-login shell inherits PATH from the Dockerfile's ENV, which is the
+# ground truth we want the matrix to assert against. Callers that need
+# brew on PATH must eval shellenv themselves (see brew_formulae_in_image).
 run_in_image() {
   local tag="$1"; shift
-  docker run --rm --entrypoint /bin/bash "$tag" -lc "$*"
+  docker run --rm --entrypoint /bin/bash "$tag" -c "$*"
 }
 
 # brew list --formula inside the image, sorted. Wraps the shellenv eval so
@@ -252,6 +266,47 @@ brew_formulae_in_image() {
     fi
     brew list --formula 2>/dev/null | LC_ALL=C sort -u
   '
+}
+
+# Hermetic binary-presence check used by the populated-profile assertion.
+# Wraps `command -v` in a non-login bash and adds the brew prefix to PATH
+# without sourcing any user rc files. Returns 0 if the binary resolves,
+# non-zero otherwise. Suppresses stdout/stderr — callers only inspect $?.
+binary_on_path_in_image() {
+  local tag="$1" bin="$2"
+  # shellcheck disable=SC2016
+  run_in_image "$tag" '
+    if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
+    command -v '"$(printf '%q' "$bin")"' >/dev/null 2>&1
+  '
+}
+
+# Diagnostic dump used when a binary-presence assertion FAILS or appears
+# anomalous. Prints (a) the PATH the test saw, (b) all hits along PATH
+# (`which -a`), (c) what `type -a` thinks the name refers to (alias,
+# function, builtin, file), (d) whether a matching file exists under the
+# Homebrew prefix, and (e) any brew formula matching the name. Together
+# these answer "if the gate fired wrong, where did the false signal come
+# from?" without a second CI round-trip.
+diagnose_binary_in_image() {
+  local tag="$1" bin="$2"
+  printf '%s: diagnostic for "%s" in %s:\n' "$PROG" "$bin" "$tag" >&2
+  # shellcheck disable=SC2016
+  run_in_image "$tag" '
+    if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
+    bin='"$(printf '%q' "$bin")"'
+    printf "    PATH=%s\n" "$PATH"
+    printf "    which -a:\n"; which -a "$bin" 2>&1 | sed "s/^/      /" || true
+    printf "    type -a:\n";  type -a  "$bin" 2>&1 | sed "s/^/      /" || true
+    printf "    ls -la \$HOMEBREW_PREFIX/bin/%s:\n" "$bin"
+    ls -la "/home/linuxbrew/.linuxbrew/bin/$bin" 2>&1 | sed "s/^/      /" || true
+    printf "    brew list --formula | grep -i %s:\n" "$bin"
+    brew list --formula 2>/dev/null | grep -i "$bin" | sed "s/^/      /" || printf "      (no match)\n"
+  ' >&2 || true
 }
 
 # Cleanup intermediate images unless --keep-images was set.
@@ -322,10 +377,11 @@ else
 
   missing=()
   for bin in "${declared_binaries[@]}"; do
-    if run_in_image "$profile_tag" "command -v $(printf '%q' "$bin") >/dev/null 2>&1"; then
+    if binary_on_path_in_image "$profile_tag" "$bin"; then
       printf '  ✓ %s\n' "$bin"
     else
       printf '  ✗ %s\n' "$bin" >&2
+      diagnose_binary_in_image "$profile_tag" "$bin"
       missing+=("$bin")
     fi
   done
