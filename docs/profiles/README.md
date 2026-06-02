@@ -7,8 +7,9 @@ A **profile** is the per-project slice of this dotfiles repo: the brew formulae,
 | Key | Repo | Brewfile | run_once | Docs | Notes |
 |---|---|---|---|---|---|
 | `legal` | [Legal-Assistant-v3](https://github.com/The-HOLE-Foundation/Legal-Assistant-v3) | [`dot_Brewfile.legal`](../../dot_Brewfile.legal) | [`run_once_after_install-project-legal.sh.tmpl`](../../run_once_after_install-project-legal.sh.tmpl) | [`legal.md`](legal.md) | OCR fallback pending CEO Q1 ([THE-51](/THE/issues/THE-51)). |
+| `oversight` | [org-governance](https://github.com/the-hole-foundation/org-governance) | [`dot_Brewfile.oversight`](../../dot_Brewfile.oversight) *(empty)* | [`run_once_after_install-project-oversight.sh.tmpl`](../../run_once_after_install-project-oversight.sh.tmpl) | [`oversight.md`](oversight.md) | **docs-only** in v1 per board Q3 ([THE-51](/THE/issues/THE-51)); promote when a container workload lands. |
 
-> Remaining rows land in subsequent tasks: `godocs` in T4, `oversight` in T5.
+> Remaining row lands in a subsequent task: `godocs` in T4.
 
 ## Adding a new project
 
