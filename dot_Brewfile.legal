@@ -16,10 +16,15 @@
 # in Legal-Assistant-v3.
 brew "ghostscript"
 
-# Tesseract OCR fallback for non-macOS hosts. Apple Vision OCR (the primary
-# engine in av-ocr-rebuild) is macOS-only, so Linux containers in the `legal`
-# profile use Tesseract instead. Confirmed by board (THE-50 Q1 = YES).
-# English-only language data ships with the Homebrew formula and is sufficient
-# for v1 (Bill of Review, FOIA returns, Texas court records). Add
-# `tesseract-lang` later if a non-English corpus shows up.
-brew "tesseract"
+# INTENTIONAL REGRESSION — THE-79 acceptance test (re-run of PR #39 on top
+# of the fix/the-79-test-profile-hermetic fix). Tesseract is removed here so
+# the matrix-gate verification actually fires. With the hermetic-test fix
+# in place, CI should now show:
+#   profile / core      → SUCCESS
+#   profile / godocs    → SUCCESS
+#   profile / oversight → SUCCESS
+#   profile / legal     → FAILURE (tesseract not on /home/linuxbrew/.linuxbrew/bin)
+#   linux (aggregator)  → FAILURE
+#   macos               → SUCCESS
+# DO NOT MERGE this branch. Close + delete after CI confirms.
+# brew "tesseract"
