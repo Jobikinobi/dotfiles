@@ -122,6 +122,8 @@ Per-project run-once scripts (`run_once_after_install-project-<key>.sh.tmpl`) se
 
 Each profile doc declares the binaries it promises to put on `PATH` in a fenced ` ```text ` block under a fixed `## Installed binaries` heading. [`scripts/test-profile.sh`](../../scripts/test-profile.sh) parses that block and turns it into a build+assert harness — the verification gate that catches profile drift before it lands on `main`.
 
+**CI enforces this on every PR.** The GitHub Actions workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs a `fail-fast: false` matrix that calls `scripts/test-profile.sh --project <key>` once per active profile (`core, legal, godocs, oversight`). A PR that breaks the binary contract declared in any `docs/profiles/<key>.md` — e.g. removing `tesseract` from `dot_Brewfile.legal` while leaving it listed in `docs/profiles/legal.md` — fails that profile's matrix leg and blocks merge to `main`. The other legs still run so multiple regressions surface in a single CI run. Adding a new profile leg requires shipping its `docs/profiles/<key>.md` in the same PR (see *Adding a new project*, step 5).
+
 ### The convention
 
 In each `docs/profiles/<key>.md`, immediately after the "What this profile installs" prose, add a section that looks like this:
