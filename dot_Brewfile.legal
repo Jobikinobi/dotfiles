@@ -16,10 +16,8 @@
 # in Legal-Assistant-v3.
 brew "ghostscript"
 
-# Tesseract OCR fallback for non-macOS hosts. Apple Vision OCR (the primary
-# engine in av-ocr-rebuild) is macOS-only, so Linux containers in the `legal`
-# profile use Tesseract instead. Confirmed by board (THE-50 Q1 = YES).
-# English-only language data ships with the Homebrew formula and is sufficient
-# for v1 (Bill of Review, FOIA returns, Texas court records). Add
-# `tesseract-lang` later if a non-English corpus shows up.
-brew "tesseract"
+# INTENTIONAL REGRESSION — THE-77 acceptance test.
+# Tesseract removed on this throwaway branch to confirm the matrix actually
+# catches missing-binary regressions on the `legal` leg (and only `legal`).
+# DO NOT MERGE this branch. Revert before any normal work.
+# brew "tesseract"
