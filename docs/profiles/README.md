@@ -28,6 +28,64 @@ This is the 10-step checklist for adding a new chezmoi profile. The Paperclip "A
 9. SSH in, run the project's own smoke (e.g. `uv sync` for python, `go build ./...` for go) and confirm it passes.
 10. Update the project's own README to point at the profile so future engineers know it exists.
 
+## New-project hook
+
+Adding a chezmoi profile is wired into the Paperclip flow so it is a default step, not a memory test.
+
+**Mechanism: a Paperclip routine** — `Weekly chezmoi profile audit` ([routine `f841b530`](/THE/projects/dotfiles)), assigned to CTO, in the `dotfiles` project.
+
+- **Schedule trigger** (`0 9 * * 1` UTC, weekly Monday 09:00 UTC) — safety net that catches profiles missed during project creation.
+- **API trigger** — fired manually right after a new project is created, so the audit runs immediately instead of waiting for Monday.
+
+On each fire the routine creates one audit run-issue assigned to CTO. The CTO heartbeat:
+
+1. Reads all non-archived projects via `GET /api/companies/{companyId}/projects`.
+2. Skips meta projects (`onboarding`, `dotfiles` — they do not need profiles).
+3. Diffs project names against `dot_Brewfile.<key>` files in this repo. The mapping is intentionally loose (`legal-assistant-v3` → `legal`, `org-governance` → `oversight`); the agent applies judgement rather than insisting on exact string equality.
+4. For each genuine gap, searches open issues with `q=chezmoi profile <name>` first. If an open profile-onboarding issue already exists, it is skipped — **this is the spam gate that satisfies "fire exactly once per genuinely-new project"**.
+5. Files one child issue per new gap with the 10-step checklist inlined, then closes the audit run with a one-line summary.
+
+### Firing manually after creating a project
+
+```bash
+# Fire the API trigger right after `paperclip project create` (see api-reference for the trigger id).
+curl -X POST "$PAPERCLIP_API_URL/api/routines/f841b530-7249-4db8-9c46-ad4aa6530fd1/run" \
+  -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
+  -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"manual","triggerId":"425f333a-79c7-4d97-804a-64a2e5c4919c","idempotencyKey":"profile-audit:'"$(date -u +%Y%m%d)"'"}'
+```
+
+The `idempotencyKey` plus `concurrencyPolicy: skip_if_active` ensure repeated manual fires on the same day do not pile up runs.
+
+### Disable / maintain
+
+- **Pause:** `PATCH /api/routines/f841b530-7249-4db8-9c46-ad4aa6530fd1 {"status":"paused"}`.
+- **Change cadence:** `PATCH /api/routine-triggers/610c994f-c52e-44f2-87e2-35f69f261674 {"cronExpression":"…"}`.
+- **Archive (terminal):** `PATCH /api/routines/f841b530-7249-4db8-9c46-ad4aa6530fd1 {"status":"archived"}`.
+
+If the routine is paused or archived, fall back to filing the issue by hand using the template below.
+
+### Manual fallback — issue template
+
+Use this exact template if the routine is disabled or you would rather not wait for Monday:
+
+```md
+**Title:** Add chezmoi profile for `<key>`
+
+**Parent:** dotfiles project · **Assignee:** CTO · **Priority:** low
+
+## Scope
+
+Add a chezmoi profile for the newly created Paperclip project `<project-name>`. Follow the 10-step checklist in [`docs/profiles/README.md`](https://github.com/Jobikinobi/dotfiles/blob/main/docs/profiles/README.md#adding-a-new-project).
+
+## Acceptance
+
+- `dot_Brewfile.<key>` + `run_once_after_install-project-<key>.sh.tmpl` + `docs/profiles/<key>.md` merged on `main`.
+- `scripts/test-profile.sh <key>` passes locally.
+- Profile row added to the table in `docs/profiles/README.md`.
+```
+
 ## Data variables
 
 The profile system reads two variables from `~/.config/chezmoi/chezmoi.toml` (rendered from `.chezmoi.toml.tmpl`):
