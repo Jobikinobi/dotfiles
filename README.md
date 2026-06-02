@@ -263,6 +263,7 @@ dotfiles/
 └── scripts/                           # Legacy/utility scripts
 ```
 
+
 ---
 
 ## Managing Dotfiles
@@ -294,3 +295,16 @@ mac-save
 - [hole-devenv](https://github.com/Jobikinobi/hole-devenv) — Infrastructure stacks, deployment profiles, backup automation
 - [hole-backend](https://github.com/The-HOLE-Foundation/hole-backend) — Backend services and Weaviate schemas
 - [transparency-engine](https://github.com/The-HOLE-Foundation/transparency-engine) — FOIA drafting agent
+
+##---------------------------------------------------------------------------------------------------------------------------------------------------------
+## REMINDER - Here's your quickstarts:
+
+### Fresh Mac
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install chezmoi && chezmoi init --apply Jobikinobi
+```
+
+### Fresh Linux (interactive)
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Jobikinobi
