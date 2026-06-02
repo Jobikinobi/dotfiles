@@ -83,6 +83,25 @@ jobs:
             CHEZMOI_BRANCH=main
             CHEZMOI_PROJECT=
 
+  # ── Linux aggregator: required status check ─────────────────────────────────
+  # Branch protection on `main` requires a status check named `linux`. This job
+  # reports success only when every matrix leg passes, preserving the contract
+  # while letting the matrix expand independently of branch-protection config.
+  linux:
+    name: linux
+    needs: profiles
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all profile legs succeeded
+        run: |
+          result='${{ needs.profiles.result }}'
+          echo "profiles job result: $result"
+          if [[ "$result" != "success" ]]; then
+            echo "::error::At least one profile matrix leg did not succeed (result=$result)"
+            exit 1
+          fi
+
   # ── macOS: Verify chezmoi deploys correctly ─────────────────────────────────
   macos:
     runs-on: macos-latest
