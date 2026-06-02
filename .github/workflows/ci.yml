@@ -11,57 +11,64 @@ permissions:
   packages: write
 
 jobs:
-  # ── Linux: Build Docker image and push to GHCR ──────────────────────────────
-  linux:
+  # ── Linux: profile verification matrix ──────────────────────────────────────
+  # Each leg builds Dockerfile.test with CHEZMOI_PROJECT=<key> baked in (via
+  # scripts/test-profile.sh) and asserts the binaries declared in the matching
+  # docs/profiles/<key>.md are on PATH. `core` is the baseline (no per-profile
+  # doc, no asserts — just exercises the no-project build path).
+  #
+  # Adding a profile leg here is gated on having a corresponding
+  # docs/profiles/<key>.md — see docs/profiles/README.md#verification.
+  profiles:
+    name: profile / ${{ matrix.profile }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [core, legal, godocs, oversight]
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Pre-build with GHA cache backend + load into the local Docker daemon.
+      # test-profile.sh's own `docker build` invocation (legacy daemon builder)
+      # then hits the just-loaded image layers and is effectively a no-op
+      # rebuild before its assertion phase. Shared scope across profile keys
+      # because the early apt / Tailscale / chezmoi-init layers are identical
+      # across profiles — only the CHEZMOI_PROJECT-aware tail diverges.
+      - name: Pre-warm BuildKit cache (load image into daemon)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.test
+          load: true
+          tags: dotfiles-test:${{ matrix.profile }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            CHEZMOI_BRANCH=${{ github.head_ref || github.ref_name }}
+            CHEZMOI_PROJECT=${{ matrix.profile == 'core' && '' || matrix.profile }}
+
+      - name: Verify profile via scripts/test-profile.sh
+        run: |
+          scripts/test-profile.sh \
+            --project "${{ matrix.profile }}" \
+            --branch "${{ github.head_ref || github.ref_name }}" \
+            --keep-images
+
+      # Only the `core` leg publishes to GHCR, and only on push to main.
       - name: Login to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: matrix.profile == 'core' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.test
-          push: false
-          load: true
-          tags: dotfiles-test:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            CHEZMOI_BRANCH=${{ github.head_ref || github.ref_name }}
-
-      - name: Verify core tools are installed
-        run: |
-          docker run --rm --entrypoint /bin/bash dotfiles-test:ci -c '
-            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-            echo "=== Checking core tools ==="
-            for tool in hx bat fzf rg eza fd jq nnn doppler uv; do
-              if command -v "$tool" &>/dev/null; then
-                echo "✓ $tool"
-              else
-                echo "✗ $tool MISSING" && exit 1
-              fi
-            done
-            echo "=== Checking Node + Claude ==="
-            eval "$(fnm env)" 2>/dev/null || true
-            node --version || (echo "✗ node MISSING" && exit 1)
-            claude --version || (echo "✗ claude MISSING" && exit 1)
-            echo "=== All tools verified ==="
-          '
-
-      - name: Push to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Push core image to GHCR
+        if: matrix.profile == 'core' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -74,6 +81,26 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             CHEZMOI_BRANCH=main
+            CHEZMOI_PROJECT=
+
+  # ── Linux aggregator: required status check ─────────────────────────────────
+  # Branch protection on `main` requires a status check named `linux`. This job
+  # reports success only when every matrix leg passes, preserving the contract
+  # while letting the matrix expand independently of branch-protection config.
+  linux:
+    name: linux
+    needs: profiles
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all profile legs succeeded
+        run: |
+          result='${{ needs.profiles.result }}'
+          echo "profiles job result: $result"
+          if [[ "$result" != "success" ]]; then
+            echo "::error::At least one profile matrix leg did not succeed (result=$result)"
+            exit 1
+          fi
 
   # ── macOS: Verify chezmoi deploys correctly ─────────────────────────────────
   macos:

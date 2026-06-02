@@ -1,0 +1,18 @@
+# Oversight profile — org-governance
+# https://github.com/the-hole-foundation/org-governance
+#
+# Activated by adding "oversight" to `projects` in ~/.config/chezmoi/chezmoi.toml.
+# See docs/profiles/oversight.md for what this profile does (and does not) do.
+#
+# Intentionally empty: per board decision Q3 on the THE-51 plan, the
+# governance project is docs-only for v1 — markdown + scripts, no compile
+# toolchain, no per-project brew formulae beyond what `dot_Brewfile.core`
+# already ships (pyenv, uv, doppler, go, git, gh, lazygit, jq, fd, ripgrep).
+#
+# File presence is the signal: `run_once_after_install-brewfile.sh.tmpl`
+# loops over `.projects` and runs `brew bundle` against this file if it
+# exists. An empty Brewfile renders as a no-op brew bundle, which is the
+# behavior we want for a docs-only profile.
+#
+# Promote this file to a populated Brewfile when a real container workload
+# lands — see docs/profiles/oversight.md "Promotion triggers".

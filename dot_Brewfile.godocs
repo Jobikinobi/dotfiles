@@ -1,0 +1,39 @@
+# godocs profile — hole-godocs
+# https://github.com/the-hole-foundation/hole-godocs
+#
+# Activated by adding "godocs" to `projects` in ~/.config/chezmoi/chezmoi.toml.
+# See docs/profiles/godocs.md for what this installs and what is manual.
+#
+# Anything that already lives in dot_Brewfile.core is intentionally NOT
+# duplicated here. As of 2026-06-02 core already provides:
+#   git, gh, lazygit, jq, fd, ripgrep, doppler, uv, pyenv
+# Core also ships an unversioned `go` (Homebrew latest). This profile pins a
+# parallel `go@1.25` to match the upstream `go.mod` toolchain directive —
+# both can coexist (go@1.25 is keg-only, accessed by full path or PATH munge).
+#
+# LibreOffice is intentionally NOT listed here. On Linuxbrew it isn't a
+# formula and Homebrew Cask is macOS-only, so the run_once script handles
+# both platforms (apt on Linux, cask on macOS). Keeping it out of the
+# Brewfile means `brew bundle list --file=dot_Brewfile.godocs` works on
+# any platform.
+
+# ── Go toolchain pinned to upstream go.mod ──────────────────────────────────
+# Keg-only; the run_once script wires it onto PATH for the project.
+brew "go@1.25"
+
+# ── R2 / S3-compatible storage ──────────────────────────────────────────────
+# rclone: primary tool for syncing hole-godocs corpora to/from Cloudflare R2.
+# awscli: AWS SDK v2 used by the Go code targets R2 over the S3 API; the CLI
+#   is the operator-side debugging companion (signed URL generation, head-
+#   object checks, presign rotation).
+brew "rclone"
+brew "awscli"
+
+# ── PDF rendering / extraction ──────────────────────────────────────────────
+# mupdf + mupdf-tools: `mutool` + `mupdf-x11` viewer used by
+# test-mupdf.sh in the godocs repo for layout-aware page extraction.
+# Board decision Q2 = YES — the container must be self-sufficient for
+# document rendering, so we ship this in the profile rather than relying
+# on the developer's workstation.
+brew "mupdf"
+brew "mupdf-tools"

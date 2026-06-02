@@ -53,7 +53,41 @@ ENV PATH="/home/jth/.local/bin:${PATH}"
 # in main are actually tested against their own fix instead of main's broken
 # state.
 ARG CHEZMOI_BRANCH=main
-RUN chezmoi init --apply --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi
+
+# CHEZMOI_PROJECT pre-seeds the rendered chezmoi.toml so the apply step
+# activates a single project profile (e.g. legal, godocs, oversight). Empty
+# string = core baseline (no per-project Brewfile or run_once branch runs).
+# Mirrors the cloud-init pre-seed in scripts/provision-lxd.sh: writing the
+# config before `chezmoi init` makes chezmoi skip rendering the .toml.tmpl
+# (it only renders when the destination is absent), which is how our values
+# survive the non-interactive default branch in .chezmoi.toml.tmpl.
+ARG CHEZMOI_PROJECT=""
+
+# Step 1: clone the dotfiles repo and let chezmoi render .chezmoi.toml.tmpl.
+# In non-TTY mode the template hardcodes `projects = []`, which is wrong for
+# matrix verification — we override it in the next step.
+RUN chezmoi init --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi
+
+# Step 2: overwrite the freshly-rendered chezmoi.toml with the matrix leg's
+# project key. The template's non-TTY branch ignores environment variables,
+# so post-init overwrite is the only headless way to drive `.projects`.
+# Empty CHEZMOI_PROJECT = core baseline (leave the template's projects=[]).
+RUN if [ -n "${CHEZMOI_PROJECT}" ]; then \
+      mkdir -p "$HOME/.config/chezmoi" \
+      && printf '%s\n' \
+           '[data]' \
+           '    name = "Joseph T. Herrmann, M.D."' \
+           '    email = "joeherrmann@gmail.com"' \
+           '    github_user = "Jobikinobi"' \
+           "    projects = [\"${CHEZMOI_PROJECT}\"]" \
+           "    lxd_profile = \"${CHEZMOI_PROJECT}\"" \
+           > "$HOME/.config/chezmoi/chezmoi.toml"; \
+    fi
+
+# Step 3: apply with the correct projects list in place. This is where the
+# per-project brewfile loop in run_once_after_install-brewfile.sh.tmpl
+# actually fires for the active profile.
+RUN chezmoi apply --no-tty
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 
 # Switch back to root for entrypoint
