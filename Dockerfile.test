@@ -62,9 +62,19 @@ ARG CHEZMOI_BRANCH=main
 # (it only renders when the destination is absent), which is how our values
 # survive the non-interactive default branch in .chezmoi.toml.tmpl.
 ARG CHEZMOI_PROJECT=""
-RUN mkdir -p "$HOME/.config/chezmoi" \
-    && if [ -n "${CHEZMOI_PROJECT}" ]; then \
-         printf '%s\n' \
+
+# Step 1: clone the dotfiles repo and let chezmoi render .chezmoi.toml.tmpl.
+# In non-TTY mode the template hardcodes `projects = []`, which is wrong for
+# matrix verification — we override it in the next step.
+RUN chezmoi init --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi
+
+# Step 2: overwrite the freshly-rendered chezmoi.toml with the matrix leg's
+# project key. The template's non-TTY branch ignores environment variables,
+# so post-init overwrite is the only headless way to drive `.projects`.
+# Empty CHEZMOI_PROJECT = core baseline (leave the template's projects=[]).
+RUN if [ -n "${CHEZMOI_PROJECT}" ]; then \
+      mkdir -p "$HOME/.config/chezmoi" \
+      && printf '%s\n' \
            '[data]' \
            '    name = "Joseph T. Herrmann, M.D."' \
            '    email = "joeherrmann@gmail.com"' \
@@ -72,9 +82,12 @@ RUN mkdir -p "$HOME/.config/chezmoi" \
            "    projects = [\"${CHEZMOI_PROJECT}\"]" \
            "    lxd_profile = \"${CHEZMOI_PROJECT}\"" \
            > "$HOME/.config/chezmoi/chezmoi.toml"; \
-       fi
+    fi
 
-RUN chezmoi init --apply --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi
+# Step 3: apply with the correct projects list in place. This is where the
+# per-project brewfile loop in run_once_after_install-brewfile.sh.tmpl
+# actually fires for the active profile.
+RUN chezmoi apply --no-tty
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 
 # Switch back to root for entrypoint
