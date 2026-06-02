@@ -11,7 +11,7 @@ Brews from [`dot_Brewfile.legal`](../../dot_Brewfile.legal):
 | Package | Purpose |
 |---|---|
 | `ghostscript` | Post-OCR linearization / optimization pass invoked by `av-ocr-rebuild --optimize`. |
-| `tesseract` *(pending)* | OCR fallback for non-macOS hosts (Apple Vision is macOS-only). **Pending CEO answer** to plan Q1 — commented placeholder in the Brewfile until confirmed. |
+| `tesseract` | OCR fallback for non-macOS hosts (Apple Vision is macOS-only). English language data ships with the formula; sufficient for v1. |
 
 Already provided by [`dot_Brewfile.core`](../../dot_Brewfile.core) and therefore not duplicated here: `pyenv`, `uv`, `doppler`, `go`, `git`, `gh`, `lazygit`, `jq`, `fd`, `ripgrep`.
 
@@ -55,7 +55,7 @@ The script intentionally stops short of any step that needs credentials a fresh 
 
 ## Known limitations
 
-- **OCR backend is macOS-only.** The primary `av-ocr-rebuild` OCR engine is a Swift binary that calls Apple's Vision framework. On Linux containers there is currently no built-in fallback. *Pending CEO answer* to Q1 of the [parent plan](/THE/issues/THE-51#document-plan) on whether to ship Tesseract as the Linux fallback.
+- **Dual OCR posture.** Primary engine on macOS is the Apple Vision Swift binary (`av-ocr-rebuild`). On Linux containers the fallback is `tesseract` (installed by this profile). Cross-platform parity is correctness-first, not speed-first — Vision is typically faster on macOS hardware.
 - **Weaviate is hosted off-box.** This profile does not stand up a local Weaviate; the production corpus lives on the Mac Mini at `mac-mini:8080` via Tailscale. Local OrbStack sandboxes (`localhost:8082`) are an operator choice, not provisioned here.
 - **Git+SSH credentials required.** Cloning over SSH assumes a working `~/.ssh/id_*` and a key registered with GitHub. Fresh containers must run `ssh-keygen` and add the public key to GitHub before step 2 above.
 

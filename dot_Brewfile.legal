@@ -16,8 +16,10 @@
 # in Legal-Assistant-v3.
 brew "ghostscript"
 
-# TODO(CEO Q1 — pending): Tesseract OCR fallback for non-macOS hosts.
-# Apple Vision OCR (the primary OCR engine in av-ocr-rebuild) is macOS-only,
-# so Linux containers in the `legal` profile currently have no OCR backend.
-# If the CEO confirms Tesseract is the chosen Linux fallback, uncomment:
-# brew "tesseract"
+# Tesseract OCR fallback for non-macOS hosts. Apple Vision OCR (the primary
+# engine in av-ocr-rebuild) is macOS-only, so Linux containers in the `legal`
+# profile use Tesseract instead. Confirmed by board (THE-50 Q1 = YES).
+# English-only language data ships with the Homebrew formula and is sufficient
+# for v1 (Bill of Review, FOIA returns, Texas court records). Add
+# `tesseract-lang` later if a non-English corpus shows up.
+brew "tesseract"
