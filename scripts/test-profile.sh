@@ -234,9 +234,23 @@ build_image() {
 
 # Run a one-shot command in the built image. The default ENTRYPOINT is
 # entrypoint.sh which starts tailscaled/sshd; we bypass it explicitly.
+#
+# IMPORTANT: we deliberately use `bash -c` (NOT `bash -lc`). A login shell
+# sources /etc/profile and ~/.bash_profile, both of which can mutate the
+# binary-resolution environment in ways that mask the IMAGE'S real state:
+#   - dot_bash_profile unconditionally prepends /Users/jth/micromamba/bin
+#     (a stale macOS path) and sources $HOME/.cargo/env (PATH-augmenting).
+#   - dot_bashrc prepends /opt/homebrew/opt/postgresql@15/bin (macOS path).
+#   - Future operator-installed rc snippets could alias or shadow binary
+#     names (see THE-79 for the original false-negative report — a login
+#     shell made `command -v tesseract` succeed even when brew bundle had
+#     not installed it, breaking the matrix gate's credibility).
+# A non-login shell inherits PATH from the Dockerfile's ENV, which is the
+# ground truth we want the matrix to assert against. Callers that need
+# brew on PATH must eval shellenv themselves (see brew_formulae_in_image).
 run_in_image() {
   local tag="$1"; shift
-  docker run --rm --entrypoint /bin/bash "$tag" -lc "$*"
+  docker run --rm --entrypoint /bin/bash "$tag" -c "$*"
 }
 
 # brew list --formula inside the image, sorted. Wraps the shellenv eval so
@@ -252,6 +266,107 @@ brew_formulae_in_image() {
     fi
     brew list --formula 2>/dev/null | LC_ALL=C sort -u
   '
+}
+
+# Hermetic binary-presence check used by the populated-profile assertion.
+# Wraps `command -v` in a non-login bash and adds the brew prefix to PATH
+# without sourcing any user rc files. Returns 0 if the binary resolves,
+# non-zero otherwise. Suppresses stdout/stderr — callers only inspect $?.
+binary_on_path_in_image() {
+  local tag="$1" bin="$2"
+  # shellcheck disable=SC2016
+  run_in_image "$tag" '
+    if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
+    command -v '"$(printf '%q' "$bin")"' >/dev/null 2>&1
+  '
+}
+
+# Resolve the brew formula that owns a given binary in the image. Uses
+# `brew which-formula --explain` for accuracy. Prints the formula name on
+# stdout (empty string if no formula matches), and always returns 0. This
+# is the load-bearing check for THE-79: the matrix gate must verify that
+# the binary's source formula is the one declared in dot_Brewfile.<profile>,
+# not just that the binary happens to be on PATH (it can arrive via
+# transitive dependencies of unrelated formulas or npm/post-install hooks
+# — see THE-79 evidence comment for the regression that motivated this).
+formula_for_binary_in_image() {
+  local tag="$1" bin="$2"
+  # shellcheck disable=SC2016
+  run_in_image "$tag" '
+    if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
+    bin='"$(printf '%q' "$bin")"'
+    # First try `brew which-formula` (fast, tap-aware). Fall back to walking
+    # the symlink under $HOMEBREW_PREFIX/bin to its Cellar parent dir name,
+    # which is the canonical (formula, version) tuple.
+    out="$(brew which-formula "$bin" 2>/dev/null | head -1)"
+    if [ -n "$out" ]; then
+      # `brew which-formula` returns the tap-qualified name (user/tap/foo) for
+      # tap formulae; strip the prefix so the comparison matches the basenames
+      # produced by formulas_in_brewfile() and the Cellar-walk fallback below.
+      printf "%s\n" "${out##*/}"
+    else
+      target="$(readlink -f "/home/linuxbrew/.linuxbrew/bin/$bin" 2>/dev/null)"
+      if [ -n "$target" ]; then
+        # /home/linuxbrew/.linuxbrew/Cellar/<formula>/<version>/bin/<bin>
+        printf "%s\n" "$target" | awk -F/ "{ for(i=1;i<=NF;i++) if(\$i==\"Cellar\") { print \$(i+1); exit } }"
+      fi
+    fi
+  ' 2>/dev/null | tr -d '[:space:]'
+}
+
+# Parse `brew "X"` formula declarations from a Brewfile. Skips commented
+# lines, `tap` / `cask` / `vscode` lines, and inline comments. Returns one
+# formula name per line on stdout.
+formulas_in_brewfile() {
+  local brewfile_path="$1"
+  [[ -f "$brewfile_path" ]] || return 0
+  # Match: optional whitespace, then `brew "..."`. Capture the quoted name.
+  # Ignore lines whose first non-whitespace character is `#`.
+  awk '
+    /^[[:space:]]*#/ { next }                       # full-line comment
+    {
+      sub(/[[:space:]]*#.*/, "")                    # strip inline comment
+      if (match($0, /^[[:space:]]*brew[[:space:]]+"[^"]+"/)) {
+        line = substr($0, RSTART, RLENGTH)
+        if (match(line, /"[^"]+"/)) {
+          name = substr(line, RSTART+1, RLENGTH-2)
+          # strip optional tap prefix (e.g., "supabase/tap/supabase")
+          n = split(name, parts, "/")
+          print parts[n]
+        }
+      }
+    }
+  ' "$brewfile_path"
+}
+
+# Diagnostic dump used when a binary-presence assertion FAILS or appears
+# anomalous. Prints (a) the PATH the test saw, (b) all hits along PATH
+# (`which -a`), (c) what `type -a` thinks the name refers to (alias,
+# function, builtin, file), (d) whether a matching file exists under the
+# Homebrew prefix, and (e) any brew formula matching the name. Together
+# these answer "if the gate fired wrong, where did the false signal come
+# from?" without a second CI round-trip.
+diagnose_binary_in_image() {
+  local tag="$1" bin="$2"
+  printf '%s: diagnostic for "%s" in %s:\n' "$PROG" "$bin" "$tag" >&2
+  # shellcheck disable=SC2016
+  run_in_image "$tag" '
+    if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
+    bin='"$(printf '%q' "$bin")"'
+    printf "    PATH=%s\n" "$PATH"
+    printf "    which -a:\n"; which -a "$bin" 2>&1 | sed "s/^/      /" || true
+    printf "    type -a:\n";  type -a  "$bin" 2>&1 | sed "s/^/      /" || true
+    printf "    ls -la \$HOMEBREW_PREFIX/bin/%s:\n" "$bin"
+    ls -la "/home/linuxbrew/.linuxbrew/bin/$bin" 2>&1 | sed "s/^/      /" || true
+    printf "    brew list --formula | grep -i %s:\n" "$bin"
+    brew list --formula 2>/dev/null | grep -i "$bin" | sed "s/^/      /" || printf "      (no match)\n"
+  ' >&2 || true
 }
 
 # Cleanup intermediate images unless --keep-images was set.
@@ -314,19 +429,77 @@ if (( docs_only_invariant )); then
       "$PROG" "$project"
   fi
 else
-  # Populated profile: assert each declared binary is on PATH.
-  printf '%s: asserting %d binar%s on PATH inside %s:\n' \
+  # Populated profile: for each declared binary assert BOTH
+  #   (1) the binary is on PATH (integration smoke test), and
+  #   (2) the formula that owns the binary is explicitly declared in
+  #       dot_Brewfile.<profile>.
+  #
+  # (2) is the load-bearing check. THE-79 demonstrated that (1) alone is a
+  # false-positive risk: binaries can arrive in the image via transitive
+  # dependencies of unrelated formulas or npm post-install hooks, so a
+  # profile that removes `brew "tesseract"` from its Brewfile still passed
+  # the old gate because tesseract was being installed as a side effect of
+  # other tooling. The matrix gate is only credible if it verifies the
+  # profile's Brewfile is the path of record for each promised binary.
+  #
+  # `brew which-formula` is the authoritative answer for "which formula
+  # owns this binary"; formulas_in_brewfile() is the simple `brew "X"`
+  # parser for the profile Brewfile.
+  printf '%s: asserting %d binar%s on PATH AND declared in dot_Brewfile.%s inside %s:\n' \
     "$PROG" "${#declared_binaries[@]}" \
     "$( [[ ${#declared_binaries[@]} -eq 1 ]] && printf y || printf ies )" \
-    "$profile_tag"
+    "$project" "$profile_tag"
+
+  declared_formulas_file="$(mktemp)"
+  trap 'rm -f "$declared_formulas_file"' EXIT
+  formulas_in_brewfile "$brewfile" | LC_ALL=C sort -u > "$declared_formulas_file"
 
   missing=()
+  unowned=()
   for bin in "${declared_binaries[@]}"; do
-    if run_in_image "$profile_tag" "command -v $(printf '%q' "$bin") >/dev/null 2>&1"; then
-      printf '  ✓ %s\n' "$bin"
-    else
-      printf '  ✗ %s\n' "$bin" >&2
+    on_path=0
+    declared=0
+    if binary_on_path_in_image "$profile_tag" "$bin"; then
+      on_path=1
+    fi
+
+    # Three-way ownership resolution:
+    #   - formula non-empty AND in Brewfile  → brew-owned + declared (✓)
+    #   - formula non-empty AND NOT in Brewfile → brew-owned but undeclared (THE-79 leak)
+    #   - formula empty → binary is not brew-owned (apt-installed by run_once,
+    #     system binary, npm global, etc). On-PATH is the only contract we can
+    #     enforce; skip the brew-attribution check. The classic example is
+    #     `soffice` in the godocs profile — LibreOffice has no Linuxbrew formula
+    #     and is intentionally apt-installed by the run_once script, with the
+    #     docs noting it explicitly. THE-79's failure mode (binary leaked via
+    #     a transitive brew dep) can only occur when the binary IS brew-owned,
+    #     so this exemption does not weaken the attribution check.
+    formula="$(formula_for_binary_in_image "$profile_tag" "$bin")"
+    if [[ -z "$formula" ]]; then
+      declared=1
+    elif grep -qxF "$formula" "$declared_formulas_file"; then
+      declared=1
+    fi
+
+    if (( on_path && declared )); then
+      if [[ -n "$formula" ]]; then
+        printf '  ✓ %s (formula=%s)\n' "$bin" "$formula"
+      else
+        printf '  ✓ %s (non-brew, on PATH)\n' "$bin"
+      fi
+    elif (( ! on_path )); then
+      printf '  ✗ %s (not on PATH)\n' "$bin" >&2
+      diagnose_binary_in_image "$profile_tag" "$bin"
       missing+=("$bin")
+    else
+      # On PATH AND brew-owned, but the owning formula is not in
+      # dot_Brewfile.<profile>. This is the THE-79 failure mode: the binary
+      # is present via a transitive brew dependency or another profile's
+      # install, not because this profile's Brewfile asked for it.
+      printf '  ✗ %s (on PATH, but owning formula "%s" is NOT declared in dot_Brewfile.%s)\n' \
+        "$bin" "$formula" "$project" >&2
+      diagnose_binary_in_image "$profile_tag" "$bin"
+      unowned+=("$bin")
     fi
   done
 
@@ -336,6 +509,16 @@ else
     err "Either fix dot_Brewfile.$project / run_once_after_install-project-$project.sh.tmpl"
     err "to put these on PATH, or remove them from docs/profiles/$project.md's"
     err "'Installed binaries' block if they are not actually promised."
+    failed=1
+  fi
+
+  if (( ${#unowned[@]} > 0 )); then
+    err "✗ profile '$project' has ${#unowned[@]} declared binar$( [[ ${#unowned[@]} -eq 1 ]] && printf y || printf ies ) whose owning brew formula is NOT in dot_Brewfile.$project:"
+    for u in "${unowned[@]}"; do printf '    - %s\n' "$u" >&2; done
+    err "The binar$( [[ ${#unowned[@]} -eq 1 ]] && printf y || printf ies ) appear$( [[ ${#unowned[@]} -eq 1 ]] && printf s || printf '' ) on PATH only because"
+    err "of a transitive dependency or side-channel install (npm postinstall,"
+    err "another profile, etc.). Add an explicit \`brew \"<formula>\"\` line to"
+    err "dot_Brewfile.$project so this profile actually owns the install."
     failed=1
   fi
 fi
