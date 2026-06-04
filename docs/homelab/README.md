@@ -150,6 +150,21 @@ fine — different prefix. Public keys are reconstructable on demand:
 - **Reformat workstations to Linux** and migrate them to PVE-hosted VMs
   (long-term north star, per the original goal statement).
 
+## Headscale migration (in progress)
+
+Separate effort tracked in [`headscale/`](headscale/): moving the entire
+hole-network off public Tailscale (`lemming-likert.ts.net`) onto self-hosted
+Headscale at `hs.lab.hole-truth.org`. Headscale gives us ownership of MagicDNS,
+control-plane TLS, and the per-node reverse proxy, which unblocks
+multi-HTTP-per-node service deployment.
+
+- [`headscale/README.md`](headscale/README.md) — entry point + current state
+- [`headscale/architecture.md`](headscale/architecture.md) — target end-state
+- [`headscale/cutover-playbook.md`](headscale/cutover-playbook.md) — operator procedure
+- [`headscale/rollback.md`](headscale/rollback.md) — get back to public Tailscale fast
+- [`headscale/reverse-proxy.md`](headscale/reverse-proxy.md) — Caddy reference
+- [`headscale/per-os/`](headscale/per-os/) — per-OS join recipes
+
 ## Conventions
 
 - VMID `9000-9999` = templates by convention (community pattern, not enforced).
