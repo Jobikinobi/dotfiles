@@ -2,7 +2,7 @@
 
 This document describes what the hole-network looks like once the migration to Headscale is complete. It is **not** an installation guide — for the operator-facing cutover procedure see [`cutover-playbook.md`](cutover-playbook.md). For per-OS join recipes see [`per-os/`](per-os/).
 
-Some of what is described here (Caddy as the control-plane reverse proxy, per-node `tailscale cert`, public DNS publication of the base domain) is the **target state**, not the live state. Each section flags the delta from today.
+Some of what is described here (per-node `tailscale cert`, public DNS publication of the base domain) is the **target state**, not the live state. Each section flags the delta from today. Caddy as the control-plane reverse proxy IS live as of 2026-06-05 (HOL-12).
 
 ## Component map
 
@@ -25,8 +25,12 @@ Some of what is described here (Caddy as the control-plane reverse proxy, per-no
                                 │  Headscale VM (PVE VMID 112)    │
                                 │  192.168.68.77                  │
                                 │                                 │
-                                │  Caddy on :443                  │  ← target state
-                                │  (LE cert via DNS-01)           │     today: nginx
+                                │  Caddy on :443                  │
+                                │  (LE cert via certbot DNS-01,   │
+                                │   reloaded on renewal via       │
+                                │   /etc/letsencrypt/renewal-     │
+                                │   hooks/deploy/01-reload-       │
+                                │   caddy.sh)                     │
                                 │     │                           │
                                 │     ▼                           │
                                 │  headscale on 127.0.0.1:8080    │
@@ -40,7 +44,7 @@ The Headscale VM is **only** a control plane. It does not run the Tailscale clie
 
 | Role | Hardware | LAN IP | Tailnet IP | Notes |
 |------|----------|--------|------------|-------|
-| Headscale control plane | VM 112 on PVE | `192.168.68.77` | — (not a client) | Ubuntu. Caddy + headscale. Snapshot `before-headscale-lab` exists. |
+| Headscale control plane | VM 112 on PVE | `192.168.68.77` | — (not a client) | Ubuntu. Caddy + headscale (nginx still installed but disabled — rollback insurance). Snapshots: `before-headscale-lab`, `headscale-working`, `pre-caddy-swap`. |
 | Trial node `linux-test-01` | QEMU VM 108 on PVE | `192.168.68.70` | `100.64.0.1` | Joined as user `lab`. Has `/etc/hosts` entry for `hs.lab.hole-truth.org`. |
 | Trial node `linux-test-02` | LXC 102 on PVE | (DHCP) | `100.64.0.2` | LXC required `lxc.cgroup2.devices.allow: c 10:200 rwm` + `lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file` + `features: nesting=1`. |
 | PVE host | bare metal | `192.168.68.86` | — | Hypervisor for all the above. Console of last resort during cutover. |
@@ -69,11 +73,32 @@ The DNS plan has three phases:
 
 ## Control-plane TLS
 
-**Today**: nginx on `.77:443` terminates a Let's Encrypt cert for `hs.lab.hole-truth.org` issued via certbot's DNS-01 challenge through Cloudflare. nginx proxies to `127.0.0.1:8080` (headscale) with the WebSocket-upgrade map required by Tailscale clients.
+Caddy on `.77:443` terminates a Let's Encrypt cert for `hs.lab.hole-truth.org` issued via certbot's DNS-01 challenge through Cloudflare. Caddy proxies to `127.0.0.1:8080` (headscale); the upgrade-header dance nginx needed is automatic in Caddy's `reverse_proxy` directive.
 
-**Target**: Caddy on `.77:443` does the same job, with cert renewal either remaining under certbot's control (conservative) or transitioning to Caddy's own ACME flow (clean). The swap is its own issue — a hard prerequisite for onboarding any virgin node, as it changes the reference reverse-proxy pattern documented in [`reverse-proxy.md`](reverse-proxy.md).
+Cert renewal stays under certbot's control (the "conservative" handoff from HOL-12). When certbot writes a renewed cert, `/etc/letsencrypt/renewal-hooks/deploy/01-reload-caddy.sh` runs `systemctl reload caddy`, which causes Caddy to re-read the cert files in place — no downtime.
 
-Headscale itself never terminates TLS in this setup. Every client registration goes through whichever reverse proxy is currently in front.
+nginx remains installed on the box but its unit is disabled. Rollback is `systemctl stop caddy; systemctl start nginx` (the nginx config still lives at `/etc/nginx/sites-enabled/headscale` pointing at the same backend).
+
+Headscale itself never terminates TLS in this setup. Every client registration goes through Caddy.
+
+**Caddyfile (live):**
+
+```caddy
+{
+	admin localhost:2019
+	auto_https off
+}
+
+:443 {
+	tls /etc/letsencrypt/live/hs.lab.hole-truth.org/fullchain.pem /etc/letsencrypt/live/hs.lab.hole-truth.org/privkey.pem
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Real-IP {remote_host}
+	}
+}
+```
+
+`admin localhost:2019` is required (not "off") because `caddy reload` uses the admin API. The admin endpoint is bound to loopback only.
+`auto_https off` is required because we provide the cert manually — without it Caddy would try to issue its own.
 
 ## Headscale config (key invariants)
 
@@ -110,11 +135,13 @@ Notes:
 
 ## Cert renewal
 
-`certbot` runs as a snap on `.77` with the `certbot-dns-cloudflare` plugin. Renewal uses DNS-01 against the `hole-truth.org` zone in Cloudflare. The Cloudflare API token is scoped to `Zone:DNS:Edit` + `Zone:Zone:Read` on `hole-truth.org` only.
+`certbot` runs as a snap on `.77` with the `certbot-dns-cloudflare` plugin. Renewal uses DNS-01 against the `hole-truth.org` zone in Cloudflare. The Cloudflare API token is scoped to `Zone:DNS:Edit` + `Zone:Zone:Read` on `hole-truth.org` only. Renewal cadence is the snap `snap.certbot.renew.timer` (~daily, late morning UTC).
 
-**Open security item**: the original Cloudflare API token was exposed in terminal output during initial setup. Treat it as compromised. The rotation is part of the cert handoff inside the Caddy-swap issue.
+On successful renewal, `/etc/letsencrypt/renewal-hooks/deploy/01-reload-caddy.sh` calls `systemctl reload caddy`. The cert files at `/etc/letsencrypt/live/hs.lab.hole-truth.org/{fullchain,privkey}.pem` are symlinks into `archive/`, so Caddy re-reading them picks up the new keypair without any file replacement on Caddy's side.
 
-`certbot renew --dry-run` succeeds today.
+`certbot renew --dry-run` succeeds.
+
+**Open security item**: the original Cloudflare API token was exposed in terminal output during initial setup. Treat it as compromised. The HOL-12 cert handoff chose the conservative path (keep certbot), so the token rotation was NOT done as part of that swap — it remains an outstanding item, tracked separately from the proxy change.
 
 ## Auth keys
 
@@ -133,7 +160,7 @@ For long-lived nodes (post-trial), each node gets its own one-time preauth key, 
 
 - The Headscale control-plane VM is administered exclusively over LAN SSH (`192.168.68.77`) and the Proxmox console — never via the tailnet. Losing the tailnet must not lose the control plane.
 - Every joined node retains LAN SSH reachability — public Tailscale and Headscale are both "extra" access paths, never the only one.
-- Proxmox snapshots are the cheap rollback. The existing `before-headscale-lab` snapshot on VM 112 + `pre-caddy-swap` (added by the Caddy-swap issue) cover the high-risk operations.
+- Proxmox snapshots are the cheap rollback. `before-headscale-lab`, `headscale-working`, and `pre-caddy-swap` exist on VM 112 covering the high-risk operations.
 - The `headscale users delete <user>` command will deregister every node owned by that user. Do not delete `lab` once production nodes are joined under it.
 
 ## Things this architecture does **not** do (today)
