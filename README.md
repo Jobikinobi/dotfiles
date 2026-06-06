@@ -315,3 +315,17 @@ curl -fsS -o /dev/null -w "%{http_code}\n" https://hs.lab.hole-truth.org/health
 
 # 3. Headscale is actually answering (not just a reverse proxy 200)
 curl -fsS https://hs.lab.hole-truth.org/health
+
+## Then Configure DNS on the new machine
+
+The mechanic differs per OS:
+
+  macOS (Mac Studio, mac-mini) — System Settings → Network → click active interface → Details → DNS → add 192.168.68.55 at the top, keep 1.1.1.1 below as fallback. Or terminal:
+  sudo networksetup -setdnsservers Wi-Fi 192.168.68.55 1.1.1.1
+  (swap Wi-Fi for Ethernet if wired — networksetup -listallnetworkservices shows the names.)
+
+  Linux with systemd-resolved (udev-1, coding, headscale-test, debdesk) — two ways:
+
+  - Global: edit /etc/systemd/resolved.conf, set DNS=192.168.68.55 1.1.1.1, then systemctl restart systemd-resolved. Everything resolves via .55 first.
+  - Per-domain (cleaner): resolvectl dns <iface> 192.168.68.55 + resolvectl domain <iface> '~lab.hole-truth.org'. Then only lab.hole-truth.org queries hit .55; everything else uses your normal upstream. Survives restart only
+  if persisted in the netplan/NetworkManager config.
