@@ -17,40 +17,46 @@ Everything in `docs/**` is repo-internal (filtered out of `chezmoi apply` by `.c
 | [`per-os/macos-oss.md`](per-os/macos-oss.md) | operator cutting over a Mac running the open-source Tailscale brew build | Recipe + measured-on-lume baseline (macOS 26.5 arm64). |
 | [`per-os/macos-appstore.md`](per-os/macos-appstore.md) | operator cutting over a Mac running the App Store Tailscale | The `defaults write io.tailscale.ipn.macos ControlURL …` quirk. Skeleton — fills in after the lume cutover experiment exercises it. |
 
-## Current state (as of 2026-06-04)
+## Current state (as of 2026-06-06)
+
+The migration has moved far past the original two-VM trial. **Eight nodes are now registered on Headscale under user `lab`**, including the production Mac Studio. Only Mac Mini and (transiently) the lume `my-vm` remain off Headscale.
 
 | Component | Where | Status |
 |-----------|-------|--------|
-| Headscale control plane | VM 112 on PVE, IP `192.168.68.77`, accessed as `https://hs.lab.hole-truth.org` | Healthy. nginx terminates TLS via certbot DNS-01 LE cert. **Slated to swap to Caddy** — see "Hard prerequisite" below. |
-| Trial node `linux-test-01` | QEMU VM 108 on PVE, IP `192.168.68.70`, tailnet `100.64.0.1` | Joined. MagicDNS works (`linux-test-01.tail.lab.hole-truth.org`). |
-| Trial node `linux-test-02` | LXC 102 on PVE, tailnet `100.64.0.2` | Joined. Bidirectional ping with `-01` works. |
-| MagicDNS base domain | `tail.lab.hole-truth.org` | Active inside the tailnet. Not publicly resolvable yet (deferred). |
-| Internal DNS for `hs.lab.hole-truth.org` | `/etc/hosts` line on each joined node | **Provisional.** Long-term plan: publish in the `ddns` LXC (`.55`), then split-horizon. |
-| Lume macOS VM | `Josephs-Virtual-Machine.local` at `192.168.64.2` (macOS 26.5 arm64) | Probed 2026-06-04 — outbound to `.77:443` works, TLS handshake validates, no Tailscale installed yet. The cutover experiment runs here before any real Mac. |
-| Daily-driver Macs (Mac Studio, MacBook Air, Mac Mini) | Public Tailscale tailnet `lemming-likert.ts.net` | Untouched. Cutover order: Mac Studio LAST. |
+| Headscale control plane | VM 112 on PVE, IP `192.168.68.77`, accessed as `https://hs.lab.hole-truth.org` | Healthy. **Caddy on `:443`** terminates the LE cert (HOL-12 done 2026-06-05). Cert renewal stays on certbot DNS-01 with a deploy hook that reloads Caddy. nginx left installed but disabled — rollback insurance. |
+| Joined nodes | See [`architecture.md`](architecture.md) host inventory | 8 nodes total: `coding`, `linux-test-02` (offline), `headscale-test`, `udev`, `debdesk`, `lab-controller` (Alpine), `mba` (offline), `josephs-mac-studio`. |
+| Production Mac Studio | LAN `192.168.68.168`, tailnet `100.64.0.10` | **Cut over to Headscale 2026-06-05.** Ahead of the original "Mac Studio last" plan; this happened because the batch rollout was authorized end-to-end. Watch item: client/daemon Tailscale version skew (CLI 1.98.5 vs daemon 1.98.3) from a partial `brew upgrade` — fix is `sudo brew services restart tailscale`. |
+| Alpine `lab-controller` | VM 107 on PVE | **Joined.** IP drifted from original `.74` to `192.168.68.51` (DHCP), hostname changed from `alp.lemming-likert.net` (public TS leftover) to `lab-controller`. Required apk repo repair + doas first-use password ceremony. HOL-6 is `done`. |
+| MagicDNS base domain | `tail.lab.hole-truth.org` | Active inside the tailnet. Not publicly resolvable yet (blocks per-node `tailscale cert`). |
+| Internal DNS for `hs.lab.hole-truth.org` | `/etc/hosts` line on each joined node | **Provisional.** Long-term plan: publish in the `ddns` LXC (`.55`, currently running), then split-horizon. |
+| Lume macOS VM `my-vm` | `192.168.64.2` (macOS 26.5 arm64) | HOL-7 cutover experiment is **`blocked`** on SSH-auth setup. Practically obsolete now that the Mac Studio direct-cutover succeeded; remains a useful disposable target for the App Store cutover path if/when one is exercised. |
+| Mac Mini | LAN `192.168.68.68` | **Not migrated.** Only remaining Mac on the public tailnet. Tracked for a future cutover. |
+| Tailscale SSH | Enabled on Mac Studio | **ACL-blocked.** Mac Studio's `tailscale status` warns "Tailscale SSH enabled, but access controls don't allow anyone to access this device." Resolving requires writing a Headscale ACL policy. Open item. |
 
-## Hard prerequisite: Caddy on `.77`
+## Prerequisites — both satisfied as of 2026-06-05
 
-The cutover playbook is written around Caddy as the standard reverse proxy across the Headscale network. `.77` currently runs nginx for control-plane TLS termination. Until that swap is completed (separate issue: "Swap nginx for Caddy on .77 as headscale control-plane TLS terminator"), the playbook is documentation-only — **do not onboard a virgin node yet**, or you commit the network to two different reverse-proxy patterns and have to migrate one of them later.
+| What | Status | Notes |
+|------|--------|-------|
+| Caddy on `.77` as the standard reverse proxy (HOL-12) | ✅ done 2026-06-05 | `systemctl is-active caddy` returns `active`; nginx `systemctl is-enabled` returns `disabled`. |
+| Per-node `tailscale cert` automation (HOL-13) | ⏸ still backlog | Not a stage-1 need (stage 1 ships HTTP over tailnet). Has its own prereqs in HOL-13's description. |
 
-The trial nodes already on the mesh are unaffected by this prerequisite — they keep working through and after the nginx → Caddy swap.
+The earlier "do not onboard a virgin node until Caddy is on `.77`" precondition was **loosened in practice** during the 2026-06-05 batch rollout — five nodes were onboarded against nginx by explicit owner override, then HOL-12 swapped the box to Caddy after. Tailscale clients do not pin TLS to a specific server cert, so existing-node sessions were unaffected by the swap. The cutover playbook reflects the loosened precondition.
 
-## Cutover order
+## Cutover order — revised after 2026-06-05
 
-The playbook executes machines one at a time, with explicit go-ahead per machine. Suggested order (least load-bearing first):
+The original "Mac Studio last" plan was abandoned during the 2026-06-05 batch. Remaining order:
 
-1. Disposable lume macOS VM (the cutover experiment — proves the macOS path on Tahoe arm64)
-2. Alpine lab-controller `.74` (when powered on)
-3. New trial Linux VMs (cheap to redeploy)
-4. `mac-mini` (secondary workstation)
-5. `macbook-air` (mobile workstation)
-6. `my-vm` / `udev` (`.66` — primary development VM)
-7. **Mac Studio LAST** — the workstation we cannot afford to lose
+1. ✅ Disposable trial nodes (`coding`, `debdesk`, etc.) — done.
+2. ✅ Alpine `lab-controller` (HOL-6) — done.
+3. ✅ MacBook Air (`mba`) — done (currently offline; observed online via headscale earlier).
+4. ✅ Mac Studio (`josephs-mac-studio`) — done. Production daily-driver, the workstation flagged "cannot afford to lose"; cutover succeeded.
+5. ⏸ Mac Mini — only remaining production Mac. Not yet migrated. When done, the public tailnet can be retired for the lab.
+6. ⏸ Lume `my-vm` — optional, blocked on SSH-auth setup (HOL-7).
 
-A cutover requires:
+A cutover still requires:
 - A second SSH session over the **LAN IP** (not tailnet) held open through the operation.
-- The rollback script ready in a third terminal.
-- The previous machine successfully cut over and observed for at least 24 hours.
+- The rollback path ready (see [`rollback.md`](rollback.md)).
+- For a production machine, console-of-last-resort availability within ~10 minutes.
 
 ## What is NOT here
 

@@ -4,14 +4,14 @@ This is the operator-facing procedure for moving one machine off public Tailscal
 
 If this is your first time, read [`architecture.md`](architecture.md) and [`rollback.md`](rollback.md) first. Read them cold. The cost is twenty minutes; the cost of skipping them and discovering the rollback procedure mid-cutover on a headless production machine is much higher.
 
-## Status of this playbook (read first)
+## Status of this playbook (as of 2026-06-06)
 
-This playbook is **documentation-complete** as of 2026-06-04, but **not yet safe to run on virgin nodes**. Two prerequisites are open:
+This playbook is **documentation-complete** and **executable**. As of the 2026-06-05 batch rollout, eight nodes are on Headscale including the production Mac Studio; the playbook reflects observed behavior, not just plan.
 
-1. **`.77` must be running Caddy, not nginx**, as the headscale control-plane TLS terminator. This is the swap that standardizes the reverse-proxy pattern across the network. See the "Swap nginx for Caddy on .77 …" issue in the project tracker. The trial nodes already on the mesh are unaffected; they continue to work through and after this swap. But virgin nodes joined while `.77` is still on nginx would inherit an inconsistent pattern that would have to be migrated later.
-2. **The cutover scripts (`bin/hs-preflight`, `bin/hs-cutover`, `bin/hs-rollback`) referenced below do not exist yet** — they ship in a follow-up PR. Until they do, the "scripted" steps below are run by hand from this document.
+Two things to be aware of:
 
-Both prerequisites can land before the first production cutover. Neither blocks document review.
+1. **The "no virgin onboarding until Caddy is on `.77`" precondition was loosened** during the 2026-06-05 rollout. Five nodes were onboarded against nginx by explicit owner override, then HOL-12 swapped `.77` to Caddy after. Tailscale clients do not TLS-pin, so existing-node sessions survived the swap without re-keying. This means the playbook can run before the reverse-proxy story is consistent across the network — at the cost of having two patterns coexist for a short window. The order chosen on 2026-06-05 was acceptable; future rollouts can choose either order.
+2. **The cutover scripts (`bin/hs-preflight`, `bin/hs-cutover`, `bin/hs-rollback`) referenced below do not exist yet** — they ship in a follow-up PR. The 2026-06-05 batch was done by hand from this document. The procedure is right; the wrappers are convenience.
 
 ## Section 1: Preconditions
 
@@ -135,29 +135,26 @@ Stage 1 is HTTP-only over the tailnet because the WireGuard transport is already
 
 ## Section 7: Per-machine cutover order
 
-Execute machines one at a time, in this order. Each cutover requires its own go-ahead from the owner (the user, for now) before it begins. Do not batch.
+**This section is mostly historical now.** The bulk of the network is on Headscale; what remains is Mac Mini and (optionally) the lume `my-vm`. The original "Mac Studio last" order was abandoned during the 2026-06-05 batch rollout — the owner chose to onboard the production Mac Studio directly during the batch and it succeeded. The original order is preserved below as reference for future cutovers.
 
-1. **Lume macOS VM** (`Josephs-Virtual-Machine.local` at `192.168.64.2`).
-   This is the **experiment**, not a production cutover. The point is to capture every quirk of the macOS join path — both the fresh-install path (clean Headscale join) and the cutover path (install public Tailscale, join, then switch to Headscale). Every observation from this run becomes a note in `per-os/macos-oss.md` (or `per-os/macos-appstore.md`, depending on which build is exercised). No production machine is touched until this experiment is complete.
+### What is done
 
-2. **Alpine lab-controller** (`.74`, VM 107).
-   Currently offline. Power on, then run the Alpine recipe. Isolated host, very low blast radius. Empty of services.
+1. ✅ Disposable Linux trial nodes (`coding`, `debdesk`, `headscale-test`, `linux-test-02`) — done in the original trial + 2026-06-05 batch.
+2. ✅ Alpine `lab-controller` (HOL-6) — done 2026-06-05.
+3. ✅ `udev` (PVE VM 101, the dev / agent-runtime control node) — done 2026-06-05.
+4. ✅ MacBook Air (`mba`) — done 2026-06-05.
+5. ✅ Mac Studio (`josephs-mac-studio`) — done 2026-06-05 in the same batch (precondition loosened — see "Status of this playbook" above).
 
-3. **Any newly-spun trial Linux VM** (e.g., `linux-test-03`).
-   Cheap to redeploy if something goes wrong. Useful for one more pass of the cutover playbook before touching production.
+### What remains
 
-4. **`mac-mini`** (secondary workstation, `192.168.68.68`).
-   First production cutover. Has a screen, has a wired Ethernet path, runs no daily-critical workloads. If the macOS path turns out to need adjustment, find that here, not on the Mac Studio.
+- ⏸ **Mac Mini** (`192.168.68.68`). Only remaining Mac on public Tailscale. Should follow the per-OS macOS-OSS recipe. Has a screen attached — full console access available, so this cutover is low-risk despite being a "production" workstation.
+- ⏸ **Lume `my-vm`** (`192.168.64.2`). Originally the macOS cutover experiment; less load-bearing now that Mac Studio is on Headscale. Useful as the **App Store cutover rehearsal target** if/when a real machine on the App Store build needs cutting over. Currently blocked on SSH-auth setup — see HOL-7.
 
-5. **`macbook-air`** (`192.168.68.70`, when not roaming).
-   Mobile, but uses LAN-attached at home. Cutover happens at home.
+### Original ordering doctrine (reference)
 
-6. **`my-vm` / `udev`** (`.66`, primary development VM on PVE).
-   Linux. Has services. Cutover happens during low-activity hours with the LAN SSH escape path open.
+The principle was: **least load-bearing first**, with the workstation that cannot afford to lose **last**. That principle remains good guidance for future, similar migrations. It was waived for Mac Studio here because (a) the operator was actively running the batch and ready to roll back, (b) the rollback path was well-rehearsed by then, and (c) the cumulative risk of leaving the migration half-done across many machines for an extended period was judged higher than the per-machine cutover risk on Mac Studio specifically.
 
-7. **`mac-mini` again** if the secondary workstation slot has been re-used; otherwise skip.
-
-8. **Mac Studio LAST**. This is the workstation the operator cannot afford to lose. By the time we reach it, every other macOS host on the network is on Headscale and has been observed for at least 24 hours. The actual cutover follows the per-OS Mac recipe with extra paranoia: two held-open LAN SSH sessions (not one), the rollback script pre-positioned in a third terminal, and a window of attention reserved for at least 30 minutes after the cutover to confirm soak.
+A cutover-of-one still warrants the original paranoia: held-open LAN SSH session in a second terminal, console-of-last-resort available within ten minutes, rollback rehearsed on a disposable target in the last seven days. None of that changes for the Mac Mini step.
 
 ## Section 8: Rollback drill — practice before production
 
@@ -199,16 +196,41 @@ Print this. Cross items off in pen. Do not skip.
 [ ] Notify (if anyone else uses this machine)
 ```
 
+## Section 9b: Known gotchas observed during the 2026-06-05 batch
+
+Concrete problems that bit during the multi-node rollout. Pre-flight against these on the next cutover.
+
+- **Cloned-template VMs share `tailscaled.state`.** VMs 108, 110, 111 were cloned from a common Ubuntu template that had `tailscaled` pre-installed and had been run once on the template. Result: every new `tailscale up` overwrote the previous node in headscale's node-slot 1 because all three VMs presented identical machine keys. **Fix per VM, before `tailscale up`**:
+  ```bash
+  sudo systemctl stop tailscaled
+  sudo rm /var/lib/tailscale/tailscaled.state
+  sudo systemctl start tailscaled
+  ```
+  Then `tailscale up --login-server=... --authkey=...`. This is now part of the Linux per-OS recipe's "clear prior state" step but is easy to forget when the node has never been "on" any tailnet from your point of view.
+- **Headscale CLI socket ownership.** On 2026-06-05 the `/var/run/headscale/headscale.sock` was created with `root:root` 0770 after some operation, and the daemon ran as user `headscale`. The CLI silently fell back to gRPC at `127.0.0.1:50443`, which the daemon wasn't listening on, and every `headscale nodes list` timed out. **Diagnosis**: `ls -la /var/run/headscale/headscale.sock` shows the wrong owner. **Fix**: `sudo systemctl restart headscale` recreates the socket with the correct ownership (`headscale:headscale`). Re-occurs after some upgrade flows; restart-of-headscale is the universal fix.
+- **DHCP drift between the doc and reality.** The Alpine VM the docs called `.74` came up at `192.168.68.51` after a long power-off. Always probe live (`headscale nodes list`, `arp`) before trusting a doc-recorded IP.
+- **First-use password ceremony on doas-only Alpine.** Out-of-the-box Alpine has no `sudo`, and `doas` defaults to `permit persist :wheel` which prompts for a password on first use per session. If `jth` is a wheel member but the agent doesn't have the password, the agent cannot acquire root. **Fix once, manually, on a fresh Alpine VM**: as root via console, `echo "permit nopass :wheel" > /etc/doas.d/wheel.conf`. Then agents in `wheel` can run `doas` without prompting.
+- **Apk repositories misconfigured on the Alpine VM.** `/etc/apk/repositories` listed `https://alpinelinux.org` twice with no `/v3.23/main` path, so `apk add` resolved nothing. **Fix**: rewrite the file to point at the right mirror + version:
+  ```
+  https://dl-cdn.alpinelinux.org/alpine/v3.23/main
+  https://dl-cdn.alpinelinux.org/alpine/v3.23/community
+  ```
+  Then `apk update; apk add tailscale`.
+- **macOS Tailscale client/daemon version skew after `brew upgrade`.** Observed on Mac Studio post-cutover: CLI is `1.98.5`, daemon is `1.98.3`. `tailscale status` warns about it but continues to work. **Fix**: `sudo brew services restart tailscale`. The skew can produce confusing behavior on `tailscale set` operations until restarted; do this any time `tailscale status` shows the warning.
+- **`tailscale SSH` enabled but ACL-blocked on Mac Studio.** `tailscale status` health check warns: *Tailscale SSH enabled, but access controls don't allow anyone to access this device.* Headscale's default open-mesh policy does not grant `tailscale ssh` permission — that requires an explicit ACL entry. Without it, `tailscale ssh josephs-mac-studio` from another tailnet member is silently rejected. **Fix**: write a Headscale ACL policy (out of scope for the cutover playbook, but worth knowing it's needed).
+
 ## Section 10: Post-cutover cleanup
 
-These are not blocking on the cutover succeeding — they are housekeeping done over the days after.
+These are not blocking on the cutover succeeding — they are housekeeping done over the days after. Current state as of 2026-06-06 in parens.
 
-- **Purge `tailscaled` cruft from the headscale host `.77`**. The control plane should not run a Tailscale client. `sudo apt purge tailscale && sudo rm -rf /var/lib/tailscale`. This was identified as a leftover from the original trial bring-up.
-- **Remove the `/etc/hosts` line** for `hs.lab.hole-truth.org` once internal DNS via `ddns` LXC is live. Verify with `getent hosts hs.lab.hole-truth.org` returning the same answer without the line present.
-- **Retire the public-Tailscale auth key** in Doppler once no machine on the network needs it for rollback anymore. Until then, keep it valid — it is the rollback path.
-- **Delete stale nodes** from the public Tailscale admin console for machines that have been cut over and confirmed soaked.
-- **Update [`architecture.md`](architecture.md)** — the host inventory table to reflect the new tailnet IPs for cut-over machines.
-- **Update `private_dot_ssh/config.tmpl`** in this repo if any SSH aliases point at public-tailnet hostnames that have changed. The LAN-IP fallback `Host` entries stay; tailnet aliases get the new addresses.
+- ⏸ **Purge `tailscaled` cruft from the headscale host `.77`.** (**Still open**.) The control plane should not run a Tailscale client. `sudo apt purge tailscale && sudo rm -rf /var/lib/tailscale`. Deferred repeatedly because it needs an interactive `sudo` password on `.77` that the agents don't have. As of 2026-06-06 the unit is still `enabled` and `tailscale0` is `UP` on the box. Inert (no traffic) but should be removed for hygiene.
+- ⏸ **Remove the `/etc/hosts` line** for `hs.lab.hole-truth.org` once internal DNS via `ddns` LXC (`.55`) is live. (Still open. `ddns` LXC is running but not authoritatively serving `lab.hole-truth.org` yet.)
+- ⏸ **Retire the public-Tailscale auth key** in Doppler once no machine on the network needs it for rollback anymore. Mac Mini still depends on public Tailscale; **keep the key valid until Mac Mini is migrated**.
+- ⏸ **Delete stale nodes** from the public Tailscale admin console for the machines cut over on 2026-06-05 (Mac Studio, MBA, lab nodes). Confirm at least 30 days of soak first, in case rollback is needed.
+- ⏸ **Define a Headscale ACL policy** to grant `tailscale ssh` access. Currently every node with `--ssh` enabled is silently rejecting connections (see §9b gotchas). Tracked separately.
+- ✅ **Expire reusable preauth keys** after rollout. Key id 6 from the 2026-06-05 batch has been expired.
+- ✅ **Migrated `architecture.md`** host inventory table to reflect the new tailnet IPs (done 2026-06-06).
+- ⏸ **Update `private_dot_ssh/config.tmpl`** in this repo if any SSH aliases point at public-tailnet hostnames that have changed. The LAN-IP fallback `Host` entries stay; tailnet aliases get the new addresses. (Not yet done.)
 
 ## What this playbook deliberately does not cover
 
