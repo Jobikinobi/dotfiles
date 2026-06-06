@@ -302,3 +302,16 @@ brew install chezmoi && chezmoi init --apply Jobikinobi
 
 ### Fresh Linux (interactive)
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Jobikinobi
+
+Add Headscale:
+
+echo "192.168.68.77  hs.lab.hole-truth.org" | sudo tee -a /etc/hosts
+
+# 1. DNS resolves
+getent hosts hs.lab.hole-truth.org
+
+# 2. TCP + TLS reach the control plane
+curl -fsS -o /dev/null -w "%{http_code}\n" https://hs.lab.hole-truth.org/health
+
+# 3. Headscale is actually answering (not just a reverse proxy 200)
+curl -fsS https://hs.lab.hole-truth.org/health
