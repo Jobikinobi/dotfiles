@@ -43,7 +43,7 @@ These conventions are personal/solo-discipline rigor today (no formal CODEOWNERS
 - Weaviate (Mac Mini, version 1.37.x) — vector store
 - Voyage embeddings
 - Cloudflare Workers (legal-enrichment queue) + R2 (data archive: `hole-r2:hole-legal-assistant`)
-- Doppler for **all** secrets — never read raw config files (`.env`, `~/.config/rclone/rclone.conf`, etc.) when a `doppler run -- <cmd>` will do
+- Doppler for legacy secrets and dotenvx for the new `dotfiles-dotenvxx` profile — never read raw config files (`.env`, `~/.config/rclone/rclone.conf`, etc.) when a managed loader (`doppler run -- <cmd>` or `dotenvx run -f ... -- <cmd>`) will do
 - Tailscale: Mac Mini host
 
 ## Repo location

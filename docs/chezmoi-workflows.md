@@ -88,6 +88,7 @@ The private key lives at `~/.config/chezmoi/key.txt`. Backup is in Gmail (search
 ## Common gotchas
 
 - **Doppler keychain locked → template render fails.** Doppler lookups in this repo run at shell-startup, not template-render, to avoid this. Don't add `{{ output "doppler" ... }}` calls to templates.
+- **dotenvxx profile is runtime-loaded.** Keep `dotfiles-dotenvxx` secrets in the encrypted `.env` file and load them with `dotenvx run -f ...`; don't bake them into `chezmoi` templates.
 - **Symlinked source.** chezmoi expects `~/.local/share/chezmoi`. On this machine it's symlinked to `~/dotfiles`. If `chezmoi source-path` returns the wrong path, recreate: `ln -sfn ~/dotfiles ~/.local/share/chezmoi`.
 - **Forgot to `chezmoi apply` after editing source.** `chezmoi diff` will show you everything that's out of sync.
 - **Live file modified by an installer (OrbStack, gh, etc.).** chezmoi will detect drift on next `apply`. Decide: keep the installer's change (`chezmoi re-add` for plain files) or overwrite (`chezmoi apply --force`).

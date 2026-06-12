@@ -12,7 +12,7 @@ Cross-platform environment as code. One command bootstraps a fully configured de
 Layer 1: Tailscale         mesh network — connects all machines
 Layer 2: chezmoi/dotfiles  identity — makes any machine "yours"  ← this repo
 Layer 3: Containers        workloads — Weaviate, transparency engine
-Layer 4: Backups           durability — R2, GHCR, Doppler
+Layer 4: Backups           durability — R2, GHCR, Doppler, dotenvx
 ```
 
 This repo owns **Layer 2**. For container stacks and infrastructure, see [hole-devenv](https://github.com/Jobikinobi/hole-devenv).
@@ -22,14 +22,15 @@ This repo owns **Layer 2**. For container stacks and infrastructure, see [hole-d
 | Component | macOS | Linux | Source |
 |-----------|:-----:|:-----:|--------|
 | Shell (zsh + Powerlevel10k + zinit) | Yes | Yes | `dot_zshrc.tmpl` |
-| Core CLI tools (bat, eza, fd, fzf, helix, jq, nnn, ripgrep, uv) | Yes | Yes | `dot_Brewfile.core` |
+| Core CLI tools (bat, eza, fd, fzf, helix, jq, nnn, ripgrep, uv, dotenvx) | Yes | Yes | `dot_Brewfile.core` |
 | Full tool suite (100+ packages, GUI apps) | Yes | — | `dot_Brewfile` |
 | Git config + GitHub credential helper | Yes | Yes | `dot_gitconfig` |
 | SSH config (1Password agent, Tailscale hosts) | Yes | Partial | `private_dot_ssh/config.tmpl` |
 | Editor configs (helix, kitty, btop, htop) | Yes | Yes | `dot_config/` |
 | Node LTS + Claude Code | Yes | Yes | `run_once_after_install-brewfile.sh.tmpl` |
 | Tailscale auto-join | — | Yes | `run_once_before_install-toolchains.sh.tmpl` |
-| Secrets via Doppler (baked at apply time) | Yes | Optional | `dot_zshrc.tmpl` |
+| Secrets via Doppler (legacy baked at apply time) | Yes | Optional | `dot_zshrc.tmpl` |
+| Secrets via dotfiles-dotenvxx (dotenvx runtime profile) | Yes | Optional | `dot_zshrc.tmpl`, `dot_config/dotfiles-dotenvxx/` |
 | Docker image (GHCR) | — | Pre-built | `Dockerfile.test` |
 
 ---
@@ -165,6 +166,7 @@ Installed via `dot_Brewfile.core` on Linux, included in the full `dot_Brewfile` 
 | `uv` | `pip` | Python package manager |
 | `direnv` | — | Per-directory env vars |
 | `doppler` | `.env` files | Secrets management |
+| `dotenvx` | `.env` files | Encrypted runtime env profiles |
 | `fnm` | `nvm` | Node version manager |
 | `powerlevel10k` | — | zsh prompt theme |
 
@@ -188,15 +190,25 @@ Docker containers join the tailnet automatically when launched with `TS_AUTHKEY`
 
 ## Secrets Management
 
-All secrets live in **Doppler** — never hardcoded, never in `.env` files.
+The repo now has two secret paths:
 
-chezmoi templates call Doppler at `chezmoi apply` time and bake values into the generated files:
+- **Doppler** remains the legacy baked-at-apply-time path for existing machines.
+- **dotfiles-dotenvxx** is the new default profile and uses dotenvx to load an encrypted `.env` file at shell runtime.
+
+chezmoi templates still call Doppler at `chezmoi apply` time for the legacy values:
 ```
 # In dot_zshrc.tmpl (what git sees):
 export API_KEY='{{ output "doppler" "secrets" "get" "API_KEY" "--plain" ... | trim }}'
 
 # In ~/.zshrc (what the shell sees):
 export API_KEY='actual-value-from-doppler'
+```
+
+The new dotfiles-dotenvxx profile lives at `~/.config/dotfiles/dotfiles-dotenvxx/.env` and is loaded with:
+
+```zsh
+dotfiles_dotenvxx_run -- aws configure
+dotfiles_dotenvxx_encrypt
 ```
 
 ---

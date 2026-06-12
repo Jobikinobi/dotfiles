@@ -42,7 +42,8 @@ Cross-platform development environment managed by chezmoi.
 
 ## Secrets
 
-- All secrets in Doppler — never hardcoded
+- Legacy secrets stay in Doppler — never hardcoded
+- The new `dotfiles-dotenvxx` profile uses dotenvx-managed encrypted `.env` files at shell runtime
 - `dot_zshrc.tmpl` uses `{{ output "doppler" ... }}` to bake secrets at apply time
 - Guarded by `{{ if lookPath "doppler" }}` — skipped if Doppler isn't installed
 - Known issue: Doppler fails over SSH (keyring inaccessible) — see dotfiles#5
@@ -65,3 +66,4 @@ Cross-platform development environment managed by chezmoi.
 - [hole-devenv](https://github.com/Jobikinobi/hole-devenv) — Infrastructure layer (container stacks, backups)
 - Tailnet: `lemming-likert.ts.net` (MagicDNS)
 - Doppler secrets: multiple projects (`backend/prd`, dotfiles config)
+- dotenvx profile: `dotfiles-dotenvxx` runtime env file under `~/.config/dotfiles/dotfiles-dotenvxx/.env`

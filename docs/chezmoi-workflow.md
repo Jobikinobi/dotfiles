@@ -79,7 +79,7 @@ The SSH config (`private_dot_ssh/config.tmpl`) wraps macOS-specific includes (Or
 
 ## Secrets in Templates
 
-Secrets are injected via Doppler at `chezmoi apply` time:
+Legacy secrets are injected via Doppler at `chezmoi apply` time:
 
 ```
 {{ if lookPath "doppler" -}}
@@ -91,6 +91,15 @@ export KEY='{{ output "doppler" "secrets" "get" "KEY" "--plain" "-p" "backend" "
 - The actual secret value is baked into `~/.zshrc` — never visible in git
 - You must have Doppler authenticated (`doppler login`) for this to work
 - **Known issue**: Fails over SSH due to keychain access — see issue #5
+
+The `dotfiles-dotenvxx` profile is loaded at shell runtime with dotenvx instead of being baked into a template:
+
+```zsh
+dotenvx run -f ~/.config/dotfiles/dotfiles-dotenvxx/.env -- aws configure
+```
+
+- This profile is additive; it does not replace the legacy Doppler path
+- Keep the `.env` file encrypted with dotenvx and never commit plaintext values
 
 ## Troubleshooting
 

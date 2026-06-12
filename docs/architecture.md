@@ -6,6 +6,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │  Layer 4: BACKUPS                                           │
 │  R2 (Weaviate vectors) · GHCR (Docker images) · Doppler    │
+│  dotenvx (dotfiles-dotenvxx profile)                        │
 ├─────────────────────────────────────────────────────────────┤
 │  Layer 3: CONTAINERS                                        │
 │  OrbStack (dev) · Colima (infra) · LXD (production)        │
@@ -49,6 +50,7 @@ Docker containers join via `TS_AUTHKEY` environment variable.
 - Git identity and credentials
 - SSH host configuration
 - Doppler secret injection into shell environment
+- dotenvx runtime loading for the dotfiles-dotenvxx profile
 - Docker image for "personal dev node" (GHCR)
 - CI that validates chezmoi + Docker build
 
@@ -61,7 +63,7 @@ Docker containers join via `TS_AUTHKEY` environment variable.
 
 ## Secrets Model
 
-All secrets managed via Doppler. Never in git, never in `.env` files.
+Legacy secrets remain in Doppler; the new `dotfiles-dotenvxx` profile uses dotenvx-managed encrypted `.env` files. Never commit plaintext secret material.
 
 | Doppler Project | Contains | Used By |
 |----------------|----------|---------|
@@ -74,10 +76,12 @@ All secrets managed via Doppler. Never in git, never in `.env` files.
 Doppler (cloud) ──→ chezmoi template ({{ output "doppler" ... }})
                           │
                           ▼
-                    ~/.zshrc (baked values)
+                    ~/.zshrc (legacy baked values)
                           │
                           ▼
                     shell environment ($POSTMAN_API_KEY, etc.)
+
+dotenvx (.env + keys) ──→ dotfiles-dotenvxx profile ──→ `dotenvx run -f ... -- <cmd>`
 ```
 
 ## Container Runtime Strategy
