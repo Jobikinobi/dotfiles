@@ -1,6 +1,8 @@
+tap "dotenvx/brew"
 tap "f/mcptools"
 tap "powershell/tap"
 brew "doppler"
+brew "dotenvx"
 brew "rnr"
 brew "age"
 brew "libyaml"

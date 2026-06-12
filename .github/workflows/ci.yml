@@ -44,7 +44,7 @@ jobs:
           docker run --rm --entrypoint /bin/bash dotfiles-test:ci -c '
             eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
             echo "=== Checking core tools ==="
-            for tool in hx bat fzf rg eza fd jq nnn doppler uv; do
+            for tool in hx bat fzf rg eza fd jq nnn doppler dotenvx uv; do
               if command -v "$tool" &>/dev/null; then
                 echo "✓ $tool"
               else

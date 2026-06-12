@@ -127,4 +127,13 @@ if ! command -v doppler &>/dev/null; then
 else
   echo "✓ Doppler already installed"
 fi
+
+# ── dotenvx (encrypted env profiles) ─────────────────────────────────────────
+if ! command -v dotenvx &>/dev/null; then
+  echo "→ Installing dotenvx..."
+  brew install dotenvx/brew/dotenvx
+  echo "✓ dotenvx installed"
+else
+  echo "✓ dotenvx already installed"
+fi
 {{- end }}
