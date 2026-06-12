@@ -40,8 +40,9 @@ echo "    chmod 700 ~/.ssh && chmod 600 ~/.ssh/*"
 
 # ── 5. AWS credentials ───────────────────────────────────────────────────────
 echo ""
-echo "→ AWS: configure via Doppler after setup:"
-echo "    doppler run --project master --config prd -- aws configure"
+echo "→ AWS: configure via the dotfiles-dotenvxx profile after setup:"
+echo "    dotenvx run -f ~/.config/dotfiles/dotfiles-dotenvxx/.env -- aws configure"
+echo "    # legacy fallback: doppler run --project master --config prd -- aws configure"
 
 # ── 6. LaunchAgent (auto daily save) ─────────────────────────────────────────
 echo "→ Installing daily auto-save launchd agent..."

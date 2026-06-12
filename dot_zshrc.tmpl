@@ -250,7 +250,47 @@ alias mac-edit='chezmoi edit'
 # 14. CLOUD & INFRASTRUCTURE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-alias aws-login='doppler run --project master --config prd -- aws configure'
+typeset -g dotfiles_dotenvxx_env_file="${DOTENVXX_ENV_FILE:-$HOME/.config/dotfiles/dotfiles-dotenvxx/.env}"
+
+dotfiles_dotenvxx_run() {
+  if [[ ! -f "$dotfiles_dotenvxx_env_file" ]]; then
+    echo "⚠ dotfiles-dotenvxx profile missing: $dotfiles_dotenvxx_env_file" >&2
+    return 1
+  fi
+
+  [[ "${1:-}" == "--" ]] && shift
+
+  if ! command -v dotenvx &>/dev/null; then
+    echo "⚠ dotenvx is not installed" >&2
+    return 1
+  fi
+
+  command dotenvx run -f "$dotfiles_dotenvxx_env_file" -- "$@"
+}
+
+dotfiles_dotenvxx_encrypt() {
+  if ! command -v dotenvx &>/dev/null; then
+    echo "⚠ dotenvx is not installed" >&2
+    return 1
+  fi
+
+  mkdir -p "${dotfiles_dotenvxx_env_file:h}"
+  if [[ ! -f "$dotfiles_dotenvxx_env_file" ]]; then
+    : > "$dotfiles_dotenvxx_env_file"
+  fi
+
+  command dotenvx encrypt -f "$dotfiles_dotenvxx_env_file"
+}
+
+aws-login() {
+  if [[ -f "$dotfiles_dotenvxx_env_file" ]] && command -v dotenvx &>/dev/null; then
+    dotfiles_dotenvxx_run aws configure
+  else
+    command doppler run --project master --config prd -- aws configure
+  fi
+}
+
+alias aws-login-doppler='doppler run --project master --config prd -- aws configure'
 alias aws-sso='aws sso login --profile hole-admin'
 alias aws-who='aws sts get-caller-identity'
 alias s3-ls-mipds='aws s3 ls s3://hole-foia-deep-archive/MIPDS/ --human-readable --summarize'
