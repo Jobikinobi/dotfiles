@@ -145,6 +145,10 @@ fine — different prefix. Public keys are reconstructable on demand:
 - **Off-host backup** target (PBS or remote NFS). The current 2-hour vzdump
   writes to the same physical disk it's protecting.
 - **Tailscale on PVE**: `tailscale up` to join the tailnet so `pve-ts` works.
+- **Cloudflare One / WARP vnet node**: enroll a Linux host onto the Cloudflare
+  mesh — install runbook (and the apt-codename trap that broke the Trixie box)
+  in [`cloudflare-warp-node.md`](cloudflare-warp-node.md). Conflicts with
+  Tailscale on the same host; only for nodes being moved onto the vnet.
 - **Migrate legacy `jth` Linux user on the PVE host** — dormant, intended to
   be removed once nothing depends on it.
 - **Reformat workstations to Linux** and migrate them to PVE-hosted VMs
