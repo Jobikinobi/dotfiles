@@ -1,0 +1,78 @@
+{{- if ne .chezmoi.os "darwin" -}}
+#!/bin/bash
+# Cloudflare cloudflared — Linux (Debian/Ubuntu, apt)
+#
+# Installs the cloudflared tunnel daemon from Cloudflare's apt repo using the
+# `signed-by` keyring convention. The "not a valid signature" / NO_PUBKEY error
+# happens when the repo line is added WITHOUT a properly-fetched keyring; doing
+# the GPG key first and pointing the repo at it with `signed-by=` fixes it.
+#
+# Once the keyring + repo are in place, cloudflared updates like any other apt
+# package (`apt-get upgrade`) — no special handling needed after this.
+#
+# cloudflared's repo path is `.../cloudflared any main` — `any` is
+# distro-agnostic, so no per-codename branching is required. The only thing we
+# detect is whether this is an apt-based system at all.
+#
+# NON-FATAL BY DESIGN: this script always `exit 0`. chezmoi aborts the entire
+# apply if a run_once script exits non-zero, so every failure path here just
+# warns and returns. cloudflared is optional — a missing network, a down
+# Cloudflare repo, or a non-Debian distro must never block the rest of the
+# bootstrap.
+#
+# Deliberately NOT using `set -e`.
+
+log()  { echo "→ $*"; }
+warn() { echo "⚠ $*" >&2; }
+
+install_cloudflared() {
+  # Catch a failed `curl` in `curl | tee` (without this, the pipeline reports
+  # tee's status and a down repo would silently write an empty keyring).
+  set -o pipefail
+
+  if command -v cloudflared >/dev/null 2>&1; then
+    log "cloudflared already installed — skipping"
+    return 0
+  fi
+
+  if ! command -v apt-get >/dev/null 2>&1; then
+    warn "no apt-get — skipping cloudflared (not a Debian/Ubuntu system)"
+    return 0
+  fi
+
+  local keyring="/usr/share/keyrings/cloudflare-main.gpg"
+  local list="/etc/apt/sources.list.d/cloudflared.list"
+
+  log "Adding Cloudflare GPG keyring..."
+  if ! sudo mkdir -p --mode=0755 /usr/share/keyrings; then
+    warn "could not create /usr/share/keyrings — skipping cloudflared"
+    return 0
+  fi
+  if ! curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee "$keyring" >/dev/null; then
+    warn "could not fetch Cloudflare GPG key — skipping cloudflared"
+    return 0
+  fi
+
+  log "Adding cloudflared apt repo..."
+  if ! echo "deb [signed-by=${keyring}] https://pkg.cloudflare.com/cloudflared any main" \
+      | sudo tee "$list" >/dev/null; then
+    warn "could not write ${list} — skipping cloudflared"
+    return 0
+  fi
+
+  log "Installing cloudflared..."
+  if ! sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq; then
+    warn "apt-get update failed — skipping cloudflared install"
+    return 0
+  fi
+  if ! sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cloudflared; then
+    warn "cloudflared install failed — continuing without it"
+    return 0
+  fi
+
+  log "✓ cloudflared installed"
+}
+
+install_cloudflared
+exit 0
+{{- end -}}
