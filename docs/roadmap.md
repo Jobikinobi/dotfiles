@@ -26,6 +26,7 @@ These are small, high-friction items that block daily use. Do these first.
 |---|---|---|
 | [#62](https://github.com/Jobikinobi/dotfiles/issues/62) | `bugfix/ubuntu-zprofile-error` | `/opt/homebrew/bin/brew` path hardcoded; Linux gets an error on login |
 | [#61](https://github.com/Jobikinobi/dotfiles/issues/61) | `bugfix/remove projects from zshrc` | Mac-Studio-specific shortcut polluting all Linux deploys |
+| [#64](https://github.com/Jobikinobi/dotfiles/issues/64) | `bugfix/fnm setup` | fnm installs but can't find default node version; add `.node-version` or equivalent and standard fnm config to dotfiles |
 | [#56](https://github.com/Jobikinobi/dotfiles/issues/56) | `bug/brew+chezmoi problems` | **Root cause item** — brew install fails on some Linux; fix before alpine work |
 | [#55](https://github.com/Jobikinobi/dotfiles/issues/55) | `bug/alpine-failure` | Likely downstream of #56; investigate after brew fix |
 | [#5](https://github.com/Jobikinobi/dotfiles/issues/5) | VS Code SSH keychain unlock | Tracked as [HOL-228](/HOL/issues/HOL-228) |
