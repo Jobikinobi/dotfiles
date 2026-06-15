@@ -33,8 +33,7 @@ if grep -q "mdns4_minimal" /etc/nsswitch.conf 2>/dev/null; then
   echo "→ nsswitch.conf already has mdns4_minimal — skipping"
 else
   echo "→ Patching /etc/nsswitch.conf for mDNS resolution"
-  sudo sed -i \
-    's/^\(hosts:.*\b\)\(dns\b\)/\1mdns4_minimal [NOTFOUND=return] \2/' \
+  sudo sed -i '/^hosts:/ s/ dns/ mdns4_minimal [NOTFOUND=return] dns/' \
     /etc/nsswitch.conf
   # Verify the patch landed
   if grep -q "mdns4_minimal" /etc/nsswitch.conf; then
