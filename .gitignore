@@ -20,3 +20,6 @@ dot_aws/
 
 # Test artifacts
 Dockerfile.test
+
+# Git worktrees (agent isolation)
+.worktrees/
