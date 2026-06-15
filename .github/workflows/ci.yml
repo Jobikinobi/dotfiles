@@ -60,6 +60,28 @@ jobs:
             echo "=== All tools verified ==="
           '
 
+      - name: Verify Avahi/mDNS configuration
+        run: |
+          docker run --rm --entrypoint /bin/bash dotfiles-test:ci -c '
+            echo "=== Checking Avahi / mDNS packages ==="
+            for pkg in avahi-daemon avahi-utils libnss-mdns; do
+              if dpkg -s "$pkg" >/dev/null 2>&1; then
+                echo "✓ $pkg installed"
+              else
+                echo "✗ $pkg MISSING" && exit 1
+              fi
+            done
+            echo "=== Checking nsswitch.conf for mdns4_minimal ==="
+            if grep -q "mdns4_minimal" /etc/nsswitch.conf; then
+              echo "✓ nsswitch.conf: $(grep "^hosts:" /etc/nsswitch.conf)"
+            else
+              echo "✗ nsswitch.conf missing mdns4_minimal"
+              echo "Current hosts line: $(grep "^hosts:" /etc/nsswitch.conf || echo "(none)")"
+              exit 1
+            fi
+            echo "=== Avahi/mDNS configuration verified ==="
+          '
+
       - name: Push to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v6
