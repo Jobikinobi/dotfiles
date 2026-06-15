@@ -1,0 +1,66 @@
+{{- if ne .chezmoi.os "darwin" -}}
+#!/bin/bash
+# Configure Avahi/mDNS after packages are installed.
+#
+# What this does:
+#   1. Patches /etc/nsswitch.conf so glibc resolves .local names via mDNS
+#      before falling back to DNS (standard mdns4_minimal pattern).
+#   2. Enables and starts avahi-daemon via systemd where available.
+#      On containers / headless images without a live init system (e.g. Docker
+#      build layers), the daemon is left installed but not started — a startup
+#      service or `--network=host` run flag is needed for actual LAN discovery.
+#
+# Docker-bridge caveat: Docker's default bridge (docker0) does not forward
+# multicast packets, so avahi-daemon inside a bridge-networked container cannot
+# discover or advertise on the LAN. Avahi targets real hosts and VMs. Containers
+# that need peer discovery should use Tailscale MagicDNS instead (already
+# configured via run_once_before_install-tailscale.sh.tmpl).
+#
+# Idempotent: the nsswitch.conf patch is a no-op if already present.
+set -e
+
+if ! command -v avahi-daemon >/dev/null 2>&1; then
+  echo "→ avahi-daemon not found; skipping mDNS configuration"
+  exit 0
+fi
+
+# ── nsswitch.conf ──────────────────────────────────────────────────────────────
+# Insert mdns4_minimal before the dns entry so .local names are resolved via
+# mDNS without querying the DNS server (which would leak .local to upstream).
+# The [NOTFOUND=return] stops further lookup if mDNS explicitly says "no such
+# host", which avoids slow timeouts on LAN-only names.
+if grep -q "mdns4_minimal" /etc/nsswitch.conf 2>/dev/null; then
+  echo "→ nsswitch.conf already has mdns4_minimal — skipping"
+else
+  echo "→ Patching /etc/nsswitch.conf for mDNS resolution"
+  sudo sed -i \
+    's/^\(hosts:.*\b\)\(dns\b\)/\1mdns4_minimal [NOTFOUND=return] \2/' \
+    /etc/nsswitch.conf
+  # Verify the patch landed
+  if grep -q "mdns4_minimal" /etc/nsswitch.conf; then
+    echo "✓ nsswitch.conf updated: $(grep '^hosts:' /etc/nsswitch.conf)"
+  else
+    echo "⚠ sed pattern did not match; hosts line:"
+    grep '^hosts:' /etc/nsswitch.conf || echo "(no hosts line found)"
+  fi
+fi
+
+# ── avahi-daemon service ───────────────────────────────────────────────────────
+# Enable and start the daemon only when a live systemd instance is reachable.
+# In Docker build layers and other no-init environments, systemd is absent or
+# not running — skip silently rather than failing the bootstrap.
+if command -v systemctl >/dev/null 2>&1 \
+    && systemctl is-system-running --quiet 2>/dev/null; then
+  echo "→ Enabling avahi-daemon via systemd"
+  sudo systemctl enable avahi-daemon 2>/dev/null || true
+  sudo systemctl start  avahi-daemon 2>/dev/null || true
+  if systemctl is-active --quiet avahi-daemon; then
+    echo "✓ avahi-daemon running"
+  else
+    echo "⚠ avahi-daemon not active after start — check: journalctl -u avahi-daemon"
+  fi
+else
+  echo "→ systemd not active (container/headless build); avahi-daemon installed but not started"
+  echo "  On a real host run: sudo systemctl enable --now avahi-daemon"
+fi
+{{- end -}}
