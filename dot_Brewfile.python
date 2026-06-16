@@ -1,0 +1,21 @@
+# python profile — generic Python development layer
+# Activated by adding "python" to `projects` in ~/.config/chezmoi/chezmoi.toml.
+# See docs/profiles/python.md for what this installs and what is manual.
+#
+# Core already provides: uv (package manager), pyenv (version manager),
+# direnv (.envrc auto-load), git, gh, jq, fd, ripgrep, helix, doppler.
+# Everything listed here is ADDITIVE.
+
+# ── Code quality ─────────────────────────────────────────────────────────────
+# Ruff: all-in-one Python linter + formatter (replaces flake8/black/isort).
+# Runs in milliseconds, configured via pyproject.toml or ruff.toml.
+brew "ruff"
+
+# pre-commit: git hook framework — runs ruff/mypy/etc. on every commit.
+# Standard in modern Python repos; `pre-commit install` wires it in.
+brew "pre-commit"
+
+# ── HTTP tooling ──────────────────────────────────────────────────────────────
+# httpie: human-friendly HTTP client (`http GET :8000/api/v1/items`).
+# Useful during Python API development; more ergonomic than curl for one-offs.
+brew "httpie"
