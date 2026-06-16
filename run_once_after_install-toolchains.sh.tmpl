@@ -62,7 +62,24 @@ if command -v npm >/dev/null 2>&1; then
 fi
 
 # Supabase CLI via brew tap (not in core Brewfile because it needs a tap)
+# Homebrew intermittently emits "Error: Broken pipe" (SIGPIPE on its own stdout)
+# after a successful install, causing a non-zero exit that trips set -e.  Retry
+# up to 3 times and treat the install as successful if the binary lands in PATH,
+# even if brew's exit code was non-zero.
 if ! command -v supabase >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
   echo "→ Installing Supabase CLI..."
-  brew install supabase/tap/supabase
+  _brew_ok=0
+  for _attempt in 1 2 3; do
+    if brew install supabase/tap/supabase; then
+      _brew_ok=1; break
+    fi
+    # Binary present despite non-zero exit → SIGPIPE on brew's output, not a
+    # real failure; consider it done.
+    if command -v supabase >/dev/null 2>&1; then
+      _brew_ok=1; break
+    fi
+    echo "  attempt $_attempt/3 failed, retrying in 5 s…"
+    sleep 5
+  done
+  [[ $_brew_ok -eq 1 ]] || { echo "ERROR: supabase install failed after 3 attempts" >&2; exit 1; }
 fi
