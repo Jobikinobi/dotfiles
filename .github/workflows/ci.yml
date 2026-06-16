@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [core, legal, godocs, oversight]
+        profile: [core, legal, godocs, oversight, python, webdev]
     steps:
       - uses: actions/checkout@v4
 
