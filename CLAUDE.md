@@ -27,11 +27,14 @@ Cross-platform development environment managed by chezmoi.
 ```
 
 ### Script Execution Order
-1. `run_once_before_install-homebrew.sh.tmpl` — Install Homebrew
-2. `run_once_before_install-toolchains.sh.tmpl` — Tailscale + macOS dev tools
-3. chezmoi deploys all files (Brewfiles, configs, etc.)
-4. `run_once_after_install-brewfile.sh.tmpl` — `brew bundle` + Node + Claude Code
-5. `run_once_after_install-launchagent.sh.tmpl` — macOS auto-save agent
+1. `run_once_before_00-apt-bootstrap.sh.tmpl` — Linux apt prereqs (incl. Avahi packages)
+2. `run_once_before_install-homebrew.sh.tmpl` — Install Homebrew
+3. `run_once_before_install-tailscale.sh.tmpl` — Install Tailscale
+4. chezmoi deploys all files (Brewfiles, configs, etc.)
+5. `run_once_after_configure-avahi.sh.tmpl` — Configure mDNS/nsswitch.conf (Linux)
+6. `run_once_after_install-brewfile.sh.tmpl` — `brew bundle` + Node + Claude Code
+7. `run_once_after_install-launchagent.sh.tmpl` — macOS auto-save agent
+8. `run_once_after_install-tailscale-ssh.sh.tmpl` — Tailscale SSH setup
 
 ### Brewfile Strategy
 - `dot_Brewfile.core` — single cross-platform core (macOS + Linux)
@@ -53,6 +56,20 @@ When adding, removing, or modifying a profile, follow the 10-step onboarding che
 - `dot_zshrc.tmpl` uses `{{ output "doppler" ... }}` to bake secrets at apply time
 - Guarded by `{{ if lookPath "doppler" }}` — skipped if Doppler isn't installed
 - Known issue: Doppler fails over SSH (keyring inaccessible) — see dotfiles#5
+
+## Network Discovery
+
+### Tailscale + MagicDNS (primary, all environments)
+- Installed via `run_once_before_install-tailscale.sh.tmpl` on macOS, bundled in Docker image
+- Provides secure WireGuard overlay on tailnet `lemming-likert.ts.net`
+- Use MagicDNS hostnames (`<hostname>.lemming-likert.ts.net`) for cross-machine access
+
+### Avahi / mDNS (LAN-local complement, Linux/real hosts)
+- Installed via `run_once_before_00-apt-bootstrap.sh.tmpl`: `avahi-daemon avahi-utils libnss-mdns`
+- Configured via `run_once_after_configure-avahi.sh.tmpl`: patches `/etc/nsswitch.conf` to add `mdns4_minimal [NOTFOUND=return]` before `dns`
+- Enabled at boot via systemd on real hosts/VMs; skipped silently in Docker build layers
+- macOS ships Bonjour natively — no install needed; `.local` resolution works out of the box
+- **Docker-bridge caveat**: containers on Docker's default bridge (`docker0`) cannot participate in LAN mDNS because multicast is not forwarded. Containers should use Tailscale MagicDNS for peer discovery. For LAN mDNS in a container, run with `--network=host`
 
 ## Docker Image
 

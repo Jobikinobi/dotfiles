@@ -31,6 +31,8 @@ This repo owns **Layer 2**. For container stacks and infrastructure, see [hole-d
 | Tailscale auto-join | — | Yes | `run_once_before_install-toolchains.sh.tmpl` |
 | Secrets via Doppler (legacy baked at apply time) | Yes | Optional | `dot_zshrc.tmpl` |
 | Secrets via dotfiles-dotenvxx (dotenvx runtime profile) | Yes | Optional | `dot_zshrc.tmpl`, `dot_config/dotfiles-dotenvxx/` |
+| Avahi / mDNS zero-config LAN discovery | Native (Bonjour) | Yes | `run_once_before_00-apt-bootstrap.sh.tmpl` |
+| Secrets via Doppler (baked at apply time) | Yes | Optional | `dot_zshrc.tmpl` |
 | Docker image (GHCR) | — | Pre-built | `Dockerfile.test` |
 
 ---
@@ -172,6 +174,19 @@ Installed via `dot_Brewfile.core` on Linux, included in the full `dot_Brewfile` 
 
 ---
 
+## Network Discovery
+
+Two complementary layers — Tailscale for secure overlay networking, Avahi for LAN-local zero-config discovery:
+
+| Layer | Technology | Scope | Resolves |
+|-------|------------|-------|---------|
+| Overlay | Tailscale + MagicDNS | All environments | `<host>.lemming-likert.ts.net` |
+| LAN | Avahi / Bonjour (mDNS) | Real hosts + VMs | `<host>.local` |
+
+**macOS**: Bonjour ships natively — `.local` resolution works automatically.  
+**Linux/VM**: `avahi-daemon` + `libnss-mdns` installed by bootstrap; `nsswitch.conf` patched to use `mdns4_minimal`.  
+**Docker containers**: mDNS multicast doesn't cross Docker's default bridge. Containers use Tailscale MagicDNS for peer discovery. Use `--network=host` if LAN mDNS is needed in a container.
+
 ## Tailscale Mesh
 
 All machines connected via tailnet `lemming-likert.ts.net`:
@@ -219,7 +234,7 @@ Every PR runs two jobs (both must pass to merge):
 
 | Job | What it tests |
 |-----|--------------|
-| **Linux** | Builds Docker image, verifies all core tools installed |
+| **Linux** | Builds Docker image, verifies all core tools installed, verifies Avahi packages + `nsswitch.conf` |
 | **macOS** | Runs `chezmoi apply`, verifies key files deploy and templates render |
 
 On merge to main: pushes updated image to `ghcr.io/jobikinobi/dotfiles:latest`.
@@ -251,10 +266,13 @@ dotfiles/
 │
 ├── private_dot_ssh/config.tmpl        # → ~/.ssh/config (OS-conditional)
 │
-├── run_once_before_install-homebrew.sh.tmpl    # 1. Install Homebrew
-├── run_once_before_install-toolchains.sh.tmpl  # 2. Tailscale + macOS toolchains
-├── run_once_after_install-brewfile.sh.tmpl     # 3. brew bundle + Node + Claude
-├── run_once_after_install-launchagent.sh.tmpl  # 4. macOS auto-save agent
+├── run_once_before_00-apt-bootstrap.sh.tmpl        # 1. Linux apt prereqs + Avahi packages
+├── run_once_before_install-homebrew.sh.tmpl        # 2. Install Homebrew
+├── run_once_before_install-tailscale.sh.tmpl       # 3. Install Tailscale
+├── run_once_after_configure-avahi.sh.tmpl          # 4. Configure mDNS/nsswitch.conf (Linux)
+├── run_once_after_install-brewfile.sh.tmpl         # 5. brew bundle + Node + Claude
+├── run_once_after_install-launchagent.sh.tmpl      # 6. macOS auto-save agent
+├── run_once_after_install-tailscale-ssh.sh.tmpl    # 7. Tailscale SSH setup
 │
 ├── Dockerfile.test                    # Ubuntu 24.04 dev node image
 ├── entrypoint.sh                      # Tailscale + sshd startup
