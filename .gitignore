@@ -23,3 +23,7 @@ Dockerfile.test
 
 # Git worktrees (agent isolation)
 .worktrees/
+
+#dotenvx
+
+.env.keys
