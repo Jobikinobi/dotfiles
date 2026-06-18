@@ -1,0 +1,21 @@
+# webdev profile — generic web / frontend development layer
+# Activated by adding "webdev" to `projects` in ~/.config/chezmoi/chezmoi.toml.
+# See docs/profiles/webdev.md for what this installs and what is manual.
+#
+# Core already provides: fnm (Node version manager — installs Node LTS),
+# git, gh, jq, fd, ripgrep, helix, direnv, doppler.
+# Everything listed here is ADDITIVE.
+
+# ── JavaScript runtimes / package managers ───────────────────────────────────
+# Bun: fast all-in-one JS runtime, bundler, and package manager.
+# Acts as a drop-in replacement for node/npm/npx for most tasks.
+brew "bun"
+
+# pnpm: efficient npm alternative — symlinks packages to a global store so
+# monorepos don't download the same dep 20 times. Standard in modern repos.
+brew "pnpm"
+
+# ── Deployment ────────────────────────────────────────────────────────────────
+# Vercel CLI: `vercel dev`, `vercel deploy`, `vercel env pull` etc.
+# Works for Next.js, SvelteKit, Astro, and any static/serverless build.
+brew "vercel-cli"

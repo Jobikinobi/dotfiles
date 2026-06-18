@@ -1,0 +1,49 @@
+#!/bin/bash
+# python profile — one-time setup for Python development environments.
+#
+# Self-gates on the `projects` list in ~/.config/chezmoi/chezmoi.toml
+# containing "python". On a machine without the key this is a no-op.
+#
+# What this does NOT do (intentionally):
+#   - Does not set a global Python version — use `pyenv local` per repo.
+#   - Does not create a venv — use `uv venv` or `uv init` in the project.
+#   - Does not install project dependencies — run `uv sync` after cloning.
+{{- if not (has "python" .projects) }}
+exit 0
+{{- else }}
+set -euo pipefail
+
+echo "→ Configuring 'python' profile..."
+
+# ── Verify core Python toolchain ────────────────────────────────────────────
+if command -v uv >/dev/null 2>&1; then
+  echo "✓ uv $(uv --version 2>/dev/null | awk '{print $2}') on PATH"
+else
+  echo "⚠ uv not found — ensure dot_Brewfile.core applied correctly"
+fi
+
+if command -v pyenv >/dev/null 2>&1; then
+  echo "✓ pyenv $(pyenv --version 2>/dev/null | awk '{print $2}') on PATH"
+fi
+
+if command -v ruff >/dev/null 2>&1; then
+  echo "✓ ruff $(ruff --version 2>/dev/null | awk '{print $2}') on PATH"
+fi
+
+if command -v pre-commit >/dev/null 2>&1; then
+  echo "✓ pre-commit $(pre-commit --version 2>/dev/null | awk '{print $2}') on PATH"
+fi
+
+echo ""
+echo "╔═══════════════════════════════════════════════════════════════╗"
+echo "║  python profile activated                                     ║"
+echo "╠═══════════════════════════════════════════════════════════════╣"
+echo "║  Quick start for a new Python project:                        ║"
+echo "║    uv init my-project && cd my-project                        ║"
+echo "║    uv add <dep>          # add a dependency                   ║"
+echo "║    pre-commit install    # wire git hooks                     ║"
+echo "║                                                               ║"
+echo "║  Use pyenv to install a specific Python version:              ║"
+echo "║    pyenv install 3.12.4 && pyenv local 3.12.4                 ║"
+echo "╚═══════════════════════════════════════════════════════════════╝"
+{{- end }}

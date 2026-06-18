@@ -26,6 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         profile: [core, legal, godocs, oversight]
+        profile: [core, legal, godocs, oversight, python, webdev]
     steps:
       - uses: actions/checkout@v4
 
@@ -93,7 +94,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-<<<<<<< HEAD
       - name: Build image
         uses: docker/build-push-action@v6
         with:
@@ -128,10 +128,10 @@ jobs:
 
       - name: Push to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-=======
       - name: Push core image to GHCR
         if: matrix.profile == 'core' && github.event_name == 'push' && github.ref == 'refs/heads/main'
->>>>>>> 00d7f8d (ci(profiles): test-profile.sh matrix across {core,legal,godocs,oversight} (THE-72) (#36))
+      - name: Push core image to GHCR
+        if: matrix.profile == 'core' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v6
         with:
           context: .
