@@ -290,6 +290,12 @@ mac-save
 
 ---
 
+## Adding a new project
+
+Per-project tooling (the `legal`, `godocs`, `oversight` profiles, etc.) lives behind the `projects` data variable in `~/.config/chezmoi/chezmoi.toml`. To add a new profile, follow the 10-step checklist in [docs/profiles/README.md](docs/profiles/README.md).
+
+---
+
 ## Related
 
 - [hole-devenv](https://github.com/Jobikinobi/hole-devenv) — Infrastructure stacks, deployment profiles, backup automation

@@ -1,0 +1,56 @@
+#!/bin/bash
+# Legal profile — Legal-Assistant-v3 setup
+# https://github.com/The-HOLE-Foundation/Legal-Assistant-v3
+#
+# Self-gates on the `projects` list in ~/.config/chezmoi/chezmoi.toml
+# containing "legal". On a fresh machine without the key, the rendered
+# script is just the shebang + `exit 0` and does nothing.
+#
+# This script intentionally does NOT clone the project repo, run
+# `uv sync`, or `doppler login`. Fresh containers do not yet have
+# GitHub credentials or a Doppler session, and we never want to run
+# unattended steps that would fail noisily on first boot. The banner
+# at the end tells the operator what to do next.
+{{- if not (has "legal" .projects) }}
+exit 0
+{{- else }}
+set -euo pipefail
+
+echo "→ Configuring 'legal' project profile..."
+
+# uv: workspace package manager for Legal-Assistant-v3 (`uv sync --all-packages`).
+# uv is already in dot_Brewfile.core, but install via the upstream script as
+# a defensive fallback for environments where brew is unavailable (minimal
+# containers, recovery shells).
+if ! command -v uv >/dev/null 2>&1; then
+  echo "→ Installing uv via astral.sh installer..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+
+cat <<'BANNER'
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Legal profile installed.
+
+  Next steps (run manually — fresh hosts have no creds yet):
+
+    1. Authenticate to Doppler so the MCP servers can pull secrets:
+         doppler login
+         doppler setup --project mcp-servers --config dev
+
+    2. Clone Legal-Assistant-v3 and sync the uv workspace:
+         git clone git@github.com:The-HOLE-Foundation/Legal-Assistant-v3.git ~/src/Legal-Assistant-v3
+         cd ~/src/Legal-Assistant-v3
+         uv sync --all-packages --all-extras
+
+    3. (macOS only) Build the Apple Vision OCR Swift helper:
+         bash packages/av-ocr-rebuild/scripts/build.sh
+       Requires Xcode CLI tools: xcode-select --install
+
+    4. Confirm reachability of the production Weaviate over Tailscale:
+         curl -sf http://mac-mini:8080/v1/.well-known/ready
+
+  See ~/dotfiles/docs/profiles/legal.md for the full reference.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BANNER
+{{- end }}

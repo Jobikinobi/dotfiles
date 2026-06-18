@@ -40,6 +40,12 @@ Cross-platform development environment managed by chezmoi.
 - Keep this file short. If you find yourself reaching for it to track every
   package on a machine, stop — that's not its job
 
+## Project profiles
+
+Per-project tooling is gated by the `projects` list in `~/.config/chezmoi/chezmoi.toml` (rendered from `.chezmoi.toml.tmpl`). A profile is a sibling `dot_Brewfile.<key>` + `run_once_after_install-project-<key>.sh.tmpl` + `docs/profiles/<key>.md`, activated by adding `<key>` to `projects`. Default is `projects = []` (core only).
+
+When adding, removing, or modifying a profile, follow the 10-step onboarding checklist in [docs/profiles/README.md](docs/profiles/README.md). Per-project work belongs in `dot_Brewfile.<key>`, never in `dot_Brewfile.core`.
+
 ## Secrets
 
 - Legacy secrets stay in Doppler — never hardcoded
