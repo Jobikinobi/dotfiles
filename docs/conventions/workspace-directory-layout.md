@@ -28,7 +28,7 @@ Canonical home-directory tree for all machines in the fleet. Every new machine s
 | `docs/references/` | Long-lived reference material: PDFs, saved specs, bookmarked pages. Not version-controlled but backed up. |
 | `apps/` | Third-party bundles that don't belong in `/usr/local/` or `brew --prefix`. Keeps app binaries off `$PATH` unless you symlink from `bin/`. |
 | `bin/` | Personal scripts that should be on `$PATH`. chezmoi manages `~/.zshrc` to include `~/bin` in `$PATH`. |
-| `scratch/` | Throw-away area. Globally gitignored (`~/.config/git/ignore`). Safe to nuke. Treat it like `/tmp` — do not store anything here that isn't recoverable. |
+| `scratch/` | Throw-away area. Safe to nuke. Treat it like `/tmp` — do not store anything here that isn't recoverable. (The global gitignore ignores `scratch/` directories inside repos.) |
 | `.config/` | XDG config base (`$XDG_CONFIG_HOME`). chezmoi-managed; do not edit source files directly. Use `chezmoi re-add` if you need to update from a live file. |
 
 ## Provisioning
