@@ -43,5 +43,5 @@ The script `run_once_after_create-workspace-dirs.sh.tmpl` creates this structure
 
 ## See also
 
-- [`docs/conventions/branches-and-worktrees.md`](../standards/branches-and-worktrees.md) — branch and worktree policy
+- [`docs/standards/branches-and-worktrees.md`](../standards/branches-and-worktrees.md) — branch and worktree policy
 - [`CLAUDE.md`](../../CLAUDE.md) — critical chezmoi safety rules
