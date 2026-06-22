@@ -4,5 +4,5 @@
 # Claude Code local settings (always machine-specific)
 **/.claude/settings.local.json
 
-# Throw-away scratch area (see ~/scratch in workspace-directory-layout.md)
+# Ignore per-repo scratch/ dirs (convention: keep throw-away work in ~/scratch/)
 scratch/
