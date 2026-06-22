@@ -2,6 +2,7 @@
 # Create the canonical workspace directory tree (idempotent).
 # See docs/conventions/workspace-directory-layout.md for rationale.
 set -e
+: "${HOME:?HOME must be set}"
 
 mkdir -p \
   "$HOME/projects/gh" \
