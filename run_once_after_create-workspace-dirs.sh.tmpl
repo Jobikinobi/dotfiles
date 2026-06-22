@@ -1,0 +1,15 @@
+#!/bin/sh
+# Create the canonical workspace directory tree (idempotent).
+# See docs/conventions/workspace-directory-layout.md for rationale.
+set -e
+
+mkdir -p \
+  "$HOME/projects/gh" \
+  "$HOME/projects/local" \
+  "$HOME/docs/notes" \
+  "$HOME/docs/references" \
+  "$HOME/apps" \
+  "$HOME/bin" \
+  "$HOME/scratch"
+
+echo "  ✓ workspace dirs ready"
