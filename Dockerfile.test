@@ -44,10 +44,58 @@ WORKDIR /home/jth
 RUN sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
 ENV PATH="/home/jth/.local/bin:${PATH}"
 
-# Initialize dotfiles and install core stack
-# chezmoi init clones the repo, apply deploys configs + runs install scripts
-# The install script installs Homebrew + core Brewfile (bat, helix, fzf, etc.)
-RUN chezmoi init --apply --no-tty Jobikinobi
+# Initialize dotfiles and install core stack.
+# chezmoi init clones the repo, apply deploys configs + runs install scripts.
+# The install script installs Homebrew + core Brewfile (bat, helix, fzf, etc.).
+#
+# CHEZMOI_BRANCH defaults to `main` (production behaviour), but the workflow
+# passes the PR's head ref on pull_request events so that PRs which fix bugs
+# in main are actually tested against their own fix instead of main's broken
+# state.
+ARG CHEZMOI_BRANCH=main
+
+# CHEZMOI_PROJECT pre-seeds the rendered chezmoi.toml so the apply step
+# activates a single project profile (e.g. legal, godocs, oversight). Empty
+# string = core baseline (no per-project Brewfile or run_once branch runs).
+# Mirrors the cloud-init pre-seed in scripts/provision-lxd.sh: writing the
+# config before `chezmoi init` makes chezmoi skip rendering the .toml.tmpl
+# (it only renders when the destination is absent), which is how our values
+# survive the non-interactive default branch in .chezmoi.toml.tmpl.
+ARG CHEZMOI_PROJECT=""
+
+# Step 1: clone the dotfiles repo and let chezmoi render .chezmoi.toml.tmpl.
+# In non-TTY mode the template hardcodes `projects = []`, which is wrong for
+# matrix verification — we override it in the next step.
+RUN chezmoi init --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi
+
+# Step 2: overwrite the freshly-rendered chezmoi.toml with the matrix leg's
+# project key. The template's non-TTY branch ignores environment variables,
+# so post-init overwrite is the only headless way to drive `.projects`.
+# Empty CHEZMOI_PROJECT = core baseline (leave the template's projects=[]).
+RUN if [ -n "${CHEZMOI_PROJECT}" ]; then \
+      mkdir -p "$HOME/.config/chezmoi" \
+      && printf '%s\n' \
+           '[data]' \
+           '    name = "Joseph T. Herrmann, M.D."' \
+           '    email = "joeherrmann@gmail.com"' \
+           '    github_user = "Jobikinobi"' \
+           "    projects = [\"${CHEZMOI_PROJECT}\"]" \
+           "    lxd_profile = \"${CHEZMOI_PROJECT}\"" \
+           > "$HOME/.config/chezmoi/chezmoi.toml"; \
+    fi
+
+# Step 3: apply with the correct projects list in place. This is where the
+# per-project brewfile loop in run_once_after_install-brewfile.sh.tmpl
+# actually fires for the active profile.
+#
+# --exclude=encrypted: the repo contains age-encrypted ssh keys
+# (.ssh/id_ed25519_*.age). The decryption key (~/.config/chezmoi/key.txt) is
+# never present in CI by design (binary-presence-only verification, no
+# secrets), and standalone `chezmoi apply` errors on encrypted files when
+# encryption is configured but no key is available. The legacy
+# `chezmoi init --apply` path was apparently tolerant of this; the split
+# init/apply path isn't, so we exclude encrypted files explicitly.
+RUN chezmoi apply --no-tty --exclude=encrypted
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 
 # Switch back to root for entrypoint
