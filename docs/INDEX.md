@@ -1,4 +1,4 @@
-# docs/ index
+# docs/INDEX
 
 Navigation map for the `dotfiles` repo's documentation tree.
 
