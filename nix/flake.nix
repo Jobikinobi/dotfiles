@@ -44,6 +44,7 @@
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
       modules = [
         ./profiles/common.nix
+        ./profiles/agent.nix
         {
           home.username = "agent";
           home.homeDirectory = "/home/agent";
