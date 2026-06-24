@@ -176,3 +176,25 @@ jobs:
         # --no-build: evaluate all outputs without building derivations.
         # Appropriate for P2 stubs; remove in P3/P4 once outputs produce packages.
         run: nix flake check --no-build ./nix
+
+  # ── Linux: build agent-linux activation package ─────────────────────────────
+  # P3 deliverable: build the actual home-manager activation package for the
+  # agent-linux configuration on a native x86_64-linux runner. This is the
+  # closest CI equivalent to "home-manager switch --flake .#agent-linux" in an
+  # LXD container — nix flake check --no-build only evaluated the expressions;
+  # this step proves the packages actually build and the activation package
+  # assembles correctly on Linux.
+  nix-agent-linux-build:
+    name: nix build agent-linux
+    runs-on: ubuntu-latest
+    needs: nix-flake-check
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: DeterminateSystems/nix-installer-action@v14
+
+      - name: Build agent-linux activation package
+        run: nix build ./nix#homeConfigurations.agent-linux.activationPackage --no-link --print-out-paths
