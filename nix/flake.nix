@@ -17,10 +17,12 @@
 
   outputs = { self, nixpkgs, nix-darwin, home-manager, ... }: {
 
-    # macOS — Joe's personal machine (joe profile, P4)
+    # macOS — Joe's personal machine (joe profile, P4 — HOL-508)
     darwinConfigurations."joes-macbook" = nix-darwin.lib.darwinSystem {
       modules = [
+        home-manager.darwinModules.home-manager
         ./profiles/common.nix
+        ./profiles/joe.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.stateVersion = 6;
