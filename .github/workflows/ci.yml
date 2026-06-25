@@ -83,6 +83,50 @@ jobs:
             CHEZMOI_BRANCH=main
             CHEZMOI_PROJECT=
 
+  # ── RHEL: verify chezmoi apply succeeds on RHEL-family (Rocky Linux 9) ─────
+  # Rocky Linux is glibc-based, so Homebrew (Linuxbrew) is available and the
+  # full brew-based install path runs — unlike Alpine. This job confirms that
+  # the unified Linux bootstrap correctly detects the rhel OS family and that
+  # the dnf prereqs + Homebrew + Brewfile.core all succeed.
+  rhel:
+    name: rhel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build RHEL image (Rocky Linux 9)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.rhel
+          load: true
+          tags: dotfiles-rhel:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            CHEZMOI_BRANCH=${{ github.head_ref || github.ref_name }}
+
+      - name: Verify core tools available on RHEL
+        run: |
+          docker run --rm dotfiles-rhel:test \
+            su - jth -s /bin/bash -c '
+              set -e
+              # Ensure Linuxbrew is on PATH
+              eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 2>/dev/null || true
+              echo "=== Verifying RHEL core tools ==="
+              for tool in zsh git curl jq fzf bat ripgrep; do
+                if command -v "$tool" >/dev/null 2>&1; then
+                  echo "✓ $tool ($(command -v $tool))"
+                else
+                  echo "✗ $tool MISSING" && exit 1
+                fi
+              done
+              echo "=== All core tools present ==="
+            '
+
   # ── Alpine: verify chezmoi apply succeeds on musl/apk ──────────────────────
   # Alpine uses musl libc + apk; Homebrew is not supported. This job verifies
   # that the bootstrap and core tool install succeed via the apk fallback path.

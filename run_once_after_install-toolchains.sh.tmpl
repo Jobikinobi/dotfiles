@@ -11,14 +11,35 @@ set -euo pipefail
 # already on PATH via brew.
 #
 # Alpine/musl note: Homebrew is not available on Alpine. Brew-dependent steps
-# are skipped; Rust via rustup-init still works (Alpine provides musl targets).
+# are skipped; Rust via rustup-init still works (Alpine ships musl targets).
+# RHEL note: Homebrew is available on RHEL (glibc), so brew steps run normally.
 # ══════════════════════════════════════════════════════════════════════════════
 
-IS_ALPINE=false
-command -v apk >/dev/null 2>&1 && IS_ALPINE=true
+# ── OS family detection ───────────────────────────────────────────────────────
+_os_family() {
+  if [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    case "${ID:-}" in
+      alpine)                           echo "alpine"; return ;;
+      ubuntu|debian|linuxmint|pop|kali) echo "debian"; return ;;
+      rhel|centos|fedora|rocky|almalinux|ol|scientific) echo "rhel"; return ;;
+    esac
+    case "${ID_LIKE:-}" in
+      *debian*)                 echo "debian"; return ;;
+      *rhel*|*fedora*|*centos*) echo "rhel";   return ;;
+    esac
+  fi
+  echo "unknown"
+}
+OS_FAMILY="$(_os_family)"
 
-# Ensure brew is on PATH (non-Alpine only)
-if [[ "$IS_ALPINE" == "false" ]]; then
+# Brew is available on everything except Alpine/musl.
+NO_BREW=false
+[[ "$OS_FAMILY" == "alpine" ]] && NO_BREW=true
+
+# Ensure brew is on PATH (skipped on Alpine where brew is not installed)
+if [[ "$NO_BREW" == "false" ]]; then
 {{- if eq .chezmoi.os "darwin" }}
   if [[ -x /opt/homebrew/bin/brew ]]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -71,7 +92,7 @@ fi
 
 # Supabase CLI via brew tap (not in core Brewfile because it needs a tap).
 # Skipped on Alpine/musl where brew is not available.
-if [[ "$IS_ALPINE" == "false" ]] && ! command -v supabase >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
+if [[ "$NO_BREW" == "false" ]] && ! command -v supabase >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
   echo "→ Installing Supabase CLI..."
   brew install supabase/tap/supabase
 fi

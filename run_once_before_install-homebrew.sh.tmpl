@@ -1,10 +1,32 @@
 #!/bin/bash
-# Install Homebrew if missing (works on macOS and Linux).
+# Install Homebrew if missing (works on macOS and Debian/RHEL-family Linux).
 #
 # Alpine/musl is explicitly skipped: Homebrew's Linuxbrew binaries link
 # against glibc and will not run on Alpine's musl libc. Core tools are
 # installed via apk in run_once_after_install-brewfile.sh instead.
-if command -v apk >/dev/null 2>&1; then
+#
+# Detection reads /etc/os-release rather than probing for apk, so it is
+# robust to non-Alpine apk-based systems that might add glibc compatibility.
+_os_family() {
+  if [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    case "${ID:-}" in
+      alpine)                           echo "alpine"; return ;;
+      ubuntu|debian|linuxmint|pop|kali) echo "debian"; return ;;
+      rhel|centos|fedora|rocky|almalinux|ol|scientific) echo "rhel"; return ;;
+    esac
+    case "${ID_LIKE:-}" in
+      *debian*)                 echo "debian"; return ;;
+      *rhel*|*fedora*|*centos*) echo "rhel";   return ;;
+    esac
+  fi
+  echo "unknown"
+}
+
+OS_FAMILY="$(_os_family)"
+
+if [[ "$OS_FAMILY" == "alpine" ]]; then
   echo "→ Alpine/musl detected — skipping Homebrew (incompatible with musl libc)"
   echo "  Core tools will be installed via apk in the brewfile step."
   exit 0

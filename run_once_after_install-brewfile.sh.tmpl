@@ -4,9 +4,33 @@
 # Philosophy: chezmoi only auto-installs the CORE set. Anything else you want
 # on a given machine, install manually with `brew install`. `brew bundle` does
 # not remove unlisted packages, so your machine-specific installs stay put.
+#
+# On Alpine/musl, Homebrew is not available — we fall back to apk.
+# On all other Linux distributions (Debian, RHEL, etc.) Homebrew is used.
 set -e
 
-# Ensure brew is on PATH. Don't swallow stderr — if shellenv fails we want to know.
+# ── OS family detection ───────────────────────────────────────────────────────
+# Used to decide whether to fall back to a native package manager.
+_os_family() {
+  if [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    case "${ID:-}" in
+      alpine)                           echo "alpine"; return ;;
+      ubuntu|debian|linuxmint|pop|kali) echo "debian"; return ;;
+      rhel|centos|fedora|rocky|almalinux|ol|scientific) echo "rhel"; return ;;
+    esac
+    case "${ID_LIKE:-}" in
+      *debian*)                 echo "debian"; return ;;
+      *rhel*|*fedora*|*centos*) echo "rhel";   return ;;
+    esac
+  fi
+  echo "unknown"
+}
+OS_FAMILY="$(_os_family)"
+
+# ── Ensure brew is on PATH ────────────────────────────────────────────────────
+# Don't swallow stderr — if shellenv fails we want to know.
 {{- if eq .chezmoi.os "darwin" }}
 if [[ -x /opt/homebrew/bin/brew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -20,9 +44,9 @@ fi
 {{- end }}
 
 if ! command -v brew >/dev/null 2>&1; then
-  # Alpine/musl: Homebrew is not supported. Install equivalent tools via apk
-  # from the community repository (enabled by run_once_before_00-apk-prereqs).
-  if command -v apk >/dev/null 2>&1; then
+  if [[ "$OS_FAMILY" == "alpine" ]]; then
+    # Alpine/musl: Homebrew is not supported. Install equivalent tools via apk
+    # from the community repository (enabled by run_once_before_00-linux-bootstrap).
     echo "→ Alpine detected — installing core tools via apk instead of Homebrew..."
     APK_CORE_PACKAGES=(
       age            # file encryption (chezmoi secrets)
@@ -47,11 +71,11 @@ if ! command -v brew >/dev/null 2>&1; then
     echo "    Install them manually from their upstream binary releases."
     echo "→ apk core install complete"
   else
-    echo "✗ brew not on PATH after shellenv — aborting Brewfile install"
+    echo "✗ brew not on PATH after shellenv (OS family: ${OS_FAMILY}) — aborting Brewfile install"
     exit 1
   fi
 else
-  # Cross-platform core Brewfile.
+  # Cross-platform core Brewfile (Debian, RHEL, macOS).
   # Note: `brew bundle` without a subcommand prints help; the install action
   # requires the explicit `install` subcommand on current Homebrew.
   if [[ -f "$HOME/.Brewfile.core" ]]; then
@@ -65,7 +89,7 @@ fi
 # is expanded at apply time by chezmoi templating, so the rendered script
 # contains one literal block per active profile. File presence drives
 # installation — a key without a matching ~/.Brewfile.<key> is a no-op.
-# Alpine/musl: skip per-project Brewfiles (brew is not installed).
+# Alpine: skip per-project Brewfiles (brew is not installed).
 if command -v brew >/dev/null 2>&1; then
 {{- range .projects }}
   if [[ -f "$HOME/.Brewfile.{{ . }}" ]]; then
