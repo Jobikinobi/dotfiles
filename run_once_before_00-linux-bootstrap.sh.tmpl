@@ -125,20 +125,25 @@ case "$OS_FAMILY" in
     fi
 
     # glibc-devel is required by Linuxbrew's build phase.
-    $SUDO "$PKG_MGR" install -y \
-      ca-certificates \
-      curl \
-      file \
-      findutils \
-      gcc \
-      gcc-c++ \
-      git \
-      glibc-devel \
-      gnupg2 \
-      make \
-      procps-ng \
-      sudo \
+    RHEL_PKGS="
+      ca-certificates
+      file
+      findutils
+      gcc
+      gcc-c++
+      git
+      glibc-devel
+      gnupg2
+      make
+      procps-ng
+      sudo
       zsh
+    "
+    if ! command -v curl >/dev/null 2>&1; then
+      RHEL_PKGS="$RHEL_PKGS curl-minimal"
+    fi
+    # shellcheck disable=SC2086
+    $SUDO "$PKG_MGR" install -y $RHEL_PKGS
     echo "→ RHEL-family prerequisites installed (via $PKG_MGR)"
     ;;
 

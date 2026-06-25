@@ -9,7 +9,6 @@ ENV container=docker
 RUN dnf install -y epel-release 2>/dev/null || true && \
     dnf install -y \
         ca-certificates \
-        curl \
         file \
         findutils \
         gcc \

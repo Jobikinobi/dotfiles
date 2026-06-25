@@ -91,12 +91,13 @@ fi
 # installation — a key without a matching ~/.Brewfile.<key> is a no-op.
 # Alpine: skip per-project Brewfiles (brew is not installed).
 if command -v brew >/dev/null 2>&1; then
-{{- range .projects }}
+  :
+{{ range .projects }}
   if [[ -f "$HOME/.Brewfile.{{ . }}" ]]; then
     echo "→ Installing {{ . }} packages from ~/.Brewfile.{{ . }}..."
     brew bundle install --file="$HOME/.Brewfile.{{ . }}"
   fi
-{{- end }}
+{{ end }}
 fi
 
 # ── Node + Claude Code (cross-platform, needs fnm from brew) ────────────────
