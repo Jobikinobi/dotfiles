@@ -17,7 +17,6 @@
 
   outputs = { self, nixpkgs, nix-darwin, home-manager, ... }: {
 
-<<<<<<< HEAD
     # macOS — Joe's personal machine (joe profile, P4 — HOL-508)
     darwinConfigurations."joes-macbook" = nix-darwin.lib.darwinSystem {
       modules = [
