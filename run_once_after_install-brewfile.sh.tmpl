@@ -20,16 +20,44 @@ fi
 {{- end }}
 
 if ! command -v brew >/dev/null 2>&1; then
-  echo "✗ brew not on PATH after shellenv — aborting Brewfile install"
-  exit 1
-fi
-
-# Cross-platform core Brewfile.
-# Note: `brew bundle` without a subcommand prints help; the install action
-# requires the explicit `install` subcommand on current Homebrew.
-if [[ -f "$HOME/.Brewfile.core" ]]; then
-  echo "→ Installing core packages from ~/.Brewfile.core..."
-  brew bundle install --file="$HOME/.Brewfile.core"
+  # Alpine/musl: Homebrew is not supported. Install equivalent tools via apk
+  # from the community repository (enabled by run_once_before_00-apk-prereqs).
+  if command -v apk >/dev/null 2>&1; then
+    echo "→ Alpine detected — installing core tools via apk instead of Homebrew..."
+    APK_CORE_PACKAGES=(
+      age            # file encryption (chezmoi secrets)
+      bat            # cat replacement
+      direnv         # per-project env vars
+      eza            # ls replacement
+      fd             # find replacement
+      fzf            # fuzzy finder
+      go             # Go toolchain
+      helix          # text editor
+      jq             # JSON processor
+      nnn            # file manager
+      ripgrep        # grep replacement
+      zsh            # login shell
+    )
+    sudo apk add --no-cache "${APK_CORE_PACKAGES[@]}" || {
+      echo "  ⚠ Some apk packages may not be available in this Alpine version — continuing"
+    }
+    # Tools not available in apk (doppler, fnm, gh, lazygit, lazyssh, uv,
+    # git-filter-repo, pyenv, powerlevel10k) are left for manual install.
+    echo "  ℹ doppler, fnm, gh, lazygit, uv, and pyenv are not in apk."
+    echo "    Install them manually from their upstream binary releases."
+    echo "→ apk core install complete"
+  else
+    echo "✗ brew not on PATH after shellenv — aborting Brewfile install"
+    exit 1
+  fi
+else
+  # Cross-platform core Brewfile.
+  # Note: `brew bundle` without a subcommand prints help; the install action
+  # requires the explicit `install` subcommand on current Homebrew.
+  if [[ -f "$HOME/.Brewfile.core" ]]; then
+    echo "→ Installing core packages from ~/.Brewfile.core..."
+    brew bundle install --file="$HOME/.Brewfile.core"
+  fi
 fi
 
 # ── Per-project Brewfiles ───────────────────────────────────────────────────
@@ -37,12 +65,15 @@ fi
 # is expanded at apply time by chezmoi templating, so the rendered script
 # contains one literal block per active profile. File presence drives
 # installation — a key without a matching ~/.Brewfile.<key> is a no-op.
+# Alpine/musl: skip per-project Brewfiles (brew is not installed).
+if command -v brew >/dev/null 2>&1; then
 {{- range .projects }}
-if [[ -f "$HOME/.Brewfile.{{ . }}" ]]; then
-  echo "→ Installing {{ . }} packages from ~/.Brewfile.{{ . }}..."
-  brew bundle install --file="$HOME/.Brewfile.{{ . }}"
-fi
+  if [[ -f "$HOME/.Brewfile.{{ . }}" ]]; then
+    echo "→ Installing {{ . }} packages from ~/.Brewfile.{{ . }}..."
+    brew bundle install --file="$HOME/.Brewfile.{{ . }}"
+  fi
 {{- end }}
+fi
 
 # ── Node + Claude Code (cross-platform, needs fnm from brew) ────────────────
 if command -v fnm >/dev/null 2>&1; then

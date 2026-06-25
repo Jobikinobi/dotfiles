@@ -1,0 +1,82 @@
+{{- if ne .chezmoi.os "darwin" -}}
+#!/bin/sh
+# Alpine Linux prerequisites for dotfiles bootstrap.
+#
+# Runs BEFORE run_once_before_00-apt-bootstrap.sh because "apk" < "apt"
+# lexicographically, and chezmoi executes run_once_before_* scripts in
+# filename order. This is important: base Alpine images do NOT ship bash,
+# so this script uses POSIX /bin/sh and installs bash + build tools before
+# any bash-shebang script can run.
+#
+# Idempotent: apk add is a no-op for already-installed packages; shell
+# change is only performed when the current login shell differs from zsh.
+
+# Not an Alpine/apk system — nothing to do.
+if ! command -v apk >/dev/null 2>&1; then
+  exit 0
+fi
+
+echo "→ Alpine detected — installing prerequisites via apk..."
+
+# Determine privilege escalation: if we are already root, no sudo needed.
+# This handles both Docker (often root) and user accounts with sudo configured.
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
+else
+  SUDO="sudo"
+fi
+
+# Enable community repo if not already enabled (helix, eza, etc. live there).
+# The main repo URL varies across Alpine versions; we derive it from the
+# existing /etc/apk/repositories entry rather than hardcoding.
+if ! grep -q '/community' /etc/apk/repositories 2>/dev/null; then
+  MAIN_REPO=$(grep -m1 'http' /etc/apk/repositories 2>/dev/null | sed 's|/main||')
+  if [ -n "$MAIN_REPO" ]; then
+    echo "${MAIN_REPO}/community" | $SUDO tee -a /etc/apk/repositories > /dev/null
+    echo "→ Added Alpine community repository"
+  fi
+fi
+
+$SUDO apk update -q
+
+# Core prerequisites that every subsequent script depends on:
+#   bash         — all run_once_* scripts use #!/bin/bash
+#   build-base   — compiler toolchain (gcc, make, libc-dev)
+#   ca-certificates — TLS roots for curl/git
+#   curl         — Homebrew installer, chezmoi, rustup
+#   file         — Homebrew dependency
+#   git          — dotfiles clone, chezmoi source
+#   gnupg        — package signing, chezmoi age backend
+#   procps       — ps/pgrep used by Homebrew installer
+#   sudo         — run-once scripts call sudo for shell changes
+#   zsh          — login shell used by all zsh configs
+$SUDO apk add --no-cache \
+  bash \
+  build-base \
+  ca-certificates \
+  curl \
+  file \
+  git \
+  gnupg \
+  procps \
+  sudo \
+  zsh
+
+echo "→ Alpine prerequisites installed"
+
+# Set zsh as the login shell for the current user (idempotent).
+TARGET_USER="$(id -un 2>/dev/null || whoami 2>/dev/null || true)"
+ZSH_PATH="$(command -v zsh 2>/dev/null || true)"
+
+if [ -n "$ZSH_PATH" ] && [ -n "$TARGET_USER" ]; then
+  if ! grep -qxF "$ZSH_PATH" /etc/shells 2>/dev/null; then
+    echo "$ZSH_PATH" | $SUDO tee -a /etc/shells > /dev/null
+  fi
+  CURRENT_SHELL="$(getent passwd "$TARGET_USER" 2>/dev/null | cut -d: -f7 || true)"
+  if [ "$CURRENT_SHELL" != "$ZSH_PATH" ]; then
+    echo "→ Setting login shell to zsh for $TARGET_USER"
+    $SUDO chsh -s "$ZSH_PATH" "$TARGET_USER" 2>/dev/null \
+      || $SUDO sed -i "s|^\(${TARGET_USER}:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:\).*|\1${ZSH_PATH}|" /etc/passwd
+  fi
+fi
+{{- end -}}

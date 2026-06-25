@@ -1,0 +1,78 @@
+FROM alpine:3.20
+
+# Install baseline packages needed before chezmoi runs.
+# The run_once_before_00-apk-prereqs.sh.tmpl script will also run apk add
+# for any missing items, but pre-installing here mirrors Dockerfile.test
+# and speeds up the build by avoiding redundant update calls.
+RUN apk add --no-cache \
+    bash \
+    build-base \
+    ca-certificates \
+    curl \
+    file \
+    git \
+    gnupg \
+    iptables \
+    openssh \
+    procps \
+    shadow \
+    sudo \
+    zsh
+
+# Enable community repository so chezmoi scripts can install helix, eza, etc.
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.20/community" >> /etc/apk/repositories \
+    && apk update -q
+
+# Tailscale: copy binaries from official image (same pattern as Dockerfile.test).
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /usr/local/bin/tailscaled
+COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscale /usr/local/bin/tailscale
+RUN mkdir -p /var/run/tailscale /var/cache/tailscale /var/lib/tailscale
+
+# Create a non-root user that matches the Ubuntu image convention.
+RUN adduser -D -s /bin/zsh jth \
+    && echo "jth ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Set up SSH
+RUN mkdir -p /var/run/sshd \
+    && ssh-keygen -A \
+    && echo "PermitUserEnvironment yes" >> /etc/ssh/sshd_config
+RUN mkdir -p /home/jth/.ssh && chown jth:jth /home/jth/.ssh && chmod 700 /home/jth/.ssh
+
+# Install chezmoi as jth
+USER jth
+WORKDIR /home/jth
+RUN sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+ENV PATH="/home/jth/.local/bin:${PATH}"
+
+# Same ARG pattern as Dockerfile.test — defaults to main, overridden in CI.
+ARG CHEZMOI_BRANCH=main
+ARG CHEZMOI_PROJECT=""
+
+# Step 1: clone the dotfiles repo and render .chezmoi.toml.tmpl.
+RUN chezmoi init --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi
+
+# Step 2: optionally overwrite with a per-project config (same as Dockerfile.test).
+RUN if [ -n "${CHEZMOI_PROJECT}" ]; then \
+      mkdir -p "$HOME/.config/chezmoi" \
+      && printf '%s\n' \
+           '[data]' \
+           '    name = "Joseph T. Herrmann, M.D."' \
+           '    email = "joeherrmann@gmail.com"' \
+           '    github_user = "Jobikinobi"' \
+           "    projects = [\"${CHEZMOI_PROJECT}\"]" \
+           "    lxd_profile = \"${CHEZMOI_PROJECT}\"" \
+           > "$HOME/.config/chezmoi/chezmoi.toml"; \
+    fi
+
+# Step 3: apply dotfiles.
+# --exclude=encrypted: same reason as Dockerfile.test (age key not in CI).
+RUN chezmoi apply --no-tty --exclude=encrypted
+
+# Switch back to root for entrypoint
+USER root
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 22
+ENTRYPOINT ["/entrypoint.sh"]

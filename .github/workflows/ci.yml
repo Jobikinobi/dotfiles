@@ -83,6 +83,46 @@ jobs:
             CHEZMOI_BRANCH=main
             CHEZMOI_PROJECT=
 
+  # ── Alpine: verify chezmoi apply succeeds on musl/apk ──────────────────────
+  # Alpine uses musl libc + apk; Homebrew is not supported. This job verifies
+  # that the bootstrap and core tool install succeed via the apk fallback path.
+  alpine:
+    name: alpine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Alpine image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.alpine
+          load: true
+          tags: dotfiles-alpine:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            CHEZMOI_BRANCH=${{ github.head_ref || github.ref_name }}
+
+      - name: Verify core tools available on Alpine
+        run: |
+          docker run --rm dotfiles-alpine:test \
+            su - jth -s /bin/sh -c '
+              set -e
+              echo "=== Verifying Alpine core tools ==="
+              for tool in zsh git curl jq fzf bat ripgrep; do
+                if command -v "$tool" >/dev/null 2>&1; then
+                  echo "✓ $tool ($(command -v $tool))"
+                else
+                  echo "✗ $tool MISSING" && exit 1
+                fi
+              done
+              echo "=== All core tools present ==="
+            '
+
   # ── Linux aggregator: required status check ─────────────────────────────────
   # Branch protection on `main` requires a status check named `linux`. This job
   # reports success only when every matrix leg passes, preserving the contract

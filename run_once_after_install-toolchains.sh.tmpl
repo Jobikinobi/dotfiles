@@ -9,20 +9,28 @@ set -euo pipefail
 # Runs AFTER the Brewfile.core install (lexically `install-brewfile` < `install-toolchains`),
 # so the static binaries this script initializes (fnm, supabase tap) are
 # already on PATH via brew.
+#
+# Alpine/musl note: Homebrew is not available on Alpine. Brew-dependent steps
+# are skipped; Rust via rustup-init still works (Alpine provides musl targets).
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Ensure brew is on PATH
+IS_ALPINE=false
+command -v apk >/dev/null 2>&1 && IS_ALPINE=true
+
+# Ensure brew is on PATH (non-Alpine only)
+if [[ "$IS_ALPINE" == "false" ]]; then
 {{- if eq .chezmoi.os "darwin" }}
-if [[ -x /opt/homebrew/bin/brew ]]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-elif [[ -x /usr/local/bin/brew ]]; then
-  eval "$(/usr/local/bin/brew shellenv)"
-fi
+  if [[ -x /opt/homebrew/bin/brew ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [[ -x /usr/local/bin/brew ]]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
 {{- else }}
-if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-fi
+  if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  fi
 {{- end }}
+fi
 
 # Rust: install via official rustup-init script. We deliberately don't use
 # `brew install rustup` because Linuxbrew ships only the `rustup` binary
@@ -61,8 +69,9 @@ if command -v npm >/dev/null 2>&1; then
   done
 fi
 
-# Supabase CLI via brew tap (not in core Brewfile because it needs a tap)
-if ! command -v supabase >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
+# Supabase CLI via brew tap (not in core Brewfile because it needs a tap).
+# Skipped on Alpine/musl where brew is not available.
+if [[ "$IS_ALPINE" == "false" ]] && ! command -v supabase >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
   echo "→ Installing Supabase CLI..."
   brew install supabase/tap/supabase
 fi
