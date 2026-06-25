@@ -17,10 +17,13 @@
 
   outputs = { self, nixpkgs, nix-darwin, home-manager, ... }: {
 
-    # macOS — Joe's personal machine (joe profile, P4)
+<<<<<<< HEAD
+    # macOS — Joe's personal machine (joe profile, P4 — HOL-508)
     darwinConfigurations."joes-macbook" = nix-darwin.lib.darwinSystem {
       modules = [
+        home-manager.darwinModules.home-manager
         ./profiles/common.nix
+        ./profiles/joe.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.stateVersion = 6;
@@ -44,6 +47,7 @@
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
       modules = [
         ./profiles/common.nix
+        ./profiles/agent.nix
         {
           home.username = "agent";
           home.homeDirectory = "/home/agent";
