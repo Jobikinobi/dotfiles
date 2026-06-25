@@ -61,8 +61,3 @@ if command -v npm >/dev/null 2>&1; then
   done
 fi
 
-# Supabase CLI via brew tap (not in core Brewfile because it needs a tap)
-if ! command -v supabase >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
-  echo "→ Installing Supabase CLI..."
-  brew install supabase/tap/supabase
-fi
