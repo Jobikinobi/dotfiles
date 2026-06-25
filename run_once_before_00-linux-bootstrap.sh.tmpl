@@ -1,0 +1,166 @@
+{{- if ne .chezmoi.os "darwin" -}}
+#!/bin/sh
+# Unified Linux prerequisites bootstrap.
+#
+# Detects the Linux distribution family from /etc/os-release and installs
+# prerequisites using the appropriate package manager:
+#   Debian/Ubuntu  → apt-get
+#   Alpine         → apk
+#   RHEL family    → dnf (or yum on RHEL 7/CentOS 7)
+#
+# Must use #!/bin/sh — bash is not pre-installed on Alpine base images, so
+# this script cannot use any bash-specific syntax (no arrays, no [[ ]], etc.).
+#
+# Idempotent: package managers skip already-installed packages; shell
+# change is only applied when the current login shell differs from zsh.
+#
+# Runs BEFORE run_once_before_install-homebrew.sh because the Homebrew
+# installer on Linux needs build tools, curl, file, git, and procps.
+
+set -e
+
+# ── Privilege escalation ─────────────────────────────────────────────────────
+# If running as root (Docker RUN, or `sudo chezmoi apply`), no sudo needed.
+# Otherwise, expect sudo to be available or install it first where possible.
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
+else
+  SUDO="sudo"
+fi
+
+# ── Distro detection ─────────────────────────────────────────────────────────
+# Source /etc/os-release (POSIX-safe: . rather than source)
+OS_FAMILY="unknown"
+if [ -f /etc/os-release ]; then
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  case "${ID:-}" in
+    ubuntu|debian|linuxmint|pop|kali)
+      OS_FAMILY="debian" ;;
+    alpine)
+      OS_FAMILY="alpine" ;;
+    rhel|centos|fedora|rocky|almalinux|ol|scientific)
+      OS_FAMILY="rhel" ;;
+    *)
+      # Fall back to ID_LIKE which captures derivatives
+      # (e.g. Ubuntu sets ID_LIKE=debian, Rocky sets ID_LIKE="rhel fedora")
+      case "${ID_LIKE:-}" in
+        *debian*)                 OS_FAMILY="debian" ;;
+        *rhel*|*fedora*|*centos*) OS_FAMILY="rhel"   ;;
+      esac
+      ;;
+  esac
+fi
+
+echo "→ Detected OS family: ${OS_FAMILY} (ID=${ID:-unknown})"
+
+# ── Installation dispatch ────────────────────────────────────────────────────
+case "$OS_FAMILY" in
+
+  # ── Debian / Ubuntu ──────────────────────────────────────────────────────
+  debian)
+    # Check which packages are actually missing before calling apt-get.
+    MISSING=""
+    for pkg in build-essential ca-certificates curl file git gnupg procps zsh; do
+      if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+        MISSING="$MISSING $pkg"
+      fi
+    done
+    if [ -n "$MISSING" ]; then
+      echo "→ Installing apt prereqs:$MISSING"
+      $SUDO DEBIAN_FRONTEND=noninteractive apt-get update -qq
+      # shellcheck disable=SC2086
+      $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $MISSING
+    else
+      echo "→ All apt prereqs already installed"
+    fi
+    ;;
+
+  # ── Alpine ───────────────────────────────────────────────────────────────
+  alpine)
+    # Enable community repository if not already present.
+    # Community ships helix, eza, fd, bat, and other tools from Brewfile.core.
+    if ! grep -q '/community' /etc/apk/repositories 2>/dev/null; then
+      MAIN_REPO=$(grep -m1 'http' /etc/apk/repositories 2>/dev/null | sed 's|/main||')
+      if [ -n "$MAIN_REPO" ]; then
+        echo "${MAIN_REPO}/community" | $SUDO tee -a /etc/apk/repositories > /dev/null
+        echo "→ Added Alpine community repository"
+      fi
+    fi
+    $SUDO apk update -q
+    # Install bash first so subsequent #!/bin/bash scripts can run.
+    # build-base provides the full compiler toolchain (gcc, make, musl-dev).
+    $SUDO apk add --no-cache \
+      bash \
+      build-base \
+      ca-certificates \
+      curl \
+      file \
+      git \
+      gnupg \
+      procps \
+      sudo \
+      zsh
+    echo "→ Alpine prerequisites installed"
+    ;;
+
+  # ── RHEL / Fedora / Rocky / AlmaLinux / CentOS ──────────────────────────
+  rhel)
+    # Prefer dnf (RHEL 8+, Fedora, Rocky, Alma); fall back to yum (RHEL 7).
+    if command -v dnf >/dev/null 2>&1; then
+      PKG_MGR="dnf"
+    elif command -v yum >/dev/null 2>&1; then
+      PKG_MGR="yum"
+    else
+      echo "✗ No dnf or yum found on RHEL-family system — cannot install prerequisites"
+      exit 1
+    fi
+
+    # EPEL provides additional packages (e.g. zsh is in base, but some tools
+    # may need EPEL). Install EPEL if available, but don't fail if it isn't.
+    if command -v dnf >/dev/null 2>&1 && ! rpm -q epel-release >/dev/null 2>&1; then
+      $SUDO dnf install -y epel-release 2>/dev/null || true
+    fi
+
+    # glibc-devel is required by Linuxbrew's build phase.
+    $SUDO "$PKG_MGR" install -y \
+      ca-certificates \
+      curl \
+      file \
+      findutils \
+      gcc \
+      gcc-c++ \
+      git \
+      glibc-devel \
+      gnupg2 \
+      make \
+      procps-ng \
+      sudo \
+      zsh
+    echo "→ RHEL-family prerequisites installed (via $PKG_MGR)"
+    ;;
+
+  *)
+    echo "⚠ Unrecognised Linux distribution (ID=${ID:-?}); skipping prerequisite install."
+    echo "  Manually install: bash build-tools curl file git gnupg procps zsh"
+    ;;
+esac
+
+# ── Set zsh as the login shell ───────────────────────────────────────────────
+TARGET_USER="$(id -un 2>/dev/null || whoami 2>/dev/null || true)"
+ZSH_PATH="$(command -v zsh 2>/dev/null || true)"
+
+if [ -n "$ZSH_PATH" ] && [ -n "$TARGET_USER" ]; then
+  if ! grep -qxF "$ZSH_PATH" /etc/shells 2>/dev/null; then
+    echo "$ZSH_PATH" | $SUDO tee -a /etc/shells > /dev/null
+  fi
+  CURRENT_SHELL="$(getent passwd "$TARGET_USER" 2>/dev/null | cut -d: -f7 || true)"
+  if [ "$CURRENT_SHELL" != "$ZSH_PATH" ]; then
+    echo "→ Setting login shell to zsh for $TARGET_USER"
+    $SUDO chsh -s "$ZSH_PATH" "$TARGET_USER" 2>/dev/null \
+      || $SUDO usermod -s "$ZSH_PATH" "$TARGET_USER" 2>/dev/null \
+      || $SUDO sed -i "s|^\(${TARGET_USER}:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:\).*|\1${ZSH_PATH}|" /etc/passwd \
+      || echo "  ⚠ Could not set login shell — set it manually: chsh -s $ZSH_PATH"
+  fi
+fi
+{{- end -}}
