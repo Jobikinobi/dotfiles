@@ -117,7 +117,7 @@ jobs:
               # Ensure Linuxbrew is on PATH
               eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 2>/dev/null || true
               echo "=== Verifying RHEL core tools ==="
-              for tool in zsh git curl jq fzf bat ripgrep; do
+              for tool in zsh git curl jq fzf bat rg; do
                 if command -v "$tool" >/dev/null 2>&1; then
                   echo "✓ $tool ($(command -v $tool))"
                 else
@@ -157,7 +157,7 @@ jobs:
             su - jth -s /bin/sh -c '
               set -e
               echo "=== Verifying Alpine core tools ==="
-              for tool in zsh git curl jq fzf bat ripgrep; do
+              for tool in zsh git curl jq fzf bat rg; do
                 if command -v "$tool" >/dev/null 2>&1; then
                   echo "✓ $tool ($(command -v $tool))"
                 else
@@ -169,20 +169,31 @@ jobs:
 
   # ── Linux aggregator: required status check ─────────────────────────────────
   # Branch protection on `main` requires a status check named `linux`. This job
-  # reports success only when every matrix leg passes, preserving the contract
-  # while letting the matrix expand independently of branch-protection config.
+  # reports success only when every matrix leg AND the distro-specific jobs
+  # (alpine, rhel) pass, preserving the contract while letting the matrix and
+  # distro list expand independently of branch-protection config.
   linux:
     name: linux
-    needs: profiles
+    needs: [profiles, alpine, rhel]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Verify all profile legs succeeded
+      - name: Verify all profile and distro legs succeeded
         run: |
-          result='${{ needs.profiles.result }}'
-          echo "profiles job result: $result"
-          if [[ "$result" != "success" ]]; then
-            echo "::error::At least one profile matrix leg did not succeed (result=$result)"
+          profiles='${{ needs.profiles.result }}'
+          alpine='${{ needs.alpine.result }}'
+          rhel='${{ needs.rhel.result }}'
+          echo "profiles: $profiles  alpine: $alpine  rhel: $rhel"
+          if [[ "$profiles" != "success" ]]; then
+            echo "::error::At least one profile matrix leg did not succeed (result=$profiles)"
+            exit 1
+          fi
+          if [[ "$alpine" != "success" ]]; then
+            echo "::error::Alpine job did not succeed (result=$alpine)"
+            exit 1
+          fi
+          if [[ "$rhel" != "success" ]]; then
+            echo "::error::RHEL job did not succeed (result=$rhel)"
             exit 1
           fi
 

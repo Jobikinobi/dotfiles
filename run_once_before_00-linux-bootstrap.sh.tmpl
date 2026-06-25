@@ -78,9 +78,11 @@ case "$OS_FAMILY" in
 
   # ── Alpine ───────────────────────────────────────────────────────────────
   alpine)
-    # Enable community repository if not already present.
-    # Community ships helix, eza, fd, bat, and other tools from Brewfile.core.
-    if ! grep -q '/community' /etc/apk/repositories 2>/dev/null; then
+    # Enable community repository if not already present (as an active entry).
+    # Grep with ^[^#] to skip commented-out repo lines — apk ignores lines
+    # beginning with # but a naive grep -q '/community' would match them,
+    # causing the script to believe community is already enabled when it isn't.
+    if ! grep -qE '^[^#].*/community' /etc/apk/repositories 2>/dev/null; then
       MAIN_REPO=$(grep -m1 'http' /etc/apk/repositories 2>/dev/null | sed 's|/main||')
       if [ -n "$MAIN_REPO" ]; then
         echo "${MAIN_REPO}/community" | $SUDO tee -a /etc/apk/repositories > /dev/null
