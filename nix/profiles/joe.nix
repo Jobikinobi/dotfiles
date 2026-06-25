@@ -12,6 +12,8 @@
 
 { pkgs, ... }: {
 
+  users.users.jth.home = "/Users/jth";
+
   # ── home-manager user settings ───────────────────────────────────────────
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
