@@ -20,4 +20,5 @@ dot_aws/
 
 # Test artifacts
 Dockerfile.test
-.worktrees/
+#Worktrees
+.worktrees

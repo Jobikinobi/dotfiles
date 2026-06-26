@@ -1,0 +1,8 @@
+# Global gitignore — applies to every repo on this machine.
+# Managed by chezmoi; edit the source, not the deployed file.
+
+# Claude Code local settings (always machine-specific)
+**/.claude/settings.local.json
+
+# Ignore per-repo scratch/ dirs (convention: keep throw-away work in ~/scratch/)
+scratch/

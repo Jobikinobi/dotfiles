@@ -143,3 +143,36 @@ jobs:
         run: |
           grep -q "1password" ~/.ssh/config && echo "✓ 1Password SSH agent in config"
           grep -q "/opt/homebrew" ~/.zshrc && echo "✓ Homebrew macOS path in zshrc"
+
+  # ── Nix flake check ─────────────────────────────────────────────────────────
+  # Validates nix/flake.nix syntax and evaluates all outputs.
+  # Runs on macOS so darwin configurations evaluate correctly.
+  # On first run (no nix/flake.lock yet), nix flake lock generates and commits
+  # the lockfile back to the PR branch before the check runs.
+  nix-flake-check:
+    name: nix flake check
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full ref so the auto-commit push targets the correct branch
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: DeterminateSystems/nix-installer-action@v14
+
+      - name: Lock flake inputs
+        run: nix flake lock ./nix
+
+      - name: Commit lockfile if generated
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: generate nix/flake.lock [skip ci]"
+          file_pattern: nix/flake.lock
+
+      - name: Check flake
+        # --no-build: evaluate all outputs without building derivations.
+        # Appropriate for P2 stubs; remove in P3/P4 once outputs produce packages.
+        run: nix flake check --no-build ./nix
