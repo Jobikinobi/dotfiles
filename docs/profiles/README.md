@@ -88,10 +88,11 @@ Add a chezmoi profile for the newly created Paperclip project `<project-name>`. 
 
 ## Data variables
 
-The profile system reads two variables from `~/.config/chezmoi/chezmoi.toml` (rendered from `.chezmoi.toml.tmpl`):
+The profile system reads three variables from `~/.config/chezmoi/chezmoi.toml` (rendered from `.chezmoi.toml.tmpl`):
 
 - `projects` — list of active profile keys for this machine. Example: `projects = ["legal", "godocs"]`. Empty list `[]` means "core only". Multiple profiles compose freely.
 - `lxd_profile` — single scalar naming the LXD profile when this machine was provisioned as a container (e.g. `lxd_profile = "legal"`). Empty string on laptops. Used by host-side tooling, not by chezmoi itself.
+- `nix_profile` — Nix workspace profile to activate on this machine. Valid values: `joe` (personal Mac, maps to `darwinConfigurations."joes-macbook"` or `homeConfigurations."joe-linux"`) and `agent` (headless agent node, maps to `darwinConfigurations."agent-mac"` or `homeConfigurations."agent-linux"`). Empty string means "no Nix activation" — Nix will not be installed or activated on this machine.
 
 In templates, gate per-project work with the existing `has` idiom:
 
@@ -99,7 +100,7 @@ In templates, gate per-project work with the existing `has` idiom:
 {{- if not (has "legal" .projects) }}exit 0{{ end }}
 ```
 
-The interactive `chezmoi init` path prompts for both; the non-interactive (cloud-init pre-seed) path expects the values to be written into `~/.config/chezmoi/chezmoi.toml` before `chezmoi init` runs. Defaults are `projects = []` and `lxd_profile = ""` — a fresh machine with no answers does nothing project-specific.
+The interactive `chezmoi init` path prompts for all three; the non-interactive (cloud-init pre-seed) path expects the values to be written into `~/.config/chezmoi/chezmoi.toml` before `chezmoi init` runs. Defaults are `projects = []`, `lxd_profile = ""`, and `nix_profile = ""` — a fresh machine with no answers does nothing project-specific.
 
 ## How it works
 
@@ -185,14 +186,21 @@ scripts/provision-lxd.sh --project legal --name the-legal-01 --dry-run
 
 # launch for real (requires doppler login + tailnet reachability)
 scripts/provision-lxd.sh --project legal --name the-legal-01
+
+# launch with Nix profile activation (seeds nix_profile in the pre-seeded chezmoi.toml)
+scripts/provision-lxd.sh --project legal --name the-legal-01 --nix-profile agent --dry-run
+scripts/provision-lxd.sh --project legal --name the-legal-01 --nix-profile agent
 ```
 
 The script:
 
 - validates `<key>` against `dot_Brewfile.<key>` so typos fail fast,
+- validates `--nix-profile` against known flake outputs (`joe`, `agent`) when supplied,
 - fetches a **single-use, ephemeral** Tailscale auth key from Doppler scope `dotfiles/lxd-bootstrap` (secret `TAILSCALE_AUTHKEY`),
-- renders a cloud-init that pre-seeds `~/.config/chezmoi/chezmoi.toml` with `projects = ["<key>"]` + `lxd_profile = "<key>"` and runs `chezmoi init --apply jobikinobi`,
+- renders a cloud-init that pre-seeds `~/.config/chezmoi/chezmoi.toml` with `projects = ["<key>"]` + `lxd_profile = "<key>"` + `nix_profile = "<profile>"` and runs `chezmoi init --apply jobikinobi`,
 - SSHes to the Proxmox host (default `proxmox.lemming-likert.ts.net`; override with `--host` or `$LXD_PROXMOX_HOST`) and runs `lxc init` / `lxc config set user.user-data` / `lxc start` — the user-data is streamed over stdin so the auth key never lands in remote `ps` output.
+
+**Known limitation — `--nix-profile agent` on LXD:** The container user is `jth`, but `homeConfigurations."agent-linux"` in the flake pins `home.username = "agent"` and `home.homeDirectory = "/home/agent"`. home-manager standalone will refuse to activate due to the username mismatch. End-to-end verification of `--nix-profile agent` on an LXD container is tracked as HOL-510.
 
 The age decryption key (`~/.config/chezmoi/key.txt`) is intentionally **not** baked into cloud-init. Provision it out-of-band after the container is reachable on the tailnet if the dotfiles include encrypted files you need on that host. See [THE-68](/THE/issues/THE-68) for the design notes.
 

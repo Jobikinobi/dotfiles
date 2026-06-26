@@ -10,6 +10,7 @@
 # Usage:
 #   scripts/provision-lxd.sh --project <key> --name <container-name> [--dry-run]
 #                            [--host <ssh-target>] [--image <image>]
+#                            [--nix-profile <profile>]
 #
 # Constraints (see THE-68):
 #   - No long-lived secrets in user-data; only the single-use Tailscale auth key.
@@ -41,28 +42,36 @@ usage() {
   cat >&2 <<EOF
 Usage: $PROG --project <key> --name <container-name> [--dry-run]
                               [--host <ssh-target>] [--image <image>]
+                              [--nix-profile <profile>]
 
 Required:
-  --project <key>   chezmoi profile key (must match dot_Brewfile.<key> in repo)
-  --name <name>     LXD container name (e.g. the-legal-01)
+  --project <key>       chezmoi profile key (must match dot_Brewfile.<key> in repo)
+  --name <name>         LXD container name (e.g. the-legal-01)
 
 Optional:
-  --dry-run         print rendered cloud-init + proposed remote command; do
-                    NOT call doppler, do NOT contact the Proxmox host
-  --host <target>   SSH target for the Proxmox host
-                    (default: $DEFAULT_HOST; env: LXD_PROXMOX_HOST)
-  --image <image>   LXD image alias (default: $DEFAULT_IMAGE; env: LXD_IMAGE)
-  -h, --help        show this help and exit
+  --nix-profile <p>     Nix workspace profile to activate [joe|agent] (blank = no Nix).
+                        Seeds nix_profile in the pre-seeded chezmoi.toml so
+                        run_once_after_nix-profile.sh.tmpl activates the right flake output.
+                        NOTE: 'agent' requires user 'agent' in the flake (see agent-linux);
+                        the container user is 'jth' — activation will fail until HOL-510.
+  --dry-run             print rendered cloud-init + proposed remote command; do
+                        NOT call doppler, do NOT contact the Proxmox host
+  --host <target>       SSH target for the Proxmox host
+                        (default: $DEFAULT_HOST; env: LXD_PROXMOX_HOST)
+  --image <image>       LXD image alias (default: $DEFAULT_IMAGE; env: LXD_IMAGE)
+  -h, --help            show this help and exit
 
 Examples:
   $PROG --project legal --name the-legal-01 --dry-run
   $PROG --project legal --name the-legal-01
+  $PROG --project legal --name the-legal-01 --nix-profile agent --dry-run
 EOF
 }
 
 # ── parse args ──────────────────────────────────────────────────────────────
 project=""
 name=""
+nix_profile=""
 dry_run=0
 host="$DEFAULT_HOST"
 image="$DEFAULT_IMAGE"
@@ -79,6 +88,11 @@ while [[ $# -gt 0 ]]; do
       name="$2"; shift 2 ;;
     --name=*)
       name="${1#--name=}"; shift ;;
+    --nix-profile)
+      [[ $# -ge 2 ]] || die "--nix-profile requires a value"
+      nix_profile="$2"; shift 2 ;;
+    --nix-profile=*)
+      nix_profile="${1#--nix-profile=}"; shift ;;
     --host)
       [[ $# -ge 2 ]] || die "--host requires a value"
       host="$2"; shift 2 ;;
@@ -116,6 +130,11 @@ fi
 # Container name: LXD requires DNS-label-ish names.
 if ! [[ "$name" =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]]; then
   die "invalid --name '$name': lowercase alphanumeric + hyphens, ≤63 chars, first char alphanumeric"
+fi
+
+# Nix profile: optional; when set must be a known flake key (joe or agent).
+if [[ -n "$nix_profile" ]] && ! [[ "$nix_profile" =~ ^(joe|agent)$ ]]; then
+  die "invalid --nix-profile '$nix_profile': must be 'joe' or 'agent' (or omit for no Nix)"
 fi
 
 # Resolve repo root from this script's directory.
@@ -165,7 +184,7 @@ fi
 # .chezmoi.toml.tmpl does NOT overwrite our values: chezmoi only renders the
 # config template when the destination is absent.
 render_cloud_init() {
-  local _project="$1" _name="$2" _authkey="$3"
+  local _project="$1" _name="$2" _authkey="$3" _nix_profile="$4"
   cat <<CLOUDINIT
 #cloud-config
 # Rendered by $PROG for project=$_project name=$_name
@@ -205,7 +224,7 @@ write_files:
       $_authkey
 
   # Pre-seed chezmoi config so the non-interactive .chezmoi.toml.tmpl branch
-  # does not clobber projects/lxd_profile with their empty defaults.
+  # does not clobber projects/lxd_profile/nix_profile with their empty defaults.
   - path: /home/jth/.config/chezmoi/chezmoi.toml
     permissions: '0600'
     owner: jth:jth
@@ -217,6 +236,7 @@ write_files:
           github_user = "Jobikinobi"
           projects = ["$_project"]
           lxd_profile = "$_project"
+          nix_profile = "$_nix_profile"
 
   # Bootstrap script run as jth: install chezmoi, init+apply from GitHub.
   # The age decryption key (~/.config/chezmoi/key.txt) is NOT provisioned here
@@ -251,12 +271,12 @@ final_message: |
 CLOUDINIT
 }
 
-cloud_init="$(render_cloud_init "$project" "$name" "$ts_authkey")"
+cloud_init="$(render_cloud_init "$project" "$name" "$ts_authkey" "$nix_profile")"
 
 # ── dry-run: print and exit ────────────────────────────────────────────────
 if (( dry_run )); then
   cat <<EOF
-# ── rendered cloud-init ── (project=$project name=$name; auth key REDACTED)
+# ── rendered cloud-init ── (project=$project name=$name nix_profile=${nix_profile:-<none>}; auth key REDACTED)
 $cloud_init
 
 # ── proposed remote invocation ──
@@ -311,5 +331,5 @@ if ! printf '%s' "$cloud_init" | ssh -T "$host" "$remote_cmd"; then
   die "remote lxc launch failed on $host (image=$image name=$name); cloud-init was not applied."
 fi
 
-printf '%s: launched %s on %s (image=%s, project=%s)\n' \
-  "$PROG" "$name" "$host" "$image" "$project"
+printf '%s: launched %s on %s (image=%s, project=%s, nix_profile=%s)\n' \
+  "$PROG" "$name" "$host" "$image" "$project" "${nix_profile:-<none>}"

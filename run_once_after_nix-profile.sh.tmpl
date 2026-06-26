@@ -1,0 +1,69 @@
+#!/bin/bash
+# Activate the Nix workspace profile selected via chezmoi.toml data.nix_profile.
+# Runs after chezmoi deploys source files so the flake under
+# {{ .chezmoi.sourceDir }}/nix/ is present before activation begins.
+set -euo pipefail
+
+{{- if not (index . "nix_profile") }}
+exit 0
+{{- end }}
+
+FLAKE="{{ .chezmoi.sourceDir }}/nix"
+PROFILE="{{ index . "nix_profile" | default "" }}"
+
+# Source the Nix daemon profile to put nix on PATH in this subprocess.
+# Required because run_once_after scripts run in a plain bash context that
+# has not sourced the user's shell init files.
+NIX_DAEMON_PROFILE="/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+if [ -f "$NIX_DAEMON_PROFILE" ]; then
+  # shellcheck source=/dev/null
+  . "$NIX_DAEMON_PROFILE"
+fi
+
+# Safety-net install: run_once_before_install-nix.sh.tmpl handles first-time
+# installs, but a forced re-apply on a machine where Nix was removed manually
+# will not re-run the before script (it is already in the run_once journal).
+if ! command -v nix &>/dev/null; then
+  echo "→ Nix not on PATH; installing via Determinate Systems..."
+{{- if eq .chezmoi.os "darwin" }}
+  curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+    | sh -s -- install --no-confirm
+{{- else }}
+  curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+    | sh -s -- install linux --no-confirm --init none
+{{- end }}
+  if [ -f "$NIX_DAEMON_PROFILE" ]; then
+    # shellcheck source=/dev/null
+    . "$NIX_DAEMON_PROFILE"
+  fi
+fi
+
+echo "→ Activating Nix profile: $PROFILE"
+
+{{- if eq .chezmoi.os "darwin" }}
+# darwin-rebuild looks up darwinConfigurations.<hostname> in the flake.
+# The flake ships two entries — joes-macbook and agent-mac — so the hostname
+# must match one of those keys exactly. Set the hostname before running chezmoi
+# if it does not already match (System Preferences → Sharing → Computer Name).
+HOSTNAME="{{ .chezmoi.hostname }}"
+if command -v darwin-rebuild &>/dev/null; then
+  darwin-rebuild switch --flake "$FLAKE#$HOSTNAME"
+else
+  # First activation: bootstrap nix-darwin through the flake.
+  nix run nix-darwin -- switch --flake "$FLAKE#$HOSTNAME"
+fi
+{{- else }}
+# Linux: standalone home-manager keyed on <profile>-linux.
+# Known flake entries: agent-linux (home.username = "agent", /home/agent).
+# NOTE: agent-linux requires running as user "agent". When provisioned via
+# provision-lxd.sh --nix-profile agent the container creates user "jth",
+# causing a home-manager username mismatch error. Track as HOL-510.
+if command -v home-manager &>/dev/null; then
+  home-manager switch --flake "$FLAKE#${PROFILE}-linux"
+else
+  # First activation: bootstrap home-manager through the flake.
+  nix run home-manager -- switch --flake "$FLAKE#${PROFILE}-linux"
+fi
+{{- end }}
+
+echo "  ✓ Nix profile '$PROFILE' activated"
