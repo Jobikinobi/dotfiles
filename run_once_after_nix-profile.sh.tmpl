@@ -55,9 +55,7 @@ fi
 {{- else }}
 # Linux: standalone home-manager keyed on <profile>-linux.
 # Known flake entries: agent-linux (home.username = "agent", /home/agent).
-# NOTE: agent-linux requires running as user "agent". When provisioned via
-# provision-lxd.sh --nix-profile agent the container creates user "jth",
-# causing a home-manager username mismatch error. Track as HOL-510.
+# provision-lxd.sh --nix-profile agent creates user "agent" to match the flake.
 if command -v home-manager &>/dev/null; then
   home-manager switch --flake "$FLAKE#${PROFILE}-linux"
 else

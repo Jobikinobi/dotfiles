@@ -52,8 +52,8 @@ Optional:
   --nix-profile <p>     Nix workspace profile to activate [joe|agent] (blank = no Nix).
                         Seeds nix_profile in the pre-seeded chezmoi.toml so
                         run_once_after_nix-profile.sh.tmpl activates the right flake output.
-                        NOTE: 'agent' requires user 'agent' in the flake (see agent-linux);
-                        the container user is 'jth' — activation will fail until HOL-510.
+                        'agent' containers run as user 'agent' to match the flake's
+                        homeConfigurations."agent-linux" (home.username = "agent").
   --dry-run             print rendered cloud-init + proposed remote command; do
                         NOT call doppler, do NOT contact the Proxmox host
   --host <target>       SSH target for the Proxmox host
@@ -185,6 +185,21 @@ fi
 # config template when the destination is absent.
 render_cloud_init() {
   local _project="$1" _name="$2" _authkey="$3" _nix_profile="$4"
+
+  # agent-profile containers run as "agent" to match the flake's
+  # homeConfigurations."agent-linux" (home.username = "agent", /home/agent).
+  # All other profiles (including no Nix) use "jth".
+  local _user _home_dir _gecos
+  if [[ "$_nix_profile" == "agent" ]]; then
+    _user="agent"
+    _home_dir="/home/agent"
+    _gecos="HOLE Foundation Agent"
+  else
+    _user="jth"
+    _home_dir="/home/jth"
+    _gecos="Joseph T. Herrmann, M.D."
+  fi
+
   cat <<CLOUDINIT
 #cloud-config
 # Rendered by $PROG for project=$_project name=$_name
@@ -192,8 +207,8 @@ hostname: $_name
 manage_etc_hosts: localhost
 
 users:
-  - name: jth
-    gecos: Joseph T. Herrmann, M.D.
+  - name: $_user
+    gecos: $_gecos
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     groups: [sudo, adm]
@@ -225,9 +240,9 @@ write_files:
 
   # Pre-seed chezmoi config so the non-interactive .chezmoi.toml.tmpl branch
   # does not clobber projects/lxd_profile/nix_profile with their empty defaults.
-  - path: /home/jth/.config/chezmoi/chezmoi.toml
+  - path: $_home_dir/.config/chezmoi/chezmoi.toml
     permissions: '0600'
-    owner: jth:jth
+    owner: $_user:$_user
     defer: true
     content: |
       [data]
@@ -250,7 +265,7 @@ write_files:
     content: |
       #!/usr/bin/env bash
       set -euo pipefail
-      sudo -u jth -H bash -lc '
+      sudo -u $_user -H bash -lc '
         mkdir -p "\$HOME/.local/bin"
         if ! command -v chezmoi >/dev/null 2>&1 && [ ! -x "\$HOME/.local/bin/chezmoi" ]; then
           sh -c "\$(curl -fsLS https://get.chezmoi.io)" -- -b "\$HOME/.local/bin"
@@ -267,7 +282,7 @@ runcmd:
 
 final_message: |
   cloud-init complete for $_name (project=$_project). Uptime: \$UPTIME s.
-  Login: ssh jth@$_name   (over tailnet, MagicDNS)
+  Login: ssh $_user@$_name   (over tailnet, MagicDNS)
 CLOUDINIT
 }
 
