@@ -114,7 +114,7 @@ jobs:
       - name: Verify core tools available on RHEL
         run: |
           docker run --rm --entrypoint /bin/su dotfiles-rhel:test \
-            - jth -s /bin/bash -c '
+            jth -s /bin/bash -c '
               set -e
               # Ensure Linuxbrew is on PATH
               eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 2>/dev/null || true
@@ -158,7 +158,7 @@ jobs:
       - name: Verify core tools available on Alpine
         run: |
           docker run --rm --entrypoint /bin/su dotfiles-alpine:test \
-            - jth -s /bin/sh -c '
+            jth -s /bin/sh -c '
               set -e
               echo "=== Verifying Alpine core tools ==="
               for tool in zsh git curl jq fzf bat rg; do
