@@ -1,27 +1,22 @@
-FROM alpine:3.20
+FROM alpine:3.22
 
-# Install baseline packages needed before chezmoi runs.
-# The run_once_before_00-apk-prereqs.sh.tmpl script will also run apk add
-# for any missing items, but pre-installing here mirrors Dockerfile.test
-# and speeds up the build by avoiding redundant update calls.
-RUN apk add --no-cache \
-    bash \
-    build-base \
-    ca-certificates \
-    curl \
-    file \
-    git \
-    gnupg \
-    iptables \
-    openssh \
-    procps \
-    shadow \
-    sudo \
-    zsh
-
-# Enable community repository so chezmoi scripts can install helix, eza, etc.
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.20/community" >> /etc/apk/repositories \
-    && apk update -q
+# Enable community repository (helix, eza, etc.) and install baseline packages
+# in a single layer so the index update is never cached separately (DS-0017).
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.22/community" >> /etc/apk/repositories \
+    && apk add --no-cache \
+        bash \
+        build-base \
+        ca-certificates \
+        curl \
+        file \
+        git \
+        gnupg \
+        iptables \
+        openssh \
+        procps \
+        shadow \
+        sudo \
+        zsh
 
 # Tailscale: copy binaries from official image (same pattern as Dockerfile.test).
 COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /usr/local/bin/tailscaled
