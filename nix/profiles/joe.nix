@@ -12,6 +12,8 @@
 
 { pkgs, ... }: {
 
+  system.primaryUser = "jth";
+
   users.users.jth.home = "/Users/jth";
 
   # ── home-manager user settings ───────────────────────────────────────────
