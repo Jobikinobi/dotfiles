@@ -3,6 +3,10 @@
 # Docs: https://install.determinate.systems
 set -e
 
+{{- if not (index . "nix_profile") }}
+exit 0
+{{- end }}
+
 if command -v nix &>/dev/null; then
   echo "  ✓ nix already installed ($(nix --version))"
   exit 0

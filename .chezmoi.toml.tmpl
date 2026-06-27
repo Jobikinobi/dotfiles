@@ -21,10 +21,12 @@ encryption = "age"
 {{- end }}
     projects = {{ $project_list | toJson }}
     lxd_profile = {{ promptStringOnce . "lxd_profile" "LXD profile key (blank for none)" "" | quote }}
+    nix_profile = {{ promptStringOnce . "nix_profile" "Workspace profile [joe/agent] (blank for no Nix)" "" | quote }}
 {{- else }}
     name = "Joseph T. Herrmann, M.D."
     email = "joeherrmann@gmail.com"
     github_user = "Jobikinobi"
     projects = []
     lxd_profile = ""
+    nix_profile = ""
 {{- end }}

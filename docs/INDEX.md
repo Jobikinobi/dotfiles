@@ -9,6 +9,7 @@ Policy docs that govern how this repo is used day-to-day.
 | File | One-line rule |
 |---|---|
 | [`conventions/workspace-directory-layout.md`](conventions/workspace-directory-layout.md) | Canonical `~/` tree — `projects/`, `docs/`, `bin/`, `scratch/`, etc. |
+| [`conventions/nix-ci.md`](conventions/nix-ci.md) | What Nix checks run in CI, what doesn't (darwin cost), and local smoke-test path. |
 
 ## Standards (imported — Legal-Assistant-v3)
 
