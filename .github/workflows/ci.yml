@@ -262,6 +262,18 @@ jobs:
 
       - uses: DeterminateSystems/nix-installer-action@v14
 
+      # Cache the Nix evaluation store (~/.cache/nix). This is safe to restore
+      # after nix-installer-action because it only contains evaluation results
+      # (attribute sets, derivation hashes), not the package store itself.
+      # Binary packages are fetched from cache.nixos.org (the default substituter).
+      - name: Cache Nix evaluation cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/nix
+          key: nix-eval-${{ runner.os }}-${{ hashFiles('nix/flake.lock') }}
+          restore-keys: |
+            nix-eval-${{ runner.os }}-
+
       - name: Lock flake inputs
         run: nix flake lock ./nix
 
@@ -273,5 +285,44 @@ jobs:
 
       - name: Check flake
         # --no-build: evaluate all outputs without building derivations.
-        # Appropriate for P2 stubs; remove in P3/P4 once outputs produce packages.
+        # darwin-rebuild switch is not run in CI (cost/benefit: macOS runners are
+        # expensive and darwin builds take 30+ min). The darwin configs are
+        # validated by evaluation only; see docs/conventions/nix-ci.md.
         run: nix flake check --no-build ./nix
+
+  # ── Nix: build Linux home-manager activation packages ─────────────────────
+  # Builds homeConfigurations.<profile>.activationPackage on a native
+  # x86_64-linux runner. This proves the packages download and assemble
+  # correctly on Linux — nix flake check --no-build only evaluates expressions.
+  #
+  # Matrix: currently only agent-linux (the profile merged to main).
+  # Add joe-linux here when homeConfigurations."joe-linux" lands on main.
+  # darwin-joe (darwinConfigurations."joes-macbook") is validated by the
+  # macOS --no-build eval above; full darwin-rebuild is out of CI scope.
+  # See docs/conventions/nix-ci.md for the rationale.
+  nix-agent-linux-build:
+    name: nix build ${{ matrix.profile }}
+    runs-on: ubuntu-latest
+    needs: nix-flake-check
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [agent-linux]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: DeterminateSystems/nix-installer-action@v14
+
+      - name: Cache Nix evaluation cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/nix
+          key: nix-eval-${{ runner.os }}-${{ hashFiles('nix/flake.lock') }}
+          restore-keys: |
+            nix-eval-${{ runner.os }}-
+
+      - name: Build ${{ matrix.profile }} activation package
+        run: nix build ./nix#homeConfigurations.${{ matrix.profile }}.activationPackage --no-link --print-out-paths
