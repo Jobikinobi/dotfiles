@@ -7,8 +7,7 @@ set -euo pipefail
 # Toolchains — cross-platform
 #
 # Runs AFTER the Brewfile.core install (lexically `install-brewfile` < `install-toolchains`),
-# so the static binaries this script initializes (fnm, supabase tap) are
-# already on PATH via brew.
+# so any brew-backed bootstrap helpers this script uses are already on PATH.
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Ensure brew is on PATH
@@ -59,10 +58,4 @@ if command -v npm >/dev/null 2>&1; then
       npm install -g "$pkg"
     fi
   done
-fi
-
-# Supabase CLI via brew tap (not in core Brewfile because it needs a tap)
-if ! command -v supabase >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
-  echo "→ Installing Supabase CLI..."
-  brew install supabase/tap/supabase
 fi
