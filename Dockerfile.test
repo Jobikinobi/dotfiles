@@ -62,6 +62,7 @@ ARG CHEZMOI_BRANCH=main
 # (it only renders when the destination is absent), which is how our values
 # survive the non-interactive default branch in .chezmoi.toml.tmpl.
 ARG CHEZMOI_PROJECT=""
+ENV DOTFILES_PROFILE_VERIFY=1
 
 # Step 1: clone the dotfiles repo and let chezmoi render .chezmoi.toml.tmpl.
 # In non-TTY mode the template hardcodes `projects = []`, which is wrong for
