@@ -12,7 +12,13 @@
 
 { pkgs, ... }: {
 
+  system.primaryUser = "jth";
+
   users.users.jth.home = "/Users/jth";
+
+  # Required by nix-darwin ≥ 24-11 — system defaults (dock, finder, NSGlobalDomain)
+  # now run as root and must know which user they target.
+  system.primaryUser = "jth";
 
   # ── home-manager user settings ───────────────────────────────────────────
   home-manager.useGlobalPkgs = true;

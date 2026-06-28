@@ -7,12 +7,16 @@ set -euo pipefail
 # Toolchains — cross-platform
 #
 # Runs AFTER the Brewfile.core install (lexically `install-brewfile` < `install-toolchains`),
+<<<<<<< HEAD
 # so the static binaries this script initializes (fnm, supabase tap) are
 # already on PATH via brew.
 #
 # Alpine/musl note: Homebrew is not available on Alpine. Brew-dependent steps
 # are skipped; Rust via rustup-init still works (Alpine ships musl targets).
 # RHEL note: Homebrew is available on RHEL (glibc), so brew steps run normally.
+=======
+# so any brew-backed bootstrap helpers this script uses are already on PATH.
+>>>>>>> origin/main
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ── OS family detection ───────────────────────────────────────────────────────
@@ -89,6 +93,7 @@ if command -v npm >/dev/null 2>&1; then
     fi
   done
 fi
+<<<<<<< HEAD
 
 # Supabase CLI via brew tap (not in core Brewfile because it needs a tap).
 # Skipped on Alpine/musl where brew is not available.
@@ -96,3 +101,5 @@ if [[ "$NO_BREW" == "false" ]] && ! command -v supabase >/dev/null 2>&1 && comma
   echo "→ Installing Supabase CLI..."
   brew install supabase/tap/supabase
 fi
+=======
+>>>>>>> origin/main
