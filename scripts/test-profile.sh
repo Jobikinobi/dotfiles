@@ -1,20 +1,31 @@
 #!/usr/bin/env bash
-# test-profile.sh — Docker-backed verification gate for chezmoi profiles.
+# test-profile.sh — Docker-backed verification gate for chezmoi profiles,
+# with an optional Nix smoke-test path (--nix-profile).
 #
-# Given a profile key (legal, godocs, oversight, core), builds the existing
-# Dockerfile.test with CHEZMOI_PROJECT=<key> baked in, applies chezmoi inside
-# the container, then asserts the binaries declared in docs/profiles/<key>.md
-# are actually on PATH inside the resulting image.
+# CHEZMOI MODE (default):
+#   Given a profile key (legal, godocs, oversight, core), builds the existing
+#   Dockerfile.test with CHEZMOI_PROJECT=<key> baked in, applies chezmoi inside
+#   the container, then asserts the binaries declared in docs/profiles/<key>.md
+#   are actually on PATH inside the resulting image.
+#
+# NIX MODE (--nix-profile):
+#   Given a Nix profile key (agent-linux, joe-linux), evaluates and builds
+#   the corresponding homeConfigurations.<key>.activationPackage from nix/flake.nix.
+#   Requires `nix` on PATH. This is the local equivalent of the CI
+#   `nix-agent-linux-build` job. Does NOT require Docker.
 #
 # Usage:
 #   scripts/test-profile.sh --project <key> [--branch <branch>] [--no-cache]
 #                                            [--keep-images]
+#   scripts/test-profile.sh --nix-profile <key>
 #
 # Exit codes:
 #   0   success — image built and every declared binary is on PATH (or, for
-#       a docs-only profile, the brew-list diff against core is empty).
+#       a docs-only profile, the brew-list diff against core is empty). In nix
+#       mode: activationPackage built successfully.
 #   1   verification failure — at least one declared binary is missing, OR a
-#       docs-only profile installed extras beyond the core baseline.
+#       docs-only profile installed extras beyond the core baseline. In nix
+#       mode: build failed.
 #   2   usage / argument error.
 #
 # Conventions parsed:
@@ -24,6 +35,7 @@
 #   marks a "docs-only" profile and triggers the brew-list diff path.
 #
 # See docs/profiles/README.md#verification for the full convention.
+# See docs/conventions/nix-ci.md for the Nix CI contract.
 #
 # Constraints:
 #   - ShellCheck clean.
@@ -43,21 +55,25 @@ die() { err "$*"; exit 2; }
 usage() {
   cat >&2 <<EOF
 Usage: $PROG --project <key> [--branch <branch>] [--no-cache] [--keep-images]
+       $PROG --nix-profile <key>
 
-Required:
+Chezmoi mode (Docker-backed):
   --project <key>   Profile key to validate. Must be one of:
                       - "core" (baseline build only)
                       - or a populated profile (\$repo_root/dot_Brewfile.<key>
                         + docs/profiles/<key>.md must both exist)
 
-Optional:
   --branch <ref>    Chezmoi branch to clone inside the image (default: main).
                     Pushed to Docker as --build-arg CHEZMOI_BRANCH=<ref>.
-                    Useful for iterating on a feature branch before merge.
-  --no-cache        Pass --no-cache to docker build. By default the build
-                    cache is reused so reruns across profiles are fast.
-  --keep-images     Skip the rmi of intermediate images at the end. Handy
-                    for poking around with \`docker run -it\`.
+  --no-cache        Pass --no-cache to docker build.
+  --keep-images     Skip the rmi of intermediate images at the end.
+
+Nix mode (requires \`nix\` on PATH):
+  --nix-profile <key>   Nix profile to smoke-test. Known values: agent-linux.
+                        Builds homeConfigurations.<key>.activationPackage from
+                        nix/flake.nix. No Docker required.
+                        Local equivalent of the CI nix-agent-linux-build job.
+
   -h, --help        Show this help and exit.
 
 Examples:
@@ -65,17 +81,24 @@ Examples:
   $PROG --project godocs --branch feat/godocs-cleanup
   $PROG --project oversight       # asserts docs-only invariant
   $PROG --project core            # baseline build, no per-profile asserts
+  $PROG --nix-profile agent-linux # build Nix activation package locally
 EOF
 }
 
 # ── argument parsing ────────────────────────────────────────────────────────
 project=""
+nix_profile=""
 branch="main"
 no_cache=0
 keep_images=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --nix-profile)
+      [[ $# -ge 2 ]] || die "--nix-profile requires a value"
+      nix_profile="$2"; shift 2 ;;
+    --nix-profile=*)
+      nix_profile="${1#--nix-profile=}"; shift ;;
     --project)
       [[ $# -ge 2 ]] || die "--project requires a value"
       project="$2"; shift 2 ;;
@@ -102,7 +125,39 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -n "$project" ]] || { err "--project is required"; usage; exit 2; }
+# Exactly one of --project or --nix-profile must be supplied.
+if [[ -n "$nix_profile" && -n "$project" ]]; then
+  die "--project and --nix-profile are mutually exclusive"
+fi
+
+# ── Nix smoke-test mode ──────────────────────────────────────────────────────
+if [[ -n "$nix_profile" ]]; then
+  # Validate key shape (same convention as --project).
+  if ! [[ "$nix_profile" =~ ^[a-z][a-z0-9-]{0,19}$ ]]; then
+    die "invalid --nix-profile '$nix_profile': must be lowercase kebab-case, ≤20 chars, start with a letter"
+  fi
+
+  command -v nix >/dev/null 2>&1 || die "nix is not on PATH — install Nix first (see https://nixos.org/download)"
+
+  script_dir="$(cd "$(dirname "$0")" && pwd)"
+  repo_root="$(cd "$script_dir/.." && pwd)"
+
+  flake="$repo_root/nix"
+  [[ -f "$flake/flake.nix" ]] || die "missing $flake/flake.nix (is this the dotfiles repo root?)"
+
+  attr="homeConfigurations.$nix_profile.activationPackage"
+  printf '%s: building %s from %s#%s\n' "$PROG" "$nix_profile" "$flake" "$attr" >&2
+  if nix build "$flake#$attr" --no-link --print-out-paths; then
+    printf '%s: ✓ nix profile %s built successfully.\n' "$PROG" "$nix_profile"
+    exit 0
+  else
+    err "✗ nix build failed for profile '$nix_profile' (attr: $attr)"
+    err "Run: nix build $flake#$attr -L  for verbose build logs."
+    exit 1
+  fi
+fi
+
+[[ -n "$project" ]] || { err "--project or --nix-profile is required"; usage; exit 2; }
 
 # Profile key shape: lowercase, kebab-case, ≤12 chars, starts with a letter.
 # Matches the convention used in docs/profiles/README.md and provision-lxd.sh.
