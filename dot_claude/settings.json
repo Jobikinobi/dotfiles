@@ -22,12 +22,6 @@
         "source": "github",
         "repo": "scalekit-inc/claude-code-authstack"
       }
-    },
-    "mem0-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "mem0ai/mem0"
-      }
     }
   },
   "skipDangerousModePermissionPrompt": true
