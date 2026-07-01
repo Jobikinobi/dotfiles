@@ -12,8 +12,6 @@
 
 { pkgs, ... }: {
 
-  system.primaryUser = "jth";
-
   users.users.jth.home = "/Users/jth";
 
   # Required by nix-darwin ≥ 24-11 — system defaults (dock, finder, NSGlobalDomain)

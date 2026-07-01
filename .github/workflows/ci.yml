@@ -220,14 +220,9 @@ jobs:
 
   # ── Linux aggregator: required status check ─────────────────────────────────
   # Branch protection on `main` requires a status check named `linux`. This job
-<<<<<<< HEAD
   # reports success only when every matrix leg AND the distro-specific jobs
   # (alpine, rhel) pass, preserving the contract while letting the matrix and
   # distro list expand independently of branch-protection config.
-=======
-  # reports success only when every matrix leg passes, preserving the contract
-  # while letting the matrix expand/contract independently of branch-protection.
->>>>>>> origin/main
   linux:
     name: linux
     needs: [profiles, alpine, rhel]
