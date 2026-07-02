@@ -43,13 +43,15 @@ Translation:
 
 ### Mac fleet
 
-| Host             | LAN              | Tailscale            | Role                                |
-|------------------|------------------|----------------------|-------------------------------------|
-| MacBook Air      | 192.168.68.70    | 100.115.1.29         | Mobile / current dev workstation    |
-| Mac Studio       | 192.168.68.168   | 100.94.84.6          | Primary desktop workstation         |
-| Mac Mini         | 192.168.68.68    | 100.119.161.120      | Secondary workstation               |
+| Host             | LAN              | Public TS (`lemming-likert`) | Headscale (`lab`)   | Role                                |
+|------------------|------------------|------------------------------|---------------------|-------------------------------------|
+| MacBook Air      | 192.168.68.70    | 100.115.1.29 (legacy)        | 100.64.0.9 (node 9, currently offline) | Mobile / current dev workstation. Cut over to Headscale 2026-06-05. |
+| Mac Studio       | 192.168.68.168   | 100.94.84.6 (legacy)         | 100.64.0.10 (node 10, online) | Primary desktop workstation. Cut over to Headscale 2026-06-05. **Production cutover succeeded ahead of the original "Mac Studio last" plan.** |
+| Mac Mini         | 192.168.68.68    | 100.119.161.120              | — (not migrated)    | Secondary workstation. Only Mac still on public TS — pending Headscale cutover. |
 
 All three Macs: FileVault on, Touch-ID-for-sudo enabled via `pam_tid.so`.
+
+The Headscale rollout details, current node inventory, and the cutover playbook live under [`headscale/`](headscale/).
 
 ### Proxmox
 

@@ -20,6 +20,24 @@ The reachability and TLS-handshake assumptions in the playbook were verified emp
 
 Implication: the lume VM is a clean-slate environment. It exercises the **fresh-install path** for the macOS Headscale join, but not the **cutover path**. For the cutover-rehearsal use case (HOL-7), the experiment needs to install public Tailscale on the VM first, then switch to Headscale, then switch back as a rollback drill.
 
+## Production observed state (Mac Studio, 2026-06-05 cutover)
+
+The Mac Studio (`josephs-mac-studio`) was cut over to Headscale on 2026-06-05 as part of the same batch that brought up the Linux nodes. This is the only production macOS cutover so far. Observed state, post-cutover:
+
+| Check | Result |
+|-------|--------|
+| `tailscale ip -4` | `100.64.0.10` (Headscale tailnet) |
+| `defaults read /Library/Preferences/io.tailscale.ipn.macos ControlURL` | absent — confirms this is the open-source brew build, not App Store |
+| `/Applications/Tailscale.app` | absent — the App Store build had been removed before the join (the cohabitation conflict described in step 1 below) |
+| `which tailscale` | `/opt/homebrew/bin/tailscale` |
+| `nc -zv 192.168.68.77 443` from Mac Studio | succeeds |
+| `getent hosts hs.lab.hole-truth.org` | `192.168.68.77` (via `/etc/hosts`) |
+| `curl https://hs.lab.hole-truth.org/health` | `{"status":"pass"}` |
+| `tailscale status` health-check warning | **"Tailscale SSH enabled, but access controls don't allow anyone to access this device. Update your tailnet's ACLs to allow access."** — see "Known gotchas" below. |
+| Client/daemon version | **skewed**: CLI `1.98.5-t295179bf2`, daemon `1.98.3-t8f2c8d6a1` — see "Known gotchas". |
+
+Headscale's `nodes list` confirms the node as online under user `lab`, OS `macOS`, `online: true`.
+
 ## Step 0: Prerequisites
 
 Same as the playbook:
@@ -172,6 +190,8 @@ For a production Mac, watch for 30 minutes after the cutover succeeds. The macOS
 - **`utun` interface number is non-deterministic.** `tailscale0` on Linux; `utunN` (where N is the next free number) on macOS. Don't hardcode the interface name in any script.
 - **System Integrity Protection** may block `tailscaled` from setting DNS unless the daemon is run by root via `brew services` (not as a user-launched LaunchAgent).
 - **The Mac Studio's daily-driver SSH key is in `~/.ssh/`** — if the cutover script ever needs to chmod or temporarily relocate `~/.ssh` (it shouldn't), be aware.
+- **Client/daemon version skew after `brew upgrade tailscale`** (observed on Mac Studio post-2026-06-05 cutover). `brew upgrade tailscale` updates the `/opt/homebrew/bin/tailscale` CLI binary, but the daemon (running under `brew services`) keeps executing the older binary until restarted. Symptom: `tailscale status` prints `Warning: client version "1.98.5-…" != tailscaled server version "1.98.3-…"`. The mismatch is usually benign but produces confusing failures on `tailscale set` operations until resolved. **Fix**: `sudo brew services restart tailscale` (or `sudo brew services kill tailscale && sudo brew services start tailscale` if restart-in-place misbehaves). Build this into your post-`brew upgrade` muscle memory for any Mac on the tailnet.
+- **`tailscale SSH` is enabled but ACL-blocked.** Observed on Mac Studio. Headscale's default open-mesh policy at the peer level does **not** include an SSH ACL — `tailscale ssh josephs-mac-studio` from another tailnet member is silently rejected. The health-check warning is the surface signal. Writing a Headscale ACL policy that grants SSH is a separate cleanup task (tracked in cutover-playbook §10) but worth knowing about because `tailscale ssh` from a Mac to another tailnet host **will not work** until that policy lands.
 
 ## Related
 
