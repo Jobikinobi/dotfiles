@@ -1,0 +1,27 @@
+#!/bin/bash
+# Install Nix via the Determinate Systems installer if not already present.
+# Docs: https://install.determinate.systems
+set -e
+
+{{- if not (index . "nix_profile") }}
+exit 0
+{{- end }}
+
+if command -v nix &>/dev/null; then
+  echo "  ✓ nix already installed ($(nix --version))"
+  exit 0
+fi
+
+echo "→ Installing Nix (Determinate Systems)..."
+
+{{- if eq .chezmoi.os "darwin" }}
+# macOS: multi-user daemon required (SIP + sealed system volume)
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+  | sh -s -- install --no-confirm
+{{- else }}
+# Linux: daemon-less install for containers and VMs
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+  | sh -s -- install linux --no-confirm --init none
+{{- end }}
+
+echo "  ✓ Nix installed"

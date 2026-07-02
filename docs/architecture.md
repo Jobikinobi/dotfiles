@@ -56,8 +56,13 @@ Docker containers join via `TS_AUTHKEY` environment variable.
 - Docker Compose stacks (Weaviate, transparency engine)
 - OrbStack/Colima/LXD deployment profiles
 - Weaviate backup automation (R2)
-- Architecture Decision Records
+- Architecture Decision Records for infrastructure/runtime choices
 - Health checks and migration guides
+
+### This repo (dotfiles) owns ADRs for:
+- Secrets management strategy (see [ADR-001](adr/001-doppler-standard-reject-dotenvx.md))
+- Shell/tool configuration decisions
+- Bootstrap and CI approach for the personal dev node
 
 ## Secrets Model
 
