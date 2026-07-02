@@ -3,6 +3,8 @@ README.md
 CLAUDE.md
 LICENSE
 Dockerfile.test
+Dockerfile.alpine
+Dockerfile.rhel
 entrypoint.sh
 .github/**
 scripts/**
