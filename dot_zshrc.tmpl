@@ -236,6 +236,16 @@ alias venva='source .venv/bin/activate'
 alias secure-reboot='sudo fdesetup authrestart'
 alias restart-screensharing='sudo launchctl kickstart -k system/com.apple.screensharing'
 
+# Downgrade TERM when sshing from terminals whose terminfo many remote hosts lack.
+# Without this, p10k+autosuggestions+syntax-highlighting redraws leave ghost chars
+# because cursor-movement escapes for the unknown terminal are wrong.
+ssh() {
+  case "$TERM" in
+    alacritty|xterm-ghostty) TERM=xterm-256color command ssh "$@" ;;
+    *)                       command ssh "$@" ;;
+  esac
+}
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 13. DOTFILES MANAGEMENT (chezmoi)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -413,7 +423,13 @@ fi
 # SECRETS — baked in by chezmoi from Doppler (never hardcoded in source)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+{{- /*
+  Bake Doppler-managed secrets into .zshrc at apply time. Wrapped in
+  `sh -c "… || true"` so the apply succeeds even if Doppler isn't
+  authenticated yet (fresh VM, before `doppler login`). When
+  unauthenticated, the exported vars are empty.
+*/ -}}
 {{ if lookPath "doppler" -}}
-export POSTMAN_API_KEY='{{ output "doppler" "secrets" "get" "POSTMAN_API_KEY" "--plain" "-p" "backend" "-c" "prd" | trim }}'
-export MEM0_API_KEY='{{ output "doppler" "secrets" "get" "MEM0_API_KEY" "--plain" "-p" "backend" "-c" "prd" | trim }}'
+export POSTMAN_API_KEY='{{ output "sh" "-c" "doppler secrets get POSTMAN_API_KEY --plain -p backend -c prd 2>/dev/null || true" | trim }}'
+export MEM0_API_KEY='{{ output "sh" "-c" "doppler secrets get MEM0_API_KEY --plain -p backend -c prd 2>/dev/null || true" | trim }}'
 {{- end }}

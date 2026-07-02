@@ -10,8 +10,23 @@ encryption = "age"
     name = {{ promptStringOnce . "name" "Full name" | quote }}
     email = {{ promptStringOnce . "email" "Email address" | quote }}
     github_user = {{ promptStringOnce . "github_user" "GitHub username" | quote }}
+{{- /* projects: comma-separated string at the prompt, stored as a TOML array */ -}}
+{{- $projects_raw := promptStringOnce . "projects" "Project profile keys (comma-separated, blank for none)" "" -}}
+{{- $project_list := list -}}
+{{- range (splitList "," $projects_raw) -}}
+{{- $key := trim . -}}
+{{- if $key -}}
+{{- $project_list = append $project_list $key -}}
+{{- end -}}
+{{- end }}
+    projects = {{ $project_list | toJson }}
+    lxd_profile = {{ promptStringOnce . "lxd_profile" "LXD profile key (blank for none)" "" | quote }}
+    nix_profile = {{ promptStringOnce . "nix_profile" "Workspace profile [joe/agent] (blank for no Nix)" "" | quote }}
 {{- else }}
     name = "Joseph T. Herrmann, M.D."
     email = "joeherrmann@gmail.com"
     github_user = "Jobikinobi"
+    projects = []
+    lxd_profile = ""
+    nix_profile = ""
 {{- end }}

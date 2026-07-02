@@ -1,114 +1,229 @@
 name: CI
 
+# Cost posture (see issue #96): the previous layout ran two macOS jobs (billed
+# at 10x Linux) on EVERY push to EVERY PR branch, with no run-cancellation —
+# ~7000 minutes/month for a small side-project. macOS is no longer in CI at all:
+# Linux is the deploy target, and the maintainer's Mac is a daily-driver tested
+# locally (new Macs are provisioned ~never), so the 10x multiplier bought nothing.
+#
+#   pull_request  -> ONE Linux job: build the `core` image + verify (1x).
+#   push to main  -> full profile matrix + nix checks + GHCR publish.
+#   schedule      -> weekly drift sweep (catches upstream brew/nixpkgs drift).
+#   workflow_dispatch -> run the full sweep on demand.
+#
+# `linux` is the only required status check on `main` (the `macos` required check
+# was dropped alongside the macOS jobs).
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
+  schedule:
+    - cron: '0 7 * * 1'   # Mondays 07:00 UTC — weekly drift sweep
+  workflow_dispatch: {}
 
 permissions:
   contents: read
   packages: write
 
+# Collapse superseded runs on the same ref. A rapid sequence of pushes to a PR
+# now cancels the in-flight run instead of stacking N parallel copies — the
+# single biggest minute-saver for this repo.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # ── Linux: Build Docker image and push to GHCR ──────────────────────────────
-  linux:
+  # ── Decide the profile matrix ───────────────────────────────────────────────
+  # PRs build only `core` (one fast 1x Linux leg). Merges to main, the weekly
+  # sweep, and manual runs build the full set. Keeping this in a tiny job (vs a
+  # static matrix) is what lets a PR avoid 3 redundant profile builds per push.
+  set-matrix:
     runs-on: ubuntu-latest
+    outputs:
+      profiles: ${{ steps.pick.outputs.profiles }}
+    steps:
+      - id: pick
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo 'profiles=["core"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'profiles=["core","legal","godocs","oversight"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Linux: profile verification matrix ──────────────────────────────────────
+  # Each leg builds Dockerfile.test with CHEZMOI_PROJECT=<key> baked in (via
+  # scripts/test-profile.sh) and asserts the binaries declared in the matching
+  # docs/profiles/<key>.md are on PATH. `core` is the baseline (no per-profile
+  # doc, no asserts — just exercises the no-project build path).
+  #
+  # Adding a profile leg is gated on having a corresponding docs/profiles/<key>.md
+  # — see docs/profiles/README.md#verification — AND adding the key to set-matrix.
+  profiles:
+    name: profile / ${{ matrix.profile }}
+    needs: set-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: ${{ fromJSON(needs.set-matrix.outputs.profiles) }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Pre-build with GHA cache backend + load into the local Docker daemon.
+      # test-profile.sh's own `docker build` invocation (legacy daemon builder)
+      # then hits the just-loaded image layers and is effectively a no-op
+      # rebuild before its assertion phase. Shared cache scope across profile
+      # keys because the early apt / Tailscale / chezmoi-init layers are
+      # identical — only the CHEZMOI_PROJECT-aware tail diverges.
+      #
+      # cache-to mode=min (not max): this is effectively a single-stage image,
+      # so caching only the final layers is enough for cache-from to hit, while
+      # writing far less data per run than mode=max (see issue #96 — the prior
+      # mode=max shuffled ~4-5GB of cache every run).
+      - name: Pre-warm BuildKit cache (load image into daemon)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.test
+          load: true
+          tags: dotfiles-test:${{ matrix.profile }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+          build-args: |
+            CHEZMOI_BRANCH=${{ github.head_ref || github.ref_name }}
+            CHEZMOI_PROJECT=${{ matrix.profile == 'core' && '' || matrix.profile }}
+
+      - name: Verify profile via scripts/test-profile.sh
+        run: |
+          scripts/test-profile.sh \
+            --project "${{ matrix.profile }}" \
+            --branch "${{ github.head_ref || github.ref_name }}" \
+            --keep-images
+
+      # Only the `core` leg publishes to GHCR, and only on push to main.
+      # We publish ONLY :latest — the previous :${{ github.sha }} tag created an
+      # immutable ~4-5GB image per merge that accumulated forever (storage cost,
+      # never pruned). Recover an exact build from the commit if ever needed.
       - name: Login to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: matrix.profile == 'core' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.test
-          push: false
-          load: true
-          tags: dotfiles-test:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Verify core tools are installed
-        run: |
-          docker run --rm --entrypoint /bin/bash dotfiles-test:ci -c '
-            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-            echo "=== Checking core tools ==="
-            for tool in hx bat fzf rg eza fd jq nnn doppler uv; do
-              if command -v "$tool" &>/dev/null; then
-                echo "✓ $tool"
-              else
-                echo "✗ $tool MISSING" && exit 1
-              fi
-            done
-            echo "=== Checking Node + Claude ==="
-            eval "$(fnm env)" 2>/dev/null || true
-            node --version || (echo "✗ node MISSING" && exit 1)
-            claude --version || (echo "✗ claude MISSING" && exit 1)
-            echo "=== All tools verified ==="
-          '
-
-      - name: Push to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Push core image to GHCR
+        if: matrix.profile == 'core' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.test
           push: true
-          tags: |
-            ghcr.io/jobikinobi/dotfiles:latest
-            ghcr.io/jobikinobi/dotfiles:${{ github.sha }}
+          tags: ghcr.io/jobikinobi/dotfiles:latest
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
+          build-args: |
+            CHEZMOI_BRANCH=main
+            CHEZMOI_PROJECT=
 
-  # ── macOS: Verify chezmoi deploys correctly ─────────────────────────────────
-  macos:
-    runs-on: macos-latest
+  # ── Linux aggregator: required status check ─────────────────────────────────
+  # Branch protection on `main` requires a status check named `linux`. This job
+  # reports success only when every matrix leg passes, preserving the contract
+  # while letting the matrix expand/contract independently of branch-protection.
+  linux:
+    name: linux
+    needs: profiles
+    if: always()
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install chezmoi
-        run: brew install chezmoi
-
-      - name: Initialize dotfiles (dry run)
+      - name: Verify all profile legs succeeded
         run: |
-          # Use the PR branch, not the default branch
-          chezmoi init --no-tty --source="$GITHUB_WORKSPACE" --exclude=scripts
-
-      - name: Apply dotfiles (skip scripts to avoid full brew install)
-        run: chezmoi apply --no-tty --exclude=scripts
-
-      - name: Verify key files deployed
-        run: |
-          echo "=== Checking deployed files ==="
-          for f in ~/.zshrc ~/.Brewfile ~/.Brewfile.core ~/.p10k.zsh ~/.ssh/config; do
-            if [[ -f "$f" ]]; then
-              echo "✓ $f"
-            else
-              echo "✗ $f MISSING" && exit 1
-            fi
-          done
-
-      - name: Verify templates rendered (no raw {{ in output)
-        run: |
-          if grep -q '{{' ~/.zshrc; then
-            echo "✗ Unrendered template tags in ~/.zshrc"
-            grep '{{' ~/.zshrc
+          result='${{ needs.profiles.result }}'
+          echo "profiles job result: $result"
+          if [[ "$result" != "success" ]]; then
+            echo "::error::At least one profile matrix leg did not succeed (result=$result)"
             exit 1
           fi
-          echo "✓ Templates rendered correctly"
 
-      - name: Verify macOS-specific content present
-        run: |
-          grep -q "1password" ~/.ssh/config && echo "✓ 1Password SSH agent in config"
-          grep -q "/opt/homebrew" ~/.zshrc && echo "✓ Homebrew macOS path in zshrc"
+  # ── Nix flake check (Linux, NOT run on PRs) ──────────────────────────────────
+  # Evaluates all flake outputs (--no-build). Runs on Linux: the darwin configs
+  # are pure-evaluated here too, and the maintainer validates darwin locally
+  # (darwin-rebuild) where it actually runs — so no macOS runner is warranted.
+  # NOTE: if a darwin output ever fails to *evaluate* on Linux (IFD, currentSystem
+  # references), scope the check to Linux systems rather than reintroducing a
+  # macOS runner. Deferred off PRs: flake.lock only changes via an explicit
+  # update (itself a PR -> merge), and the weekly sweep catches nixpkgs drift.
+  nix-flake-check:
+    name: nix flake check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: DeterminateSystems/nix-installer-action@v14
+
+      # Cache the Nix evaluation store (~/.cache/nix) — evaluation results only
+      # (attribute sets, derivation hashes), not the package store. Binary
+      # packages are fetched from cache.nixos.org (the default substituter).
+      - name: Cache Nix evaluation cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/nix
+          key: nix-eval-${{ runner.os }}-${{ hashFiles('nix/flake.lock') }}
+          restore-keys: |
+            nix-eval-${{ runner.os }}-
+
+      - name: Lock flake inputs
+        run: nix flake lock ./nix
+
+      - name: Commit lockfile if generated
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: generate nix/flake.lock [skip ci]"
+          file_pattern: nix/flake.lock
+
+      - name: Check flake
+        # --no-build: evaluate all outputs without building derivations.
+        run: nix flake check --no-build ./nix
+
+  # ── Nix: build Linux home-manager activation packages (1x — NOT run on PRs) ──
+  # Builds homeConfigurations.<profile>.activationPackage on a native
+  # x86_64-linux runner. Proves the packages download and assemble on Linux —
+  # `nix flake check --no-build` only evaluates expressions. Deferred off PRs to
+  # match nix-flake-check (its dependency).
+  nix-agent-linux-build:
+    name: nix build ${{ matrix.profile }}
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    needs: nix-flake-check
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [agent-linux]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: DeterminateSystems/nix-installer-action@v14
+
+      - name: Cache Nix evaluation cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/nix
+          key: nix-eval-${{ runner.os }}-${{ hashFiles('nix/flake.lock') }}
+          restore-keys: |
+            nix-eval-${{ runner.os }}-
+
+      - name: Build ${{ matrix.profile }} activation package
+        run: nix build ./nix#homeConfigurations.${{ matrix.profile }}.activationPackage --no-link --print-out-paths

@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Tailscale — cross-platform
+# Runs early (BEFORE phase) so the rest of the bootstrap has network identity.
+# ══════════════════════════════════════════════════════════════════════════════
+
+if ! command -v tailscale &>/dev/null; then
+{{- if eq .chezmoi.os "darwin" }}
+  echo "→ Tailscale: install via 'brew install --cask tailscale' or Brewfile"
+{{- else }}
+  echo "→ Installing Tailscale..."
+  curl -fsSL https://tailscale.com/install.sh | sh
+  echo "✓ Tailscale installed"
+{{- end }}
+fi
+
+{{- if ne .chezmoi.os "darwin" }}
+# On Linux, start tailscaled and join the tailnet if an auth key is available.
+# Project's server-tag auth key lives at backend/dev, secret name TAILSCALE_AUTHKEY_SERVER.
+if command -v tailscale &>/dev/null; then
+  if ! tailscale status &>/dev/null; then
+    sudo systemctl enable --now tailscaled 2>/dev/null || true
+{{- if lookPath "doppler" }}
+    TS_AUTHKEY="$(doppler secrets get TAILSCALE_AUTHKEY_SERVER --plain -p backend -c dev 2>/dev/null)" || true
+    if [[ -n "$TS_AUTHKEY" ]]; then
+      echo "→ Joining tailnet..."
+      sudo tailscale up --authkey="$TS_AUTHKEY" --ssh --advertise-tags=tag:server
+      echo "✓ Joined tailnet with Tailscale SSH enabled"
+    else
+      echo "⚠ Tailscale installed but no auth key returned from Doppler — run 'sudo tailscale up' manually"
+    fi
+{{- else }}
+    echo "⚠ Tailscale installed but Doppler not available at template-render time — run 'sudo tailscale up' manually"
+{{- end }}
+  else
+    echo "✓ Tailscale already connected"
+  fi
+fi
+{{- end }}

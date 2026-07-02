@@ -1,0 +1,28 @@
+#!/bin/bash
+# Oversight profile — org-governance setup (docs-only stub in v1)
+# https://github.com/the-hole-foundation/org-governance
+#
+# Self-gates on the `projects` list in ~/.config/chezmoi/chezmoi.toml
+# containing "oversight". On a fresh machine without the key, the rendered
+# script is just the shebang + `exit 0` and does nothing.
+#
+# Per board decision Q3 on the THE-51 plan, the oversight profile is
+# docs-only in v1 — there is no compile toolchain or per-project install
+# step to run. This stub exists to:
+#   1. Prove the profile shape works end-to-end for a profile that
+#      intentionally installs nothing.
+#   2. Give downstream tooling (e.g. T8 test-profile.sh) a known target
+#      that should render and run cleanly without producing brew output.
+#   3. Print a one-line banner on activation so the operator knows the
+#      profile is intentionally a no-op and where to read the rationale.
+#
+# Promote this script to do real work when a container workload is defined
+# for the governance project — see docs/profiles/oversight.md
+# "Promotion triggers".
+{{- if not (has "oversight" .projects) }}
+exit 0
+{{- else }}
+set -euo pipefail
+
+echo "oversight profile is docs-only in v1; promote when a container workload is defined."
+{{- end }}
