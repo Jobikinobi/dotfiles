@@ -5,6 +5,7 @@ LICENSE
 Dockerfile.test
 Dockerfile.alpine
 Dockerfile.rhel
+Dockerfile.rootless
 entrypoint.sh
 .github/**
 scripts/**

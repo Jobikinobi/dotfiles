@@ -6,6 +6,14 @@ set -e
 # Runs early (BEFORE phase) so the rest of the bootstrap has network identity.
 # ══════════════════════════════════════════════════════════════════════════════
 
+# Installing/administering a system VPN daemon needs privilege. A sudo-less
+# agent-space (#99) skips this entirely — networking is the provisioning phase's
+# job. (Tailscale is also being retired in favour of Netbird per ADR-002.)
+if [ "$(id -u)" -ne 0 ] && ! { command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; }; then
+  echo "→ Unprivileged agent-space — skipping Tailscale install/setup"
+  exit 0
+fi
+
 if ! command -v tailscale &>/dev/null; then
 {{- if eq .chezmoi.os "darwin" }}
   echo "→ Tailscale: install via 'brew install --cask tailscale' or Brewfile"
