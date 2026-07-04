@@ -71,6 +71,11 @@ case "$OS_FAMILY" in
     fi
     apk update -q
     apk add --no-cache bash build-base ca-certificates curl file git gnupg procps shadow sudo zsh
+    # Core CLI tools too: a sudo-less agent can't apk these itself during apply
+    # (the brewfile step's apk fallback is skipped under PRIV=none), so the root
+    # phase must provide them. Mirrors APK_CORE_PACKAGES in install-brewfile.
+    apk add --no-cache age bat direnv eza fd fzf go helix jq nnn ripgrep 2>/dev/null \
+      || echo "  ⚠ some core apk tools unavailable in this Alpine version — continuing"
     ;;
   rhel)
     PKG_MGR=$(command -v dnf || command -v yum)
@@ -116,7 +121,12 @@ fi
 # ── 3. Shared Homebrew (glibc only; Alpine uses apk in the apply phase) ───────
 if [ "$OS_FAMILY" != "alpine" ]; then
   if [ ! -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
-    echo "→ Installing Homebrew (shared prefix) as ${AGENT_USER}"
+    # Pre-create and hand ownership of the prefix to the agent so the installer
+    # runs without root — the standard rootless-Homebrew pattern. Without this,
+    # Homebrew's installer shells out to sudo, which a sudo-less agent lacks.
+    mkdir -p /home/linuxbrew/.linuxbrew
+    chown -R "$AGENT_USER" /home/linuxbrew
+    echo "→ Installing Homebrew (shared prefix, agent-owned) as ${AGENT_USER}"
     su - "$AGENT_USER" -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
   fi
   cat > /etc/profile.d/linuxbrew.sh <<'PROFILE'

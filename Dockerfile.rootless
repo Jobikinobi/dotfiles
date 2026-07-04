@@ -1,0 +1,46 @@
+FROM alpine:3.22
+
+# Rootless agent-space verification (#99).
+#
+# Proves the two-phase model: a root/provisioning phase prepares the machine,
+# then an UNPRIVILEGED agent (no sudo) deploys dotfiles with `chezmoi apply`.
+# Alpine is used deliberately — apk (not Homebrew) means no root-requiring
+# installer in the apply phase, so this isolates the PRIV=none code path.
+
+# Bare minimum for the root phase to run agent-provision.sh (it installs the rest).
+RUN apk add --no-cache bash curl
+
+# ── Phase 1 (root): provision the agent space ────────────────────────────────
+# agent-provision.sh installs system + core tools, creates the `agent` user with
+# a zsh login shell, and deliberately does NOT grant it sudo.
+COPY scripts/agent-provision.sh /usr/local/bin/agent-provision.sh
+RUN chmod +x /usr/local/bin/agent-provision.sh && agent-provision.sh agent
+
+# Assert the agent genuinely has no sudo — otherwise this test proves nothing.
+RUN if su - agent -c 'command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null'; then \
+      echo "✗ agent unexpectedly has passwordless sudo — test would not exercise PRIV=none" >&2; \
+      exit 1; \
+    else echo "✓ agent has no sudo (PRIV=none will be exercised)"; fi
+
+ARG CHEZMOI_BRANCH=main
+
+# ── Phase 2 (agent, NO sudo): deploy dotfiles ────────────────────────────────
+USER agent
+WORKDIR /home/agent
+ENV PATH="/home/agent/.local/bin:${PATH}"
+
+# chezmoi installs to ~/.local/bin with no root needed.
+RUN sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+
+# init + apply as the sudo-less agent. The bootstrap must detect PRIV=none,
+# skip privileged steps, and still lay down the dotfiles.
+# --exclude=encrypted: age key is never present in CI (same as the other images).
+RUN chezmoi init --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi \
+ && chezmoi apply --no-tty --exclude=encrypted
+
+# Root again only for the entrypoint (parity with the other images).
+USER root
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+EXPOSE 22
+ENTRYPOINT ["/entrypoint.sh"]

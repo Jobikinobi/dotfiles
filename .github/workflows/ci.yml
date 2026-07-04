@@ -218,14 +218,61 @@ jobs:
               echo "=== All core tools present ==="
             '
 
+  # ── Rootless: verify sudo-less agent-space deploy (#99) ─────────────────────
+  # Builds Dockerfile.rootless: a root phase provisions a no-sudo `agent` user
+  # (via scripts/agent-provision.sh), then `chezmoi apply` runs as that agent.
+  # The build fails if apply errors, so a green build already proves the
+  # PRIV=none path; this step re-asserts the outcome (dotfiles + core tools).
+  # Alpine base — apk, not Homebrew — isolates the privilege path from the
+  # Homebrew-needs-root wrinkle on glibc.
+  rootless:
+    name: rootless
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
+
+      - name: Build rootless agent-space image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
+        with:
+          context: .
+          file: Dockerfile.rootless
+          load: true
+          tags: dotfiles-rootless:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            CHEZMOI_BRANCH=${{ github.head_ref || github.ref_name }}
+
+      - name: Verify dotfiles deployed as the sudo-less agent
+        run: |
+          docker run --rm --entrypoint /bin/su dotfiles-rootless:test \
+            agent -s /bin/sh -c '
+              set -e
+              echo "=== Verifying rootless agent deploy ==="
+              [ -f "$HOME/.zshrc" ] && echo "✓ ~/.zshrc laid down" || { echo "✗ ~/.zshrc MISSING"; exit 1; }
+              for tool in zsh git curl jq fzf bat rg; do
+                if command -v "$tool" >/dev/null 2>&1; then
+                  echo "✓ $tool"
+                else
+                  echo "✗ $tool MISSING" && exit 1
+                fi
+              done
+              echo "=== rootless deploy verified ==="
+            '
+
   # ── Linux aggregator: required status check ─────────────────────────────────
   # Branch protection on `main` requires a status check named `linux`. This job
   # reports success only when every matrix leg AND the distro-specific jobs
-  # (alpine, rhel) pass, preserving the contract while letting the matrix and
-  # distro list expand independently of branch-protection config.
+  # (alpine, rhel, rootless) pass, preserving the contract while letting the
+  # matrix and distro list expand independently of branch-protection config.
   linux:
     name: linux
-    needs: [profiles, alpine, rhel]
+    needs: [profiles, alpine, rhel, rootless]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -234,7 +281,8 @@ jobs:
           profiles='${{ needs.profiles.result }}'
           alpine='${{ needs.alpine.result }}'
           rhel='${{ needs.rhel.result }}'
-          echo "profiles: $profiles  alpine: $alpine  rhel: $rhel"
+          rootless='${{ needs.rootless.result }}'
+          echo "profiles: $profiles  alpine: $alpine  rhel: $rhel  rootless: $rootless"
           if [[ "$profiles" != "success" ]]; then
             echo "::error::At least one profile matrix leg did not succeed (result=$profiles)"
             exit 1
@@ -245,6 +293,10 @@ jobs:
           fi
           if [[ "$rhel" != "success" ]]; then
             echo "::error::RHEL job did not succeed (result=$rhel)"
+            exit 1
+          fi
+          if [[ "$rootless" != "success" ]]; then
+            echo "::error::Rootless agent-space job did not succeed (result=$rootless)"
             exit 1
           fi
 
