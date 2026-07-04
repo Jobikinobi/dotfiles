@@ -144,7 +144,11 @@ bindkey '^H' backward-kill-word
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Node (fnm)
-command -v fnm &>/dev/null && eval "$(fnm env --use-on-cd)"
+# --version-file-strategy recursive: walk up to the home-level ~/.node-version
+# (shipped as dot_node-version = lts/*) so fnm always resolves a default and
+# never errors "Can't find version …" on a fresh deploy or a dir without its
+# own .node-version. Project-local .node-version files still win (nearest match).
+command -v fnm &>/dev/null && eval "$(fnm env --use-on-cd --version-file-strategy recursive)"
 
 # Go
 export PATH="$HOME/go/bin:$PATH"
