@@ -173,6 +173,9 @@ esac
 # direnv
 command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
 
+# zoxide — smarter cd (provides `z` / `zi`)
+command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
+
 # Suppress update nags
 export DISABLE_AUTOUPDATER=1
 export NO_UPDATE_NOTIFIER=1
@@ -235,7 +238,6 @@ alias gst='git status' glog='git log --oneline --graph --decorate'
 # 12. UTILITY ALIASES
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-alias projects='cd /Volumes/HOLE-RAID-DRIVE/Projects'
 alias venva='source .venv/bin/activate'
 alias secure-reboot='sudo fdesetup authrestart'
 alias restart-screensharing='sudo launchctl kickstart -k system/com.apple.screensharing'

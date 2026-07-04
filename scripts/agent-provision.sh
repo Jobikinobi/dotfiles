@@ -74,7 +74,7 @@ case "$OS_FAMILY" in
     # Core CLI tools too: a sudo-less agent can't apk these itself during apply
     # (the brewfile step's apk fallback is skipped under PRIV=none), so the root
     # phase must provide them. Mirrors APK_CORE_PACKAGES in install-brewfile.
-    apk add --no-cache age bat direnv eza fd fzf go helix jq nnn ripgrep 2>/dev/null \
+    apk add --no-cache age bat direnv eza fd fzf go helix jq nnn ripgrep zoxide 2>/dev/null \
       || echo "  ⚠ some core apk tools unavailable in this Alpine version — continuing"
     ;;
   rhel)
