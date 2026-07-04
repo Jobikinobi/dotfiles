@@ -20,6 +20,7 @@ brew "nnn"          # file manager
 brew "powerlevel10k" # zsh prompt theme
 brew "ripgrep"      # grep replacement
 brew "uv"           # Python package manager
+brew "zoxide"       # smarter cd (z / zi)
 brew "lazyssh"
 # ── Git tooling ─────────────────────────────────────────────────────────────
 brew "git"
