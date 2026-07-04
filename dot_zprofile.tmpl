@@ -1,0 +1,18 @@
+{{ if eq .chezmoi.os "darwin" -}}
+# Homebrew (macOS): Apple Silicon prefix first, fall back to Intel.
+if [ -x /opt/homebrew/bin/brew ]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+# Added by OrbStack: command-line tools and integration
+source ~/.orbstack/shell/init.zsh 2>/dev/null || :
+{{- else -}}
+# Homebrew (Linux): only if Linuxbrew is present. Guarded so a brew-less host
+# (e.g. Alpine/musl, where core tools come from apk) doesn't throw
+# "no such file or directory: /opt/homebrew/bin/brew" on every login — #62.
+if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+{{- end }}
