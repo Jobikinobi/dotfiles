@@ -1,0 +1,21 @@
+{{ if eq .chezmoi.os "darwin" -}}
+# Homebrew on PATH (macOS): Apple Silicon prefix first, fall back to Intel.
+if [ -x /opt/homebrew/bin/brew ]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+# postgresql@15 keg (macOS) — only if the keg is actually installed.
+[ -d /opt/homebrew/opt/postgresql@15/bin ] && export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"
+{{- else -}}
+# Homebrew on PATH (Linux): only when Linuxbrew is present, so a brew-less host
+# (e.g. Alpine/musl) is a clean no-op. This is the bash side of "auto-inject
+# brew into the shell" — the zsh side lives in .zprofile / .zshrc (#100).
+if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+{{- end }}
+
+# Rust — guarded so a fresh machine without rustup doesn't error on every shell.
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
