@@ -62,9 +62,24 @@ if ! command -v brew >/dev/null 2>&1; then
       ripgrep        # grep replacement
       zsh            # login shell
     )
-    sudo apk add --no-cache "${APK_CORE_PACKAGES[@]}" || {
-      echo "  ⚠ Some apk packages may not be available in this Alpine version — continuing"
-    }
+    # Privilege-aware (#99): root runs apk directly; a self-deploy uses
+    # passwordless sudo; an unprivileged agent-space can't apk and relies on the
+    # provisioning phase having installed these already.
+    if [[ "$(id -u)" -eq 0 ]]; then
+      APK_SUDO=""
+    elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+      APK_SUDO="sudo"
+    else
+      APK_SUDO="none"
+    fi
+    if [[ "$APK_SUDO" == "none" ]]; then
+      echo "  ⚠ Unprivileged agent-space on Alpine — cannot apk add core tools."
+      echo "    Provisioning phase should install: ${APK_CORE_PACKAGES[*]}"
+    else
+      $APK_SUDO apk add --no-cache "${APK_CORE_PACKAGES[@]}" || {
+        echo "  ⚠ Some apk packages may not be available in this Alpine version — continuing"
+      }
+    fi
     # Tools not available in apk (doppler, fnm, gh, lazygit, lazyssh, uv,
     # git-filter-repo, pyenv, powerlevel10k) are left for manual install.
     echo "  ℹ doppler, fnm, gh, lazygit, uv, and pyenv are not in apk."

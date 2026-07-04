@@ -19,14 +19,26 @@
 
 set -e
 
-# ── Privilege escalation ─────────────────────────────────────────────────────
-# If running as root (Docker RUN, or `sudo chezmoi apply`), no sudo needed.
-# Otherwise, expect sudo to be available or install it first where possible.
+# ── Privilege capability detection (#99) ──────────────────────────────────────
+# Three deployment modes, not two:
+#   root → run privileged ops directly (Docker RUN, `sudo chezmoi apply`)
+#   sudo → passwordless sudo available (self-deploy on a machine you own)
+#   none → unprivileged agent-space: a separate root/provisioning phase already
+#          installed system prerequisites and set the login shell. We SKIP
+#          privileged steps rather than fail, because laying down dotfiles needs
+#          no privilege. This is the "deploy from root into an agent space"
+#          model rather than self-deploy-only.
 if [ "$(id -u)" -eq 0 ]; then
+  PRIV=root
   SUDO=""
-else
+elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+  PRIV=sudo
   SUDO="sudo"
+else
+  PRIV=none
+  SUDO=""
 fi
+echo "→ Privilege mode: ${PRIV}"
 
 # ── Distro detection ─────────────────────────────────────────────────────────
 # Source /etc/os-release (POSIX-safe: . rather than source)
@@ -55,6 +67,23 @@ fi
 echo "→ Detected OS family: ${OS_FAMILY} (ID=${ID:-unknown})"
 
 # ── Installation dispatch ────────────────────────────────────────────────────
+# Unprivileged agent-space: we cannot install system packages. Assume the
+# provisioning (root) phase already did, verify the essentials, and warn if any
+# are missing — but never fail, since dotfile deployment itself needs no root.
+if [ "$PRIV" = "none" ]; then
+  MISSING=""
+  for bin in git curl zsh; do
+    command -v "$bin" >/dev/null 2>&1 || MISSING="$MISSING $bin"
+  done
+  if [ -n "$MISSING" ]; then
+    echo "⚠ Unprivileged deploy and missing prerequisites:$MISSING"
+    echo "  The root/provisioning phase must install these before deploying"
+    echo "  dotfiles into this agent space (see scripts/agent-provision.sh)."
+    echo "  Continuing — dotfiles will still be laid down."
+  else
+    echo "→ Unprivileged agent-space: prerequisites already present, skipping system install"
+  fi
+else
 case "$OS_FAMILY" in
 
   # ── Debian / Ubuntu ──────────────────────────────────────────────────────
@@ -152,12 +181,17 @@ case "$OS_FAMILY" in
     echo "  Manually install: bash build-tools curl file git gnupg procps zsh"
     ;;
 esac
+fi
 
-# ── Set zsh as the login shell ───────────────────────────────────────────────
+# ── Set zsh as the login shell (privileged only) ─────────────────────────────
+# In agent-space (unprivileged) mode the provisioning phase owns the login
+# shell; changing it here would need root we don't have.
 TARGET_USER="$(id -un 2>/dev/null || whoami 2>/dev/null || true)"
 ZSH_PATH="$(command -v zsh 2>/dev/null || true)"
 
-if [ -n "$ZSH_PATH" ] && [ -n "$TARGET_USER" ]; then
+if [ "$PRIV" = "none" ]; then
+  echo "→ Unprivileged: leaving login-shell setup to the provisioning phase"
+elif [ -n "$ZSH_PATH" ] && [ -n "$TARGET_USER" ]; then
   if ! grep -qxF "$ZSH_PATH" /etc/shells 2>/dev/null; then
     echo "$ZSH_PATH" | $SUDO tee -a /etc/shells > /dev/null
   fi
