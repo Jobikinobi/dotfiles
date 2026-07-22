@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# pdf-link-batch — find PDFs under SOURCE and symlink them into DEST
+#
+# Managed by chezmoi as ~/bin/pdf-link-batch (source: bin/executable_pdf-link-batch).
+# Requires: fd (dot_Brewfile.core). ~/bin is on PATH via dot_zshrc.tmpl.
+#
+# Usage:
+#   pdf-link-batch SOURCE [DEST]
+#   pdf-link-batch --dry-run SOURCE [DEST]
+#
+# DEST defaults to ./pdf-links relative to the current directory.
+# Portable on bash 3.2+ (macOS stock) and bash 5.x.
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: pdf-link-batch [--dry-run] SOURCE [DEST]
+
+  SOURCE     Directory to search for PDFs (recursive)
+  DEST       Where to create symlinks (default: ./pdf-links)
+  --dry-run  Print what would be linked; create nothing
+
+Examples:
+  pdf-link-batch ~/Downloads ~/Desktop/all-pdfs
+  pdf-link-batch --dry-run /Volumes/drive/docs /tmp/pdf-links
+EOF
+}
+
+# Return 0 if TARGET is already in CLAIMED_LIST (newline-separated).
+_claimed() {
+  # $1 = target path; uses global CLAIMED_LIST
+  case "${CLAIMED_LIST}" in
+    *$'\n'"$1"$'\n'*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+_claim() {
+  CLAIMED_LIST="${CLAIMED_LIST}${1}"$'\n'
+}
+
+DRY_RUN=0
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRY_RUN=1
+  shift
+fi
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || $# -lt 1 ]]; then
+  usage
+  exit 0
+fi
+
+if ! command -v fd >/dev/null 2>&1; then
+  echo "error: fd is not installed (brew install fd; see dot_Brewfile.core)" >&2
+  exit 1
+fi
+
+if [[ ! -d "$1" ]]; then
+  echo "error: SOURCE is not a directory: $1" >&2
+  exit 1
+fi
+
+SOURCE="$(cd "$1" && pwd)"
+DEST="${2:-./pdf-links}"
+
+# Dry-run must create nothing: only absolutize DEST. Real runs mkdir then resolve.
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  case "$DEST" in
+    /*) ;;
+    *) DEST="$PWD/$DEST" ;;
+  esac
+else
+  mkdir -p "$DEST"
+  DEST="$(cd "$DEST" && pwd)"
+fi
+
+count=0
+# Leading newline so _claimed can match *$'\n'path$'\n'*
+CLAIMED_LIST=$'\n'
+
+# -0 / read -d '' : safe for spaces; absolute SOURCE keeps link targets stable
+while IFS= read -r -d '' f; do
+  base="$(basename "$f")"
+  target="$DEST/$base"
+
+  # Disambiguate until free: parent__file.pdf, parent__2__file.pdf, …
+  if [[ -e "$target" || -L "$target" ]] || _claimed "$target"; then
+    parent="$(basename "$(dirname "$f")")"
+    target="$DEST/${parent}__${base}"
+    suffix=2
+    while [[ -e "$target" || -L "$target" ]] || _claimed "$target"; do
+      target="$DEST/${parent}__${suffix}__${base}"
+      suffix=$((suffix + 1))
+    done
+  fi
+
+  _claim "$target"
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "would link: $f -> $target"
+  else
+    ln -sf "$f" "$target"
+  fi
+  count=$((count + 1))
+done < <(fd -e pdf -t f . "$SOURCE" -0)
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "Dry run: $count PDF(s) under $SOURCE → $DEST"
+else
+  echo "Linked $count PDF(s) → $DEST"
+fi
