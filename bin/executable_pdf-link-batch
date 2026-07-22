@@ -64,8 +64,16 @@ fi
 SOURCE="$(cd "$1" && pwd)"
 DEST="${2:-./pdf-links}"
 
-mkdir -p "$DEST"
-DEST="$(cd "$DEST" && pwd)"
+# Dry-run must create nothing: only absolutize DEST. Real runs mkdir then resolve.
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  case "$DEST" in
+    /*) ;;
+    *) DEST="$PWD/$DEST" ;;
+  esac
+else
+  mkdir -p "$DEST"
+  DEST="$(cd "$DEST" && pwd)"
+fi
 
 count=0
 # Leading newline so _claimed can match *$'\n'path$'\n'*
@@ -76,10 +84,15 @@ while IFS= read -r -d '' f; do
   base="$(basename "$f")"
   target="$DEST/$base"
 
-  # Disambiguate name collisions: parent__filename.pdf
+  # Disambiguate until free: parent__file.pdf, parent__2__file.pdf, …
   if [[ -e "$target" || -L "$target" ]] || _claimed "$target"; then
     parent="$(basename "$(dirname "$f")")"
     target="$DEST/${parent}__${base}"
+    suffix=2
+    while [[ -e "$target" || -L "$target" ]] || _claimed "$target"; do
+      target="$DEST/${parent}__${suffix}__${base}"
+      suffix=$((suffix + 1))
+    done
   fi
 
   _claim "$target"
