@@ -65,6 +65,33 @@ The Headscale rollout details, current node inventory, and the cutover playbook 
   (DHCP — should be reserved at the router). User `jth`, key-only sshd,
   passwordless sudo. 2c/2GB/8GB. Created 2026-05-20.
 
+### Pinned LAN addressing — `10.0.0.0/24` fleet (2026-07-23)
+
+The Incus host and the corpus NFS server sit on the **`10.0.0.0/24`** LAN
+(distinct from the PVE `192.168.68.0/24` net above). These addresses are now
+**DHCP-reserved at the router** so they no longer drift on lease renewal —
+which is what makes the LAN-primary rule (pin #2) safe to rely on for these
+hosts. Reservations verified holding 2026-07-23.
+
+| Host             | LAN (reserved)   | NetBird (`*.netbird.hole`) | Notes                                            |
+|------------------|------------------|----------------------------|--------------------------------------------------|
+| Incus host       | `10.0.0.33`      | `100.80.12.6`              | `incusd` binds `core.https_address :8443` (all ifaces) → reachable on **both** LAN and NetBird. |
+| nfs (corpus)     | `10.0.0.36`      | `100.80.245.142`           | Proxmox CT 114; exports `/data/corpus`. See [`nfs-corpus-mount.md`](nfs-corpus-mount.md). |
+| MacBook Air      | `10.0.0.4`       | `100.80.139.213`           | This workstation (`en0`). Was `.34` pre-reservation. |
+
+**Incus remote = LAN-primary, NetBird fallback** (matches pin #2). The Mac's
+default Incus remote points at the LAN IP; the overlay path is kept as a named
+fallback:
+
+| Remote          | URL                            | Path     |
+|-----------------|--------------------------------|----------|
+| `incus` *(default)* | `https://10.0.0.33:8443`   | LAN — `route get 10.0.0.33` → `en0`, ~130 ms `incus list` |
+| `incus2`        | `https://incus.netbird.hole:8443` | NetBird overlay — for off-LAN |
+
+Switch paths with `incus remote switch incus` / `incus remote switch incus2`.
+No reverse DNS (PTR) zone exists in Pi-hole for `10.0.0.0/24` yet — forward
+`.hole` names resolve, but `host 10.0.0.33` returns NXDOMAIN (cosmetic).
+
 ### SSH key catalog (managed by chezmoi)
 
 | Key file (deployed)              | Reaches                          | In dotfiles? |
@@ -86,10 +113,26 @@ fine — different prefix. Public keys are reconstructable on demand:
 | Location                                          | Audience          | Deployed? |
 |---------------------------------------------------|-------------------|-----------|
 | `docs/homelab/` (this file)                       | future-me at repo | no        |
+| `docs/homelab/timemachine/` (Samba TM runbook)    | future-me at repo | no        |
 | `~/.local/share/infra/` (from `dot_local/...`)    | future-me on Mac  | yes (enc) |
 | `~/Documents/__RECOVERY__/` (transient)           | bootstrap         | manual    |
 
 ## Setup log
+
+### 2026-07-06
+
+1. **Stood up network Time Machine** on `jdebian` (Samba 4.22, dedicated ext4
+   disk at `/mnt/timemachine`, unencrypted over SMB). Full runbook:
+   [`timemachine/README.md`](timemachine/README.md).
+2. **Root cause of prior failures found:** `force user = nobody` prevented macOS
+   from owning the sparsebundle → "backup disk image could not be created."
+   Fixed by letting `jth` own the backups + `fruit:nfs_aces = no` +
+   `fruit:advertise_fullsync = true`. Verified against `mbentley` and FreeBSD
+   Foundation configs.
+3. **Disk hygiene:** mounted backup disk by **UUID** with `nofail` (device
+   letters had swapped `sda`↔`sdb` on a reboot); grew it 300G→500G online
+   (`growpart` + `resize2fs`); capped `time machine max size` below disk size.
+4. **Confirmed working:** `<ComputerName>.sparsebundle` created and growing.
 
 ### 2026-05-20
 
