@@ -248,6 +248,7 @@ dotfiles/
 ├── entrypoint.sh                      # Tailscale + sshd startup
 ├── com.jth.mac-save.plist             # macOS launchd auto-save
 ├── docs/                              # Project documentation
+│   └── homelab/timemachine/           #   → Samba Time Machine backup runbook
 └── scripts/                           # Legacy/utility scripts
 ```
 

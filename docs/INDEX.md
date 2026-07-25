@@ -31,6 +31,14 @@ Policy docs that govern how this repo is used day-to-day.
 |---|---|
 | [`architecture.md`](architecture.md) | System topology: tailnet, headscale, Caddy, services |
 
+## Homelab
+
+| File | Summary |
+|---|---|
+| [`homelab/README.md`](homelab/README.md) | Homelab goal, architectural pins, PVE hub + Mac thin-client plan |
+| [`homelab/nfs-corpus-mount.md`](homelab/nfs-corpus-mount.md) | Mount the `corpus` NFS drive (`/data/corpus` → `/Volumes/corpus`): LAN Bonjour, off-LAN NetBird, fallbacks |
+| [`homelab/recovery.md`](homelab/recovery.md) | Homelab recovery procedures |
+
 ## ADR (Architecture Decision Records)
 
 | File | Decision |
