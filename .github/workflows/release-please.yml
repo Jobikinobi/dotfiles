@@ -1,0 +1,36 @@
+name: release-please
+
+# Automated versioning for the dotfiles repo (see issue tracker: "start versioning").
+#
+# On every push to main, release-please reads the Conventional Commit history
+# since the last release and maintains a standing "release PR" that bumps
+# version.txt + regenerates CHANGELOG.md. Merging that PR tags the commit
+# (vX.Y.Z) and cuts a GitHub Release. Nothing is tagged until you merge — the
+# release PR is a reviewable, batched changelog.
+#
+# Cost posture (issue #96): this is a single ~10s ubuntu-latest job (1x). It
+# does not build images or run the profile matrix, so it adds negligible CI
+# minutes on top of the existing push-to-main sweep.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write        # create tags + GitHub Releases, push CHANGELOG/version.txt
+  pull-requests: write   # open/update the standing release PR
+
+# Never cancel a release run mid-flight — a half-applied tag/release is worse
+# than a slightly stale one.
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
