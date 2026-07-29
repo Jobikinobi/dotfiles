@@ -8,6 +8,41 @@ Include /Users/jth/.colima/ssh_config
 
 {{ end -}}
 # =============================================================================
+# NetBird overlay — durable, location-independent identities (#58, ADR-002)
+# =============================================================================
+# Every homelab peer is reachable as <name>.netbird.hole over the NetBird
+# overlay — the only identities that work off-LAN. A connection to a
+# *.netbird.hole name rides *inside* the WireGuard tunnel to that specific
+# peer, so the transport is already cryptographically bound to that peer:
+# SSH host-key pinning adds nothing here. NetBird's built-in SSH server also
+# manages its own host keys, which rotate with the NetBird version (observed:
+# pve's key changed across NetBird 0.74→0.75), so pinning them in known_hosts
+# only produces spurious "host key changed" warnings.
+#
+# Hence `accept-new` against /dev/null: no first-connect prompt, no stale-key
+# churn, trust delegated to the overlay. This one wildcard makes any current
+# or future peer born-connectable with zero per-host maintenance — the `-nb`
+# blocks below are just convenience shorthands that also set the login user.
+# (Expect a harmless "Permanently added … to the list of known hosts" line;
+# /dev/null never persists, which is what keeps rotation from ever erroring.)
+Host *.netbird.hole *-nb
+	StrictHostKeyChecking accept-new
+	UserKnownHostsFile /dev/null
+	ForwardAgent no
+
+Host pve-nb
+	HostName pve.netbird.hole
+	User root
+
+Host macstudio-nb
+	HostName macstudio.netbird.hole
+	User jth
+
+Host mac-mini-nb
+	HostName jth-mac-mini.netbird.hole
+	User jth
+
+# =============================================================================
 # Homelab — LAN-first; tailscale aliases are fallbacks
 # Documentation: ~/.local/share/infra/
 # =============================================================================
