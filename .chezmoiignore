@@ -2,6 +2,10 @@
 README.md
 CLAUDE.md
 LICENSE
+CHANGELOG.md
+version.txt
+release-please-config.json
+.release-please-manifest.json
 Dockerfile.test
 Dockerfile.alpine
 Dockerfile.rhel
