@@ -1,4 +1,11 @@
-brew "Tailscale"tap "powershell/tap"brew "doppler"
+# NOTE: a garbled `brew bundle dump` fused three directives onto line 1 here
+# (dotfiles#117): `brew "Tailscale"tap "powershell/tap"brew "doppler"`. That is a
+# Ruby syntax error, so `brew bundle --global` parsed nothing and installed
+# nothing. Split back out below. The bogus `brew "Tailscale"` is dropped rather
+# than restored: on macOS Tailscale is a cask, not a formula, and ADR-002 retires
+# it in favour of Netbird. Add `cask "tailscale"` here if you still want it.
+tap "powershell/tap"
+brew "doppler"
 brew "age"
 brew "libyaml"
 brew "python@3.13"

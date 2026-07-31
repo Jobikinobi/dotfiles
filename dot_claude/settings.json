@@ -5,10 +5,8 @@
   "permissions": {
     "defaultMode": "default"
   },
-  "statusLine": {
-    "type": "command",
-    "command": "bash /Users/jth/.claude/statusline-command.sh"
-  },
+  "theme": "dark",
+  "tui": "fullscreen",
   "enabledPlugins": {
     "coderabbit@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
