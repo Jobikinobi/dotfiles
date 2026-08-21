@@ -22,3 +22,19 @@ dot_aws/
 Dockerfile.test
 #Worktrees
 .worktrees
+
+# Agent worktrees (.worktrees above covers the old location only)
+.claude/worktrees/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Editor / tool backups
+*.bak
+*.bak.nup
+
+# NetBird API dumps — kept locally, never published. peers.json carries public
+# WAN IPs, hardware serial numbers and city-level geolocation, and this repo is
+# PUBLIC. Re-generate with scripts/homelab/netbird-policy-cleanup.py.
+scripts/homelab/netbird-backup/
