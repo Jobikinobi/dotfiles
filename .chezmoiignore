@@ -14,6 +14,8 @@ entrypoint.sh
 .github/**
 scripts/**
 com.jth.mac-save.plist
+AGENTS.md
+docker-context.tar.gz
 
 # Never track binaries in ~/bin. A Linux chezmoi build was committed here twice
 # and deployed onto macOS (dotfiles#117); ~/bin is on PATH via dot_zshrc.tmpl.

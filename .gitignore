@@ -23,6 +23,9 @@ dot_aws/
 # executables into the source state.
 bin/chezmoi
 
+# Local Docker context export — may contain machine-specific connection data.
+docker-context.tar.gz
+
 # Test artifacts
 Dockerfile.test
 #Worktrees
