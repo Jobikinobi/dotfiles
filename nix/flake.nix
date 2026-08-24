@@ -15,10 +15,33 @@
     };
   };
 
-  outputs = { self, nixpkgs, nix-darwin, home-manager, ... }: {
+  outputs = { self, nixpkgs, nix-darwin, home-manager, ... }:
+  let
+    # Shared specialArgs for all joe-profile darwin configs.
+    # username / homeDir are injected here so joe.nix stays machine-agnostic.
+    joeArgs = {
+      username = "jth";
+      homeDir  = "/Users/jth";
+    };
+  in {
 
     # macOS — Joe's personal machine (joe profile, P4 — HOL-508)
     darwinConfigurations."joes-macbook" = nix-darwin.lib.darwinSystem {
+      specialArgs = joeArgs;
+      modules = [
+        home-manager.darwinModules.home-manager
+        ./profiles/common.nix
+        ./profiles/joe.nix
+        {
+          nixpkgs.hostPlatform = "aarch64-darwin";
+          system.stateVersion = 6;
+        }
+      ];
+    };
+
+    # macOS — Joe's MacBook Air (joe profile, same config as joes-macbook)
+    darwinConfigurations."MacBook-Air" = nix-darwin.lib.darwinSystem {
+      specialArgs = joeArgs;
       modules = [
         home-manager.darwinModules.home-manager
         ./profiles/common.nix

@@ -1,7 +1,11 @@
 #!/bin/bash
 # Install Nix via the Determinate Systems installer if not already present.
 # Docs: https://install.determinate.systems
-set -e
+#
+# Best-effort: a failure here must NOT abort the whole chezmoi apply.
+# The after-phase script (run_once_after_nix-profile.sh.tmpl) retries once
+# shell config and Homebrew packages are already on disk.
+set -uo pipefail
 
 {{- if not (index . "nix_profile") }}
 exit 0
@@ -14,14 +18,20 @@ fi
 
 echo "→ Installing Nix (Determinate Systems)..."
 
+_nix_install_failed() {
+  echo "⚠ Nix install failed — continuing apply." >&2
+  echo "  The after-phase script will retry once packages are on disk." >&2
+  exit 0
+}
+
 {{- if eq .chezmoi.os "darwin" }}
 # macOS: multi-user daemon required (SIP + sealed system volume)
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
-  | sh -s -- install --no-confirm
+  | sh -s -- install --no-confirm || _nix_install_failed
 {{- else }}
 # Linux: daemon-less install for containers and VMs
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
-  | sh -s -- install linux --no-confirm --init none
+  | sh -s -- install linux --no-confirm --init none || _nix_install_failed
 {{- end }}
 
 echo "  ✓ Nix installed"

@@ -22,3 +22,6 @@ dot_aws/
 Dockerfile.test
 #Worktrees
 .worktrees
+
+# Vendored binaries — never commit platform-specific executables
+bin/chezmoi

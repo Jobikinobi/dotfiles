@@ -10,23 +10,21 @@
 # chezmoi; both are idempotent. Long-term (P5+) the script will be removed in
 # favour of this declarative source of truth.
 
-{ pkgs, ... }: {
-
-  system.primaryUser = "jth";
-
-  users.users.jth.home = "/Users/jth";
+{ pkgs, username, homeDir, ... }: {
 
   # Required by nix-darwin ≥ 24-11 — system defaults (dock, finder, NSGlobalDomain)
   # now run as root and must know which user they target.
-  system.primaryUser = "jth";
+  system.primaryUser = username;
+
+  users.users.${username}.home = homeDir;
 
   # ── home-manager user settings ───────────────────────────────────────────
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
 
-  home-manager.users.jth = { pkgs, ... }: {
-    home.username = "jth";
-    home.homeDirectory = "/Users/jth";
+  home-manager.users.${username} = { pkgs, ... }: {
+    home.username = username;
+    home.homeDirectory = homeDir;
     home.stateVersion = "25.05";
 
     # Personal tools managed by Nix for version pinning.
