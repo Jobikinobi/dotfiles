@@ -77,10 +77,13 @@ Host portainer portainer.wolverine-wyrm.ts.net
 #   mac-mini  = 10.0.0.12   (.22 is the same host — identical ed25519 fingerprint)
 #   portainer = 10.0.0.201  (Proxmox CTID 113, "Portainer", running)
 # Nothing answers on 10.0.0.53 — an earlier note naming it as portainer was wrong.
-# Still unresolved: pve-admin and dev-control (see below).
+# Still unresolved: dev-control (see below).
 
 # --- Proxmox hypervisor (root-only by design) ---
-Host pve proxmox
+# `pve-admin` is an alias for this same host, not a separate machine. It was
+# once a distinct entry pointing at 192.168.68.60 as user jth — see the note
+# below for why that was never real.
+Host pve proxmox pve-admin
 	HostName 10.0.0.100
 	User root
 	IdentityFile ~/.ssh/id_ed25519_pve
@@ -97,21 +100,20 @@ Host pve-ts
 	IdentitiesOnly yes
 	UserKnownHostsFile ~/.ssh/known_hosts_tailnet
 
-# --- PVE admin LXC (jth, key-only) ---
-# BROKEN, and the label above is wrong. This was documented as "CTID 100", but
-# `pct list` on pve reports CTID 100 = "kanidm", status stopped — so there is no
-# pve-admin container answering anywhere. The old IP is dead and no 10.0.0.x host
-# matches. `id_ed25519_pve_admin` also does not exist locally.
-# Decide what this alias is actually for before fixing the HostName.
-Host pve-admin
-	HostName 192.168.68.60
-	User jth
-	IdentityFile ~/.ssh/id_ed25519_pve_admin
-	IdentitiesOnly yes
-	PreferredAuthentications publickey
-	ForwardAgent no
-	ServerAliveInterval 30
-	UserKnownHostsFile ~/.ssh/known_hosts
+# --- pve-admin: removed 2026-08-24, folded into `pve` above ---
+# There was never a separate "PVE admin LXC". The block claimed CTID 100, but
+# `pct list` on pve reports CTID 100 = "kanidm", stopped. 10.0.0.100 IS the
+# Proxmox host (pve-manager/9.2.10), so "admin" was only ever a second way to
+# name the same machine.
+#
+# It could not have worked as written either: it wanted key-only auth as jth,
+# but /home/jth/.ssh on pve contains no authorized_keys, and
+# id_ed25519_pve_admin does not exist locally. Root over id_ed25519_pve is the
+# only path that actually authenticates, which is what `pve` already does.
+#
+# NOTE: private_dot_ssh/encrypted_private_id_ed25519_pve_admin.age is now
+# orphaned by this change. Left in place rather than deleted — check nothing
+# else consumes it before removing.
 
 # --- dev-control VM (Coder + Docker + Postgres) ---
 # UNVERIFIED after the 10.0.0.0/24 move; nothing answers on the old IP and the
