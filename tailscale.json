@@ -1,9 +1,61 @@
+// Tailscale policy — tailnet: wolverine-wyrm.ts.net (MagicDNS: tailcdce8.ts.net)
+// SOURCE OF TRUTH. Edit here, commit, then push with:
+//   curl -X POST -u "$TS_API_KEY:" -H "Content-Type: application/hujson" \
+//     --data-binary @tailscale.json https://api.tailscale.com/api/v2/tailnet/-/acl
+//
+// Simplicity is deliberate. Three blocks, nothing else.
 {
-  "grants": [
-    {
-      "src": ["*"],
-      "dst": ["*"],
-      "ip": ["*"]
-    }
-  ]
+	// Who may apply tags. Tagged nodes are owned by the TAILNET, not by a user,
+	// so they never expire and survive the enrolling user leaving. Auth keys
+	// minted with --tags=tag:server produce these.
+	"tagOwners": {
+		"tag:server": ["autogroup:member"],
+	},
+
+	// Network: any node may reach any node on any port.
+	"grants": [
+		{"src": ["*"], "dst": ["*"], "ip": ["*"]},
+
+		// Tailscale Drive (Taildrive): let any node read/write any share.
+		// Shares themselves are still opt-in per node via:
+		//   tailscale drive share <name> <path>
+		{
+			"src": ["*"],
+			"dst": ["*"],
+			"app": {"tailscale.com/cap/drive": [{"shares": ["*"], "access": "rw"}]},
+		},
+	],
+
+	// SSH. "accept", NOT "check".
+	//
+	// !! DO NOT CHANGE THIS TO "check" !!
+	// Tailscale's DEFAULT policy uses "check", which forces a periodic browser
+	// re-authentication ("Tailscale SSH requires an additional check. To
+	// authenticate, visit: https://login.tailscale.com/a/...") per source->dest
+	// pair. That defeats the entire point of this migration: log in to the
+	// tailnet once, then SSH anywhere with no keys, no passwords, no browser.
+	// "accept" is the one and only change from Tailscale's shipped default.
+	//
+	// autogroup:self = every untagged device owned by the authenticating user,
+	// so new machines are authorized the moment they join. No per-host rules.
+	"ssh": [
+		{
+			"action": "accept",
+			"src":    ["autogroup:member"],
+			// autogroup:self covers UNTAGGED user-owned devices only - Tailscale
+			// forbids it for tagged nodes, and forbids wildcards in ssh dst. So
+			// every tag we use must be named here explicitly or SSH to it fails
+			// with: "tailnet policy does not permit you to SSH to this node".
+			"dst":    ["autogroup:self", "tag:server"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+	],
+
+	// Let members enable Funnel on their own devices (public HTTPS),
+	// and use Tailscale Drive to share and mount directories.
+	//   drive:share  = this device may EXPORT directories
+	//   drive:access = this device may MOUNT others' shares
+	"nodeAttrs": [
+		{"target": ["autogroup:member"], "attr": ["funnel", "drive:share", "drive:access"]},
+	],
 }
