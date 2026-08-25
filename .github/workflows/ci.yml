@@ -49,6 +49,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             CHEZMOI_BRANCH=${{ github.head_ref || github.ref_name }}
+            CHEZMOI_REPOSITORY=${{ github.event.pull_request.head.repo.full_name || github.repository }}
             CHEZMOI_PROJECT=${{ matrix.profile == 'core' && '' || matrix.profile }}
 
       - name: Verify profile via scripts/test-profile.sh
@@ -56,6 +57,7 @@ jobs:
           scripts/test-profile.sh \
             --project "${{ matrix.profile }}" \
             --branch "${{ github.head_ref || github.ref_name }}" \
+            --repository "${{ github.event.pull_request.head.repo.full_name || github.repository }}" \
             --keep-images
 
       # Only the `core` leg publishes to GHCR, and only on push to main.

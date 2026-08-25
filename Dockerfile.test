@@ -53,6 +53,7 @@ ENV PATH="/home/jth/.local/bin:${PATH}"
 # in main are actually tested against their own fix instead of main's broken
 # state.
 ARG CHEZMOI_BRANCH=main
+ARG CHEZMOI_REPOSITORY=Jobikinobi/dotfiles
 
 # CHEZMOI_PROJECT pre-seeds the rendered chezmoi.toml so the apply step
 # activates a single project profile (e.g. legal, godocs, oversight). Empty
@@ -66,7 +67,7 @@ ARG CHEZMOI_PROJECT=""
 # Step 1: clone the dotfiles repo and let chezmoi render .chezmoi.toml.tmpl.
 # In non-TTY mode the template hardcodes `projects = []`, which is wrong for
 # matrix verification — we override it in the next step.
-RUN chezmoi init --no-tty --branch "${CHEZMOI_BRANCH}" Jobikinobi
+RUN chezmoi init --no-tty --branch "${CHEZMOI_BRANCH}" "https://github.com/${CHEZMOI_REPOSITORY}.git"
 
 # Step 2: overwrite the freshly-rendered chezmoi.toml with the matrix leg's
 # project key. The template's non-TTY branch ignores environment variables,

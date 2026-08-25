@@ -7,8 +7,9 @@
 # are actually on PATH inside the resulting image.
 #
 # Usage:
-#   scripts/test-profile.sh --project <key> [--branch <branch>] [--no-cache]
-#                                            [--keep-images]
+#   scripts/test-profile.sh --project <key> [--branch <branch>]
+#                                            [--repository <owner/repo>]
+#                                            [--no-cache] [--keep-images]
 #
 # Exit codes:
 #   0   success — image built and every declared binary is on PATH (or, for
@@ -42,7 +43,8 @@ die() { err "$*"; exit 2; }
 
 usage() {
   cat >&2 <<EOF
-Usage: $PROG --project <key> [--branch <branch>] [--no-cache] [--keep-images]
+Usage: $PROG --project <key> [--branch <branch>] [--repository <owner/repo>]
+                    [--no-cache] [--keep-images]
 
 Required:
   --project <key>   Profile key to validate. Must be one of:
@@ -54,6 +56,10 @@ Optional:
   --branch <ref>    Chezmoi branch to clone inside the image (default: main).
                     Pushed to Docker as --build-arg CHEZMOI_BRANCH=<ref>.
                     Useful for iterating on a feature branch before merge.
+  --repository <owner/repo>
+                    GitHub repository containing --branch (default:
+                    Jobikinobi/dotfiles). Pushed to Docker as
+                    --build-arg CHEZMOI_REPOSITORY=<owner/repo>.
   --no-cache        Pass --no-cache to docker build. By default the build
                     cache is reused so reruns across profiles are fast.
   --keep-images     Skip the rmi of intermediate images at the end. Handy
@@ -71,6 +77,7 @@ EOF
 # ── argument parsing ────────────────────────────────────────────────────────
 project=""
 branch="main"
+repository="Jobikinobi/dotfiles"
 no_cache=0
 keep_images=0
 
@@ -86,6 +93,11 @@ while [[ $# -gt 0 ]]; do
       branch="$2"; shift 2 ;;
     --branch=*)
       branch="${1#--branch=}"; shift ;;
+    --repository)
+      [[ $# -ge 2 ]] || die "--repository requires a value"
+      repository="$2"; shift 2 ;;
+    --repository=*)
+      repository="${1#--repository=}"; shift ;;
     --no-cache)
       no_cache=1; shift ;;
     --keep-images)
@@ -114,6 +126,10 @@ fi
 # Reject anything that isn't a plausible git ref (letters, digits, -, _, /, .).
 if ! [[ "$branch" =~ ^[A-Za-z0-9._/-]+$ ]]; then
   die "invalid --branch '$branch': only A-Za-z0-9._/- are allowed"
+fi
+
+if ! [[ "$repository" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+  die "invalid --repository '$repository': expected GitHub owner/repository"
 fi
 
 # ── resolve repo root + validate profile artifacts ──────────────────────────
@@ -218,6 +234,7 @@ build_image() {
   (( no_cache )) && args+=(--no-cache)
   args+=(-f "$dockerfile")
   args+=(--build-arg "CHEZMOI_BRANCH=$branch")
+  args+=(--build-arg "CHEZMOI_REPOSITORY=$repository")
   if [[ -n "$key" && "$key" != "core" ]]; then
     args+=(--build-arg "CHEZMOI_PROJECT=$key")
   else
@@ -227,7 +244,7 @@ build_image() {
   fi
   args+=(-t "$tag")
   args+=("$repo_root")
-  printf '%s: building %s (branch=%s)\n' "$PROG" "$tag" "$branch" >&2
+  printf '%s: building %s (repository=%s branch=%s)\n' "$PROG" "$tag" "$repository" "$branch" >&2
   docker "${args[@]}" >&2
   printf '%s\n' "$tag"
 }
