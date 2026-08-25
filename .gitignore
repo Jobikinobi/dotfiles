@@ -30,3 +30,6 @@ docker-context.tar.gz
 Dockerfile.test
 #Worktrees
 .worktrees
+
+# Vendored binaries — never commit platform-specific executables
+bin/chezmoi
