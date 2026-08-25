@@ -8,6 +8,13 @@ This file is maintained automatically by
 hand — write good commit messages instead (`feat:`, `fix:`, `docs:`, …) and the
 next release PR will regenerate the entries below.
 
+## [1.2.1](https://github.com/Jobikinobi/dotfiles/compare/v1.2.0...v1.2.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **macos:** unblock the deploy at the before-phase Nix install ([#120](https://github.com/Jobikinobi/dotfiles/issues/120)) ([9c81aaa](https://github.com/Jobikinobi/dotfiles/commit/9c81aaa281ff9896006ec36457fccc5fb21c2c0b))
+
 ## [1.2.0](https://github.com/Jobikinobi/dotfiles/compare/v1.1.0...v1.2.0) (2026-07-29)
 
 
