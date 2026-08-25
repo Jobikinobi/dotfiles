@@ -4,7 +4,9 @@
 # This won't be added again if you remove it.
 Include ~/.orbstack/ssh/config
 
-Include /Users/jth/.colima/ssh_config
+{{ if lookPath "colima" -}}
+Include ~/.colima/ssh_config
+{{ end -}}
 
 {{ end -}}
 # =============================================================================
