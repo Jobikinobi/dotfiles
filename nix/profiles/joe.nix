@@ -10,21 +10,26 @@
 # chezmoi; both are idempotent. Long-term (P5+) the script will be removed in
 # favour of this declarative source of truth.
 
-{ pkgs, username, homeDir, ... }: {
+# `primaryUser` is supplied per-host via the flake's specialArgs, so this profile
+# is portable across machines. It previously hardcoded "jth" / "/Users/jth", which
+# broke activation on any host with a different account name (dotfiles#117).
+{ pkgs, primaryUser, ... }: {
 
   # Required by nix-darwin ≥ 24-11 — system defaults (dock, finder, NSGlobalDomain)
   # now run as root and must know which user they target.
-  system.primaryUser = username;
+  # NOTE: this was defined twice in the same attrset, which is a Nix eval error
+  # ("attribute already defined") and hard-failed the whole activation.
+  system.primaryUser = primaryUser;
 
-  users.users.${username}.home = homeDir;
+  users.users.${primaryUser}.home = "/Users/${primaryUser}";
 
   # ── home-manager user settings ───────────────────────────────────────────
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
 
-  home-manager.users.${username} = { pkgs, ... }: {
-    home.username = username;
-    home.homeDirectory = homeDir;
+  home-manager.users.${primaryUser} = { pkgs, ... }: {
+    home.username = primaryUser;
+    home.homeDirectory = "/Users/${primaryUser}";
     home.stateVersion = "25.05";
 
     # Personal tools managed by Nix for version pinning.

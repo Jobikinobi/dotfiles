@@ -2,9 +2,19 @@
 # Install Nix via the Determinate Systems installer if not already present.
 # Docs: https://install.determinate.systems
 #
-# Best-effort: a failure here must NOT abort the whole chezmoi apply.
-# The after-phase script (run_once_after_nix-profile.sh.tmpl) retries once
-# shell config and Homebrew packages are already on disk.
+# BEST-EFFORT BY DESIGN (dotfiles#117). This runs in the BEFORE phase, i.e. before
+# chezmoi has deployed a single file. It used to run under a bare `set -e`, so any
+# installer failure — no cached sudo credential, no TTY to prompt on, a network
+# blip, an interrupted volume creation — aborted the *entire* apply. That is how
+# the macOS deploy broke: Homebrew installed and journaled, this script exited
+# non-zero, and nothing downstream ever ran. No dotfiles, no ~/.Brewfile.core, so
+# no packages. A one-line stub ~/.zshrc for weeks.
+#
+# Nothing in the deploy needs Nix this early: the flake lives in the source dir
+# and is consumed by run_once_after_nix-profile.sh, which sorts LAST in the after
+# phase and carries its own identical installer as a safety net. So a failure here
+# is genuinely recoverable — we warn and exit 0, and the after-phase script
+# retries once the important things (shell config, Brewfile) are already on disk.
 set -uo pipefail
 
 {{- if not (index . "nix_profile") }}
@@ -18,20 +28,22 @@ fi
 
 echo "→ Installing Nix (Determinate Systems)..."
 
-_nix_install_failed() {
-  echo "⚠ Nix install failed — continuing apply." >&2
-  echo "  The after-phase script will retry once packages are on disk." >&2
-  exit 0
-}
-
 {{- if eq .chezmoi.os "darwin" }}
 # macOS: multi-user daemon required (SIP + sealed system volume)
-curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
-  | sh -s -- install --no-confirm || _nix_install_failed
+if curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+  | sh -s -- install --no-confirm; then
 {{- else }}
 # Linux: daemon-less install for containers and VMs
-curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
-  | sh -s -- install linux --no-confirm --init none || _nix_install_failed
+if curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+  | sh -s -- install linux --no-confirm --init none; then
 {{- end }}
+  echo "  ✓ Nix installed"
+else
+  # Deliberately exit 0 — see the header. Aborting the before phase would block
+  # every dotfile and the Brewfile from ever deploying.
+  echo "  ⚠ Nix install failed (exit $?). Continuing — the deploy does not need"
+  echo "    Nix this early, and run_once_after_nix-profile.sh will retry after"
+  echo "    files and packages are in place."
+fi
 
-echo "  ✓ Nix installed"
+exit 0

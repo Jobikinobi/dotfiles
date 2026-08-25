@@ -6,9 +6,7 @@
     "defaultMode": "default"
   },
   "theme": "dark",
-  "tui": {
-    "defaultMode": "auto"
-  },
+  "tui": "fullscreen",
   "enabledPlugins": {
     "coderabbit@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
