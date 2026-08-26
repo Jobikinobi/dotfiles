@@ -111,9 +111,9 @@ Host pve-ts
 # id_ed25519_pve_admin does not exist locally. Root over id_ed25519_pve is the
 # only path that actually authenticates, which is what `pve` already does.
 #
-# NOTE: private_dot_ssh/encrypted_private_id_ed25519_pve_admin.age is now
-# orphaned by this change. Left in place rather than deleted — check nothing
-# else consumes it before removing.
+# encrypted_private_id_ed25519_pve_admin.age was deleted with this change: it
+# had no remaining consumer and authenticated against nothing. Recoverable
+# from git history (added in 0953147) if that ever turns out to be wrong.
 
 # --- dev-control VM (Coder + Docker + Postgres) ---
 # UNVERIFIED after the 10.0.0.0/24 move; nothing answers on the old IP and the

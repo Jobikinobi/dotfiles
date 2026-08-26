@@ -106,8 +106,8 @@ chezmoi init Jobikinobi --apply
 
 # 4. Smoke test
 ssh pve uptime
-ssh pve-admin id
 ssh macstudio uptime
+ssh portainer docker ps
 ```
 
 ## Rotation (if you suspect the identity has leaked)
