@@ -242,3 +242,43 @@ multi-HTTP-per-node service deployment.
 - Resource pools: `pve` (host stuff, never delete), `userpool` (user stuff).
 - Hostnames in SSH config use the short LAN name primary, Tailscale alias
   suffixed `-ts`.
+
+## Open security item — Docker API on `tcp/2375` (staged 2026-08-26)
+
+`dockerd` on CT 113 (`Portainer`) serves the Engine API on **`0.0.0.0:2375`
+with no auth and no TLS**. It answers on the plain LAN as well as the tailnet:
+
+```
+$ curl -s http://10.0.0.201:2375/version
+{"Platform":{"Name":"Docker Engine - Community"},"Version":"29.7.2",...}
+```
+
+Unauthenticated Engine API access is root-equivalent on the host, and that
+host runs `authentik` — the thing everything else authenticates against.
+
+**Staged, not applied.** `/etc/docker/daemon.json` on CT 113 has been rewritten
+to drop the tcp host and add `"live-restore": true`; `dockerd --validate`
+returns `configuration OK`. The *running* daemon is untouched, so 2375 is still
+open until someone runs:
+
+```bash
+ssh portainer systemctl restart docker
+```
+
+That bounces containers once. At staging time 11 of 12 had
+`restart=unless-stopped` or `always`; only `tender_yalow` (a scratch
+`ubuntu:resolute`) had `restart=no` and would stay down. `live-restore`
+prevents *future* restarts from bouncing anything but cannot help the restart
+that enables it.
+
+The file and the running daemon disagree until then — **a reboot will apply
+this silently**. `/etc/docker/README.staged-change` on the host says the same,
+with rollback instructions (`daemon.json.bak-20260826`).
+
+Nothing depends on 2375 any more. Both replacements were verified first:
+
+- `ssh://root@portainer.wolverine-wyrm.ts.net` — the local `portainer` Docker
+  context was pointed at plain `tcp://…:2375` despite its description claiming
+  SSH; it now genuinely uses SSH, authenticating with `id_ed25519_portainer`.
+- `tcp://<tailnet-ip>:2376` — a pre-existing `tailscale serve` onto
+  `unix:///var/run/docker.sock`, tailnet-scoped and governed by tailnet ACLs.
