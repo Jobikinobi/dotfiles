@@ -39,7 +39,7 @@ Translation:
 6. **chezmoi + age** is the source of truth for cross-machine config and
    credentials. The age identity is the single critical secret.
 
-## Current state (2026-05-20)
+## Current state (addressing re-verified 2026-08-25)
 
 ### Mac fleet
 
