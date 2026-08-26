@@ -33,9 +33,29 @@ echo "→ Installing Nix (Determinate Systems)..."
 if curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
   | sh -s -- install --no-confirm; then
 {{- else }}
-# Linux: daemon-less install for containers and VMs
+# Linux: the init system decides whether a normal user can use Nix at all.
+#
+# `--init none` makes Nix ROOT-ONLY — that is the installer's own wording
+# (`nix-installer install linux --help`). It installs the multi-user layout
+# (/nix/var/nix/db owned by root) but wires up no daemon to mediate access, so
+# the very next `nix build` as the invoking user dies with:
+#     error: opening lock file "/nix/var/nix/db/big-lock": Permission denied
+# The installer still exits 0 while this is true — its own post-install self
+# test fails ("cannot connect to socket ... daemon-socket/socket") and is only
+# logged as a WARN. Reproduced on ubuntu:24.04 as a sudo-capable non-root user,
+# 2026-08-25.
+#
+# That matters because on Linux `chezmoi apply` always runs unprivileged here:
+# Dockerfile.alpine and Dockerfile.rhel apply as `jth`, Dockerfile.rootless as
+# a sudo-less `agent`. So `--init none` was the wrong default for every host
+# that has an init system — which is all of them except true containers.
+if [ -d /run/systemd/system ]; then
+  NIX_INIT_ARGS=""            # default --init systemd: daemon runs, users can build
+else
+  NIX_INIT_ARGS="--init none" # no init to hook: root-only Nix is the only option
+fi
 if curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
-  | sh -s -- install linux --no-confirm --init none; then
+  | sh -s -- install linux --no-confirm ${NIX_INIT_ARGS}; then
 {{- end }}
   echo "  ✓ Nix installed"
 else

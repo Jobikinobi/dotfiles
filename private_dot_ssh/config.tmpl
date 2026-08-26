@@ -44,14 +44,47 @@ Host mac-mini-nb
 	HostName jth-mac-mini.netbird.hole
 	User jth
 
+# --- Portainer / Docker host (Proxmox CTID 113) ---
+# This block is the transport for the `portainer` Docker context:
+#     docker context create portainer --docker "host=ssh://root@portainer.wolverine-wyrm.ts.net"
+# `docker context` shells out to plain `ssh`, so the key AND the host-key policy
+# MUST be resolvable from this file — docker has no flag to pass either. Without
+# the block, the context dies with "Host key verification failed" even when the
+# key is correct; verified 2026-08-24.
+# Addressed over the tailnet rather than 10.0.0.201 so it keeps working off-LAN.
+#
+# SECURITY (2026-08-24): the daemon ALSO listens on tcp/2375 with no auth and no
+# TLS — `curl http://portainer.wolverine-wyrm.ts.net:2375/version` returns engine
+# info to anyone on the tailnet, which is root-equivalent on this host. SSH is
+# used here deliberately; 2375 should be closed. Tracked separately.
+Host portainer portainer.wolverine-wyrm.ts.net
+	HostName portainer.wolverine-wyrm.ts.net
+	User root
+	IdentityFile ~/.ssh/id_ed25519_portainer
+	IdentitiesOnly yes
+	StrictHostKeyChecking accept-new
+	UserKnownHostsFile ~/.ssh/known_hosts_tailnet
+
 # =============================================================================
 # Homelab — LAN-first; tailscale aliases are fallbacks
 # Documentation: ~/.local/share/infra/
 # =============================================================================
 
+# NOTE (2026-08-24): the LAN moved from 192.168.68.0/24 to 10.0.0.0/24.
+# Re-verified by sweep + fingerprint/port match from macstudio:
+#   pve       = 10.0.0.100  (8006 open)
+#   macstudio = 10.0.0.13   (logged in over SSH)
+#   mac-mini  = 10.0.0.12   (.22 is the same host — identical ed25519 fingerprint)
+#   portainer = 10.0.0.201  (Proxmox CTID 113, "Portainer", running)
+# Nothing answers on 10.0.0.53 — an earlier note naming it as portainer was wrong.
+# Still unresolved: dev-control (see below).
+
 # --- Proxmox hypervisor (root-only by design) ---
-Host pve proxmox
-	HostName 192.168.68.16
+# `pve-admin` is an alias for this same host, not a separate machine. It was
+# once a distinct entry pointing at 192.168.68.60 as user jth — see the note
+# below for why that was never real.
+Host pve proxmox pve-admin
+	HostName 10.0.0.100
 	User root
 	IdentityFile ~/.ssh/id_ed25519_pve
 	IdentitiesOnly yes
@@ -67,18 +100,24 @@ Host pve-ts
 	IdentitiesOnly yes
 	UserKnownHostsFile ~/.ssh/known_hosts_tailnet
 
-# --- PVE admin LXC (CTID 100, jth, key-only) ---
-Host pve-admin
-	HostName 192.168.68.60
-	User jth
-	IdentityFile ~/.ssh/id_ed25519_pve_admin
-	IdentitiesOnly yes
-	PreferredAuthentications publickey
-	ForwardAgent no
-	ServerAliveInterval 30
-	UserKnownHostsFile ~/.ssh/known_hosts
+# --- pve-admin: removed 2026-08-24, folded into `pve` above ---
+# There was never a separate "PVE admin LXC". The block claimed CTID 100, but
+# `pct list` on pve reports CTID 100 = "kanidm", stopped. 10.0.0.100 IS the
+# Proxmox host (pve-manager/9.2.10), so "admin" was only ever a second way to
+# name the same machine.
+#
+# It could not have worked as written either: it wanted key-only auth as jth,
+# but /home/jth/.ssh on pve contains no authorized_keys, and
+# id_ed25519_pve_admin does not exist locally. Root over id_ed25519_pve is the
+# only path that actually authenticates, which is what `pve` already does.
+#
+# encrypted_private_id_ed25519_pve_admin.age was deleted with this change: it
+# had no remaining consumer and authenticated against nothing. Recoverable
+# from git history (added in 0953147) if that ever turns out to be wrong.
 
 # --- dev-control VM (Coder + Docker + Postgres) ---
+# UNVERIFIED after the 10.0.0.0/24 move; nothing answers on the old IP and the
+# VM appears never to have been built, so this stays a placeholder.
 # Pending VM build — see docs/personal-codespaces.md
 # Key id_ed25519_dev_control lands in the follow-up PR that actually builds the VM
 Host dev-control
@@ -93,7 +132,7 @@ Host dev-control
 
 # --- Mac Studio workstation ---
 Host macstudio jth-macstudio
-	HostName 192.168.68.168
+	HostName 10.0.0.13
 	User jth
 	IdentityFile ~/.ssh/id_ed25519_macstudio
 	IdentitiesOnly yes
@@ -150,8 +189,43 @@ Host mac-mini
 	StrictHostKeyChecking accept-new
 	UserKnownHostsFile ~/.ssh/known_hosts_tailnet
 
+# 10.0.0.22 is the same machine on a second interface — identical ed25519 host
+# key fingerprint (SHA256:U8rlQMSpBva991QJOGWn2g+Ye4Fl/l3XqhDu1KihAho).
 Host mac-mini-lan
-	HostName 192.168.68.68
+	HostName 10.0.0.12
 	User jth
 	IdentityFile ~/.ssh/mac-mini
 	IdentityAgent none
+
+# =============================================================================
+# Cloudflare Sandbox containers (worker: sandbox-bridge / app: sandbox-bridge-sandbox)
+# =============================================================================
+# There is no public port and no tunnel: `wrangler containers ssh --stdio`
+# authenticates against the Cloudflare account with the OAuth token in
+# ~/.wrangler and pipes the SSH stream over stdin/stdout. That makes it a
+# textbook ProxyCommand, which is what buys native ssh/scp/rsync + VS Code
+# Remote-SSH against a container that exposes nothing to the internet.
+#
+# Two non-obvious details, both of which will silently break this if changed:
+#
+#  1. `wrangler containers ssh` wants the RAW instance UUID, but %h expands to
+#     the whole alias (`cf-sandbox-<uuid>`). The inner `sh -c` strips the
+#     `cf-sandbox-` prefix off $1 so the alias stays human-typeable.
+#  2. The wrangler on $PATH is an fnm *multishell* shim
+#     (~/.local/state/fnm_multishells/<pid>_<ts>/bin) whose path contains a PID
+#     and dies with the shell that created it. ProxyCommand runs in a bare
+#     non-interactive sh with no fnm init, so it MUST use the stable alias path
+#     below or connections fail with "wrangler: not found".
+#
+# Usage — instance IDs come from `sbx list` (or `wrangler containers instances <APP_ID>`):
+#     ssh cf-sandbox-<instance-id>
+#     scp file.txt cf-sandbox-<instance-id>:/workspace/
+# Containers are ephemeral: the disk resets when an instance sleeps, and a new
+# instance gets a NEW id, so these aliases are inherently short-lived.
+Host cf-sandbox-*
+	ProxyCommand sh -c 'exec "$HOME/.local/share/fnm/aliases/default/bin/wrangler" containers ssh --stdio "${1#cf-sandbox-}"' _ %h
+	User cloudchamber
+	IdentityFile ~/.ssh/id_ed25519_cfsandbox
+	IdentitiesOnly yes
+	StrictHostKeyChecking accept-new
+	UserKnownHostsFile /dev/null
