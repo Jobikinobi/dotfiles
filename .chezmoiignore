@@ -39,20 +39,26 @@ bin/chezmoi
 # Repo documentation (not a dotfile)
 docs/**
 
-# Skip age-encrypted files when the recipient's private key isn't bootstrapped.
-# Include both target paths and source paths for safety across chezmoi contexts.
-# (Some flows evaluate ignore rules against target paths, others against source names.)
-# Without this, `chezmoi apply` fails on fresh VMs / test rigs that don't yet
-# have ~/.config/chezmoi/key.txt — even though these files are not load-bearing
-# for the rest of the deploy.
+# Incus profiles — deployed with `incus profile edit`, not chezmoi
+incus/**
+
+# Skip age-encrypted files when the identity key isn't present yet.
+#
+# This block is SELF-MAINTAINING: it globs the source tree for encrypted_*
+# sources and derives each target path, so adding a new encrypted file needs
+# no edit here. The previous hand-enumerated list silently went stale every
+# time a file was added, and a missed entry makes `chezmoi apply` hard-fail
+# on a fresh machine (age exits 1; chezmoi does NOT skip gracefully).
+#
+# Unlock with:  dotfiles-unlock     (see bin/dotfiles-unlock)
 {{- if not (stat (joinPath .chezmoi.homeDir ".config/chezmoi/key.txt")) }}
-.local/share/infra/**
-.ssh/id_ed25519_pve_admin
-.ssh/id_ed25519_macstudio
-.ssh/id_ed25519_pve
-dot_local/private_share/infra/encrypted_README.md.age
-dot_local/private_share/infra/encrypted_proxmox.md.age
-private_dot_ssh/encrypted_private_id_ed25519_macstudio.age
-private_dot_ssh/encrypted_private_id_ed25519_pve.age
-private_dot_ssh/encrypted_private_id_ed25519_pve_admin.age
+{{- range $p := glob (joinPath .chezmoi.sourceDir "**" "encrypted_*") }}
+{{- $r := trimPrefix (printf "%s/" $.chezmoi.sourceDir) $p }}
+{{- $r = replace "dot_" "." $r }}
+{{- $r = replace "private_" "" $r }}
+{{- $r = replace "encrypted_" "" $r }}
+{{ trimSuffix ".age" $r }}
+{{- end }}
+{{/* the skm symlink would dangle without its target */}}
+.ssh/id_ed25519
 {{- end }}
