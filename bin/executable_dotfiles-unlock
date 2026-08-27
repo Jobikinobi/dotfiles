@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# dotfiles-unlock — fetch the age identity from Doppler and unlock encrypted dotfiles
+#
+# Managed by chezmoi as ~/bin/dotfiles-unlock (source: bin/executable_dotfiles-unlock).
+# Requires: doppler, age, chezmoi. ~/bin is on PATH via dot_zshrc.tmpl.
+#
+# This repository is PUBLIC. Every secret in it is age-encrypted to
+# age1l2n5sqj8eg0728vlj6che0vas474svdxej2ceypr6046z5ylwqusr00mzj and is
+# inert without the matching private identity, which lives ONLY in Doppler
+# (project `dotfiles`, config `prd`, secret `AGE_IDENTITY`) and in the
+# offline recovery archive. It is never committed.
+#
+# Until this script has run, `chezmoi apply` deliberately skips every
+# encrypted file — see the self-maintaining guard in .chezmoiignore — so a
+# fresh machine bootstraps cleanly and gains its secrets on a second pass.
+#
+# Usage:
+#   dotfiles-unlock            fetch key, then chezmoi apply
+#   dotfiles-unlock --key-only fetch key, skip apply
+#   dotfiles-unlock --verify   check the existing key without touching Doppler
+
+set -euo pipefail
+
+DOPPLER_PROJECT="${DOTFILES_DOPPLER_PROJECT:-dotfiles}"
+DOPPLER_CONFIG="${DOTFILES_DOPPLER_CONFIG:-prd}"
+KEY_PATH="${CHEZMOI_AGE_KEY:-$HOME/.config/chezmoi/key.txt}"
+RECIPIENT="age1l2n5sqj8eg0728vlj6che0vas474svdxej2ceypr6046z5ylwqusr00mzj"
+
+die() { printf 'dotfiles-unlock: %s\n' "$*" >&2; exit 1; }
+
+# Confirm a key file really is the identity this repo is encrypted to, by
+# deriving its public key. Cheap, and catches a truncated or wrong-tenant
+# secret before it produces a confusing decryption failure later.
+verify_key() {
+    local path="$1" derived
+    [ -s "$path" ] || return 1
+    derived="$(age-keygen -y "$path" 2>/dev/null)" || return 1
+    [ "$derived" = "$RECIPIENT" ]
+}
+
+case "${1:-}" in
+    --verify)
+        if verify_key "$KEY_PATH"; then
+            echo "✅ $KEY_PATH matches the repository recipient"
+            exit 0
+        fi
+        die "key at $KEY_PATH is missing, unreadable, or not the right identity"
+        ;;
+esac
+
+for cmd in doppler age age-keygen chezmoi; do
+    command -v "$cmd" >/dev/null 2>&1 || die "$cmd is not installed"
+done
+
+if verify_key "$KEY_PATH"; then
+    echo "→ Existing key already matches the repository recipient; leaving it alone."
+else
+    doppler configure get token --plain >/dev/null 2>&1 \
+        || die "not logged in to Doppler. Run: doppler login"
+
+    echo "→ Fetching AGE_IDENTITY from Doppler ($DOPPLER_PROJECT/$DOPPLER_CONFIG)..."
+    mkdir -p "$(dirname "$KEY_PATH")"
+
+    # Write via a 0600 temp file in the destination directory so the secret is
+    # never briefly world-readable and never lands on a different filesystem.
+    tmp="$(mktemp "$(dirname "$KEY_PATH")/.key.XXXXXX")"
+    trap 'rm -f "$tmp"' EXIT
+    chmod 600 "$tmp"
+
+    doppler secrets get AGE_IDENTITY --plain \
+        --project "$DOPPLER_PROJECT" --config "$DOPPLER_CONFIG" > "$tmp" \
+        || die "could not read AGE_IDENTITY from $DOPPLER_PROJECT/$DOPPLER_CONFIG"
+
+    verify_key "$tmp" || die "the secret fetched from Doppler is not the expected identity"
+
+    mv "$tmp" "$KEY_PATH"
+    chmod 600 "$KEY_PATH"
+    trap - EXIT
+    echo "→ Key installed at $KEY_PATH (0600) and verified."
+fi
+
+[ "${1:-}" = "--key-only" ] && { echo "→ --key-only: not applying."; exit 0; }
+
+echo "→ Applying dotfiles..."
+chezmoi apply
+echo "✅ Unlocked. Encrypted files are now deployed."
