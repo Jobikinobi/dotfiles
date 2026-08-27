@@ -37,6 +37,24 @@ dotfiles-unlock --key-only   fetch key, skip apply
 dotfiles-unlock --verify     check the local key without contacting Doppler
 ```
 
+`doppler` is only required when a key actually has to be fetched. A machine whose key is
+already installed and valid unlocks without the Doppler CLI present at all.
+
+### On a machine that has been in use
+
+Unlocking runs `chezmoi apply`, and on a long-lived machine that can mean rewriting files
+that have nothing to do with your secrets. The script counts pending changes **excluding**
+the encrypted ones — that is, drift unrelated to unlocking — and if more than
+`DOTFILES_DRIFT_LIMIT` (default 10) it asks first, or refuses outright when there is no TTY.
+
+To unlock without touching anything else:
+
+```bash
+dotfiles-unlock --key-only
+chezmoi diff                                    # review
+chezmoi apply ~/.config/rclone/rclone.conf      # apply selectively
+```
+
 After pass 2, `rclone ncdu r2:`, `aws`, `gh` and every SSH key work immediately.
 
 ## What is encrypted

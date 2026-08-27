@@ -48,13 +48,21 @@ case "${1:-}" in
         ;;
 esac
 
-for cmd in doppler age age-keygen chezmoi; do
+# Only age-keygen and chezmoi are unconditional. Doppler is checked inside the
+# fetch branch: a machine whose key is already installed and valid has no
+# reason to need the Doppler CLI at all.
+for cmd in age age-keygen chezmoi; do
     command -v "$cmd" >/dev/null 2>&1 || die "$cmd is not installed"
 done
 
 if verify_key "$KEY_PATH"; then
     echo "→ Existing key already matches the repository recipient; leaving it alone."
 else
+    command -v doppler >/dev/null 2>&1 \
+        || die "no valid key at $KEY_PATH and doppler is not installed to fetch one.
+       Install it:  curl -fsSL https://cli.doppler.com/install.sh | sh
+       Or place the identity at $KEY_PATH manually (mode 0600)."
+
     doppler configure get token --plain >/dev/null 2>&1 \
         || die "not logged in to Doppler. Run: doppler login"
 
@@ -81,6 +89,40 @@ fi
 
 [ "${1:-}" = "--key-only" ] && { echo "→ --key-only: not applying."; exit 0; }
 
-echo "→ Applying dotfiles..."
+# A machine that has been in use for a while can have drifted far from the
+# source. Applying that blind would rewrite unrelated files as a side effect of
+# unlocking secrets, which is not what anyone runs this script for. Count the
+# pending changes first and make a large diff an explicit decision.
+# Count only drift that has NOTHING to do with unlocking. The encrypted files
+# themselves are always pending on the unlock pass (that is the point), so
+# counting them would make a normal fresh-machine unlock look like drift.
+DRIFT_LIMIT="${DOTFILES_DRIFT_LIMIT:-10}"
+changed=$(chezmoi status 2>/dev/null | grep -c . || true)
+unrelated=$(chezmoi status --exclude=encrypted,scripts 2>/dev/null | grep -c . || true)
+
+if [ "$unrelated" -gt "$DRIFT_LIMIT" ] && [ -t 0 ]; then
+    echo
+    echo "⚠️  $unrelated paths unrelated to your secrets are also pending"
+    echo "    (out of $changed total) — more than $DRIFT_LIMIT."
+    echo "    This machine has drifted from the source, so applying now would"
+    echo "    rewrite unrelated files, not just the secrets you came for."
+    echo
+    echo "    Review with:  chezmoi diff"
+    echo "    Apply one at a time:  chezmoi apply ~/.config/rclone/rclone.conf"
+    echo
+    printf "    Apply all %s changes anyway? [y/N] " "$changed"
+    read -r reply
+    case "$reply" in
+        [yY]|[yY][eE][sS]) ;;
+        *) echo "→ Not applying. The key is installed, so 'chezmoi apply <path>' works now."; exit 0 ;;
+    esac
+elif [ "$unrelated" -gt "$DRIFT_LIMIT" ]; then
+    # Non-interactive (cloud-init, CI): refuse rather than silently rewrite.
+    echo "⚠️  $unrelated unrelated pending changes (of $changed total) exceeds $DRIFT_LIMIT, no TTY to confirm."
+    echo "    Key installed. Re-run interactively, or set DOTFILES_DRIFT_LIMIT."
+    exit 0
+fi
+
+echo "→ Applying dotfiles ($changed pending)..."
 chezmoi apply
 echo "✅ Unlocked. Encrypted files are now deployed."
