@@ -1,0 +1,1 @@
+var n=(r=>(r.Starter="starter",r.Pro="pro",r.ProAnnual="pro-annual",r.Advanced="advanced",r.Team="team",r.TeamAnnual="team-annual",r.Enterprise="enterprise",r.OnPrem="one-prem",r.OnPremEnterprise="one-prem-enterprise",r))(n||{});export{n as S};

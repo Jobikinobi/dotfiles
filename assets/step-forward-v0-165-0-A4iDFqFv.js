@@ -1,0 +1,6 @@
+import{es as a}from"./index-v0-165-0-CRDiI7NB.js";import"./recharts-v0-165-0-BL2qVztg.js";/**
+* @license lucide-react v0.544.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/const t=[["path",{d:"M10.029 4.285A2 2 0 0 0 7 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z",key:"1ystz2"}],["path",{d:"M3 4v16",key:"1ph11n"}]],e=a("step-forward",t);export{t as __iconNode,e as default};

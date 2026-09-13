@@ -104,10 +104,14 @@ chmod 600 ~/.config/chezmoi/key.txt
 # 3. Pull and apply
 chezmoi init Jobikinobi --apply
 
-# 4. Smoke test
+# 4. Smoke test — both of these depend on a key this repo decrypts, so a
+#    success here proves the restored age identity actually works.
 ssh pve uptime
-ssh pve-admin id
 ssh macstudio uptime
+
+# NOT a valid smoke test: `ssh portainer`. id_ed25519_portainer is a
+# pre-existing local key, not one of the encrypted_private_*.age files, so it
+# will be absent on a fresh machine no matter how well the identity restored.
 ```
 
 ## Rotation (if you suspect the identity has leaked)

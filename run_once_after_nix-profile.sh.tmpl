@@ -2,7 +2,21 @@
 # Activate the Nix workspace profile selected via chezmoi.toml data.nix_profile.
 # Runs after chezmoi deploys source files so the flake under
 # {{ .chezmoi.sourceDir }}/nix/ is present before activation begins.
-set -euo pipefail
+#
+# `set -e` was deliberately dropped (was `set -euo pipefail`). Two *structural*
+# conditions used to abort the apply with an opaque non-zero exit:
+#
+#   1. Root-only Nix. `--init none` on Linux yields a Nix that only root can
+#      use, but apply runs as an unprivileged user, so the first nix command
+#      dies on /nix/var/nix/db/big-lock.
+#   2. No flake output for this profile+platform, e.g. nix_profile = "joe" on
+#      Linux before homeConfigurations."joe-linux" existed.
+#
+# Neither is transient, so failing and retrying next apply does nothing except
+# leave every subsequent apply red. Both are now detected up front and reported
+# as warnings with an exit 0. Genuine activation failures still surface — the
+# switch's own exit status is checked and propagated.
+set -uo pipefail
 
 {{- if not (index . "nix_profile") }}
 exit 0
@@ -10,6 +24,8 @@ exit 0
 
 FLAKE="{{ .chezmoi.sourceDir }}/nix"
 PROFILE="{{ index . "nix_profile" | default "" }}"
+
+warn() { printf '  ⚠ %s\n' "$*" >&2; }
 
 # Source the Nix daemon profile to put nix on PATH in this subprocess.
 # Required because run_once_after scripts run in a plain bash context that
@@ -29,8 +45,15 @@ if ! command -v nix &>/dev/null; then
   curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
     | sh -s -- install --no-confirm
 {{- else }}
+  # Init detection mirrors run_once_before_install-nix.sh.tmpl — see the long
+  # comment there for why `--init none` is a last resort and not the default.
+  if [ -d /run/systemd/system ]; then
+    NIX_INIT_ARGS=""
+  else
+    NIX_INIT_ARGS="--init none"
+  fi
   curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
-    | sh -s -- install linux --no-confirm --init none
+    | sh -s -- install linux --no-confirm ${NIX_INIT_ARGS}
 {{- end }}
   if [ -f "$NIX_DAEMON_PROFILE" ]; then
     # shellcheck source=/dev/null
@@ -38,30 +61,86 @@ if ! command -v nix &>/dev/null; then
   fi
 fi
 
-echo "→ Activating Nix profile: $PROFILE"
+if ! command -v nix &>/dev/null; then
+  warn "Nix is still not on PATH — skipping activation of profile '$PROFILE'."
+  warn "Install it manually (https://install.determinate.systems) and re-run:"
+  warn "  chezmoi state delete-bucket --bucket=scriptState && chezmoi apply"
+  exit 0
+fi
+
+# Being on PATH is not the same as being usable. A root-only install (see the
+# header) puts nix on PATH for everyone but refuses to open the store database
+# for anyone but root. Probe before doing real work so the failure is one clear
+# line instead of a wall of Nix backtrace.
+if ! nix store info >/dev/null 2>&1 && ! nix store ping >/dev/null 2>&1; then
+  warn "Nix is installed but this user ($(id -un)) cannot reach the store."
+  warn "Usually a root-only install (\`--init none\`) on a host with no daemon."
+  warn "Skipping activation of profile '$PROFILE'."
+  exit 0
+fi
 
 {{- if eq .chezmoi.os "darwin" }}
-# darwin-rebuild looks up darwinConfigurations.<hostname> in the flake.
-# The flake ships two entries — joes-macbook and agent-mac — so the hostname
-# must match one of those keys exactly. Set the hostname before running chezmoi
-# if it does not already match (System Preferences → Sharing → Computer Name).
-HOSTNAME="{{ .chezmoi.hostname }}"
+# darwin-rebuild looks up darwinConfigurations.<hostname> in the flake, so the
+# hostname must match a key exactly (`scutil --get LocalHostName`). Known keys:
+# joes-macbook, MacBook-Air, agent-mac. A missing entry is dotfiles#117.
+TARGET="{{ .chezmoi.hostname }}"
+# Note the `config.` — darwinConfigurations.<host>.system is the platform
+# string, not the module tree; the buildable derivation is one level in.
+ATTR="darwinConfigurations.\"$TARGET\".config.system.build.toplevel"
+{{- else }}
+# Linux: standalone home-manager keyed on <profile>-linux, with an -aarch64
+# suffix off x86_64 because each homeConfiguration pins one nixpkgs system.
+case "$(uname -m)" in
+  x86_64|amd64) TARGET="${PROFILE}-linux" ;;
+  *)            TARGET="${PROFILE}-linux-aarch64" ;;
+esac
+ATTR="homeConfigurations.\"$TARGET\".activationPackage"
+{{- end }}
+
+# Fail early and legibly when the flake has no entry for this host/profile.
+#
+# The two failure modes must NOT be conflated. A missing attribute is a config
+# fact (warn, exit 0, retrying never helps); anything else — no network to
+# fetch flake inputs, a syntax error in the flake, a broken input — is a real
+# error that has to stay visible, so it is reported verbatim and propagated.
+probe_err="$(nix eval --raw "${FLAKE}#${ATTR}.drvPath" 2>&1 >/dev/null)"
+probe_rc=$?
+if [ "$probe_rc" -ne 0 ]; then
+  if printf '%s' "$probe_err" | grep -q 'does not provide attribute'; then
+    warn "Flake has no output '$ATTR'."
+    warn "Profile '$PROFILE' is not defined for this machine ($(uname -m), $(uname -s))."
+    warn "Add it to nix/flake.nix, then re-run:"
+    warn "  chezmoi state delete-bucket --bucket=scriptState && chezmoi apply"
+    exit 0
+  fi
+  warn "Could not evaluate '$ATTR' (exit $probe_rc):"
+  printf '%s\n' "$probe_err" >&2
+  exit "$probe_rc"
+fi
+
+echo "→ Activating Nix profile: $PROFILE (flake target: $TARGET)"
+
+{{- if eq .chezmoi.os "darwin" }}
 if command -v darwin-rebuild &>/dev/null; then
-  darwin-rebuild switch --flake "$FLAKE#$HOSTNAME"
+  darwin-rebuild switch --flake "$FLAKE#$TARGET"
 else
   # First activation: bootstrap nix-darwin through the flake.
-  nix run nix-darwin -- switch --flake "$FLAKE#$HOSTNAME"
+  nix run nix-darwin -- switch --flake "$FLAKE#$TARGET"
 fi
 {{- else }}
-# Linux: standalone home-manager keyed on <profile>-linux.
-# Known flake entries: agent-linux (home.username = "agent", /home/agent).
-# provision-lxd.sh --nix-profile agent creates user "agent" to match the flake.
 if command -v home-manager &>/dev/null; then
-  home-manager switch --flake "$FLAKE#${PROFILE}-linux"
+  home-manager switch --flake "$FLAKE#$TARGET"
 else
   # First activation: bootstrap home-manager through the flake.
-  nix run home-manager -- switch --flake "$FLAKE#${PROFILE}-linux"
+  nix run home-manager -- switch --flake "$FLAKE#$TARGET"
 fi
 {{- end }}
+rc=$?
+
+if [ "$rc" -ne 0 ]; then
+  warn "Activation of '$PROFILE' failed (exit $rc). Everything else in this"
+  warn "apply already succeeded; re-run the switch by hand to see the full log."
+  exit "$rc"
+fi
 
 echo "  ✓ Nix profile '$PROFILE' activated"
