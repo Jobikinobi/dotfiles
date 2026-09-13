@@ -1,0 +1,1 @@
+const e="https://infisical.com/docs/documentation/platform/pam",s={guides:{sshCertificateAuth:`${e}/guides/ssh-certificate-auth`},templates:{overview:`${e}/templates/overview`},accounts:{overview:`${e}/accounts/overview`},sessions:{overview:`${e}/sessions/overview`},discovery:{overview:`${e}/discovery/overview`}};export{s as P};

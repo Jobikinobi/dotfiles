@@ -1,0 +1,6 @@
+import{es as o}from"./index-v0-165-0-CRDiI7NB.js";import"./recharts-v0-165-0-BL2qVztg.js";/**
+* @license lucide-react v0.544.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/const e=[["line",{x1:"5",x2:"19",y1:"9",y2:"9",key:"1nwqeh"}],["line",{x1:"5",x2:"19",y1:"15",y2:"15",key:"g8yjpy"}]],y=o("equal",e);export{e as __iconNode,y as default};
