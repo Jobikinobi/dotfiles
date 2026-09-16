@@ -18,6 +18,14 @@ dot_config/anthropic/
 # AWS credentials
 dot_aws/
 
+# Vendored binaries — a 47MB Linux chezmoi build was committed here twice and
+# deployed onto macOS (dotfiles#117). Install tools with brew, not by checking
+# executables into the source state.
+bin/chezmoi
+
+# Local Docker context export — may contain machine-specific connection data.
+docker-context.tar.gz
+
 # Test artifacts
 Dockerfile.test
 #Worktrees
