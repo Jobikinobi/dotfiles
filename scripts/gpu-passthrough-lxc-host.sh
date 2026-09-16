@@ -91,14 +91,27 @@ if ! command -v nvidia-smi >/dev/null 2>&1 || ! nvidia-smi >/dev/null 2>&1; then
   err "WARNING: nvidia-smi is not working on this host — is the host driver installed and the kernel module loaded? Continuing anyway; the container will have no usable GPU until that's fixed."
 fi
 
-desired_devices=(
-  "/dev/nvidia0,gid=44"
-  "/dev/nvidiactl,gid=44"
-  "/dev/nvidia-uvm,gid=44"
-  "/dev/nvidia-uvm-tools,gid=44"
-  "/dev/nvidia-caps/nvidia-cap1,gid=44"
-  "/dev/nvidia-caps/nvidia-cap2,gid=44"
+device_specs=(
+  "0:/dev/nvidia0,gid=44:required"
+  "1:/dev/nvidiactl,gid=44:required"
+  "2:/dev/nvidia-uvm,gid=44:optional"
+  "3:/dev/nvidia-uvm-tools,gid=44:optional"
+  "4:/dev/nvidia-caps/nvidia-cap1,gid=44:optional"
+  "5:/dev/nvidia-caps/nvidia-cap2,gid=44:optional"
 )
+
+declare -A desired_devices=()
+for spec in "${device_specs[@]}"; do
+  IFS=: read -r slot device requirement <<<"$spec"
+  device_path="${device%%,*}"
+  if [[ -e "$device_path" ]]; then
+    desired_devices["$slot"]="$device"
+  elif [[ "$requirement" == "required" ]]; then
+    die "required NVIDIA device node '$device_path' not found on host"
+  else
+    err "WARNING: optional NVIDIA device node '$device_path' not found on host — skipping dev$slot"
+  fi
+done
 
 declare -A current_devices=()
 while IFS= read -r line; do
@@ -107,15 +120,17 @@ while IFS= read -r line; do
   fi
 done <<<"$config_output"
 
-for i in "${!desired_devices[@]}"; do
-  if [[ -n "${current_devices[$i]:-}" && "${current_devices[$i]}" != "${desired_devices[$i]}" ]]; then
-    die "CT $ctid already has dev$i mapped to '${current_devices[$i]}'; refusing to overwrite it"
+for slot in 0 1 2 3 4 5; do
+  if [[ -n "${desired_devices[$slot]:-}" && -n "${current_devices[$slot]:-}" && "${current_devices[$slot]}" != "${desired_devices[$slot]}" ]]; then
+    die "CT $ctid already has dev$slot mapped to '${current_devices[$slot]}'; refusing to overwrite it"
   fi
 done
 
 cmd=(pct set "$ctid")
-for i in "${!desired_devices[@]}"; do
-  cmd+=("-dev$i" "${desired_devices[$i]}")
+for slot in 0 1 2 3 4 5; do
+  if [[ -n "${desired_devices[$slot]:-}" ]]; then
+    cmd+=("-dev$slot" "${desired_devices[$slot]}")
+  fi
 done
 
 if (( dry_run )); then
