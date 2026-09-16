@@ -95,6 +95,7 @@ done
 
 (( EUID == 0 )) || die "must run as root inside the LXC container"
 
+# Run a command normally, or print it without executing when dry-run mode is set.
 run() {
   if (( dry_run )); then
     printf '[dry-run] %s\n' "$*"
@@ -222,6 +223,7 @@ fi
 # ---------------------------------------------------------------------------
 # 7. Wire the nvidia runtime into whichever Docker daemon this container has.
 # ---------------------------------------------------------------------------
+# Print the override user, or the first user with a rootless Docker service unit.
 detect_rootless_user() {
   [[ -n "$docker_user_override" ]] && { echo "$docker_user_override"; return; }
   local f user
@@ -233,6 +235,8 @@ detect_rootless_user() {
   done
 }
 
+# Run command text as a user with the environment pointed at their rootless
+# Docker daemon.
 as_user() {
   local user="$1"; shift
   local uid; uid="$(id -u "$user")"
