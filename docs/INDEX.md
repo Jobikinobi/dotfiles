@@ -38,6 +38,7 @@ Policy docs that govern how this repo is used day-to-day.
 | [`homelab/README.md`](homelab/README.md) | Homelab goal, architectural pins, PVE hub + Mac thin-client plan |
 | [`homelab/nfs-corpus-mount.md`](homelab/nfs-corpus-mount.md) | Mount the `corpus` NFS drive (`/data/corpus` → `/Volumes/corpus`): LAN Bonjour, off-LAN NetBird, fallbacks |
 | [`homelab/recovery.md`](homelab/recovery.md) | Homelab recovery procedures |
+| [`homelab/gpu-passthrough-lxc.md`](homelab/gpu-passthrough-lxc.md) | NVIDIA GPU passthrough into a Proxmox LXC container (host device passthrough + in-container driver/toolkit); scripts in `scripts/gpu-passthrough-lxc-host.sh` + `scripts/gpu-provision-lxc.sh` |
 
 ## ADR (Architecture Decision Records)
 
