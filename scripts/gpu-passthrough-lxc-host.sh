@@ -21,8 +21,8 @@
 # Companion to scripts/gpu-provision-lxc.sh. See
 # docs/homelab/gpu-passthrough-lxc.md for the full pattern.
 #
-# Idempotent — `pct set` overwrites existing dev0..dev5 keys, so re-running
-# against the same CTID is safe.
+# Safe to re-run when dev0..dev5 are unset or already match these NVIDIA
+# mappings; the script refuses to overwrite other existing device passthrough.
 #
 # Usage:
 #   gpu-passthrough-lxc-host.sh <ctid> [--reboot] [--dry-run]
@@ -84,21 +84,39 @@ done
 
 command -v pct >/dev/null 2>&1 || die "pct not found — this script must run on the Proxmox host, not inside a container"
 
-pct config "$ctid" >/dev/null 2>&1 || die "no such container: $ctid"
+config_output="$(pct config "$ctid")" || die "no such container: $ctid"
 
 # Sanity: warn (don't block) if the host itself has no working NVIDIA driver.
 if ! command -v nvidia-smi >/dev/null 2>&1 || ! nvidia-smi >/dev/null 2>&1; then
   err "WARNING: nvidia-smi is not working on this host — is the host driver installed and the kernel module loaded? Continuing anyway; the container will have no usable GPU until that's fixed."
 fi
 
-cmd=(pct set "$ctid"
-  -dev0 /dev/nvidia0,gid=44
-  -dev1 /dev/nvidiactl,gid=44
-  -dev2 /dev/nvidia-uvm,gid=44
-  -dev3 /dev/nvidia-uvm-tools,gid=44
-  -dev4 /dev/nvidia-caps/nvidia-cap1,gid=44
-  -dev5 /dev/nvidia-caps/nvidia-cap2,gid=44
+desired_devices=(
+  "/dev/nvidia0,gid=44"
+  "/dev/nvidiactl,gid=44"
+  "/dev/nvidia-uvm,gid=44"
+  "/dev/nvidia-uvm-tools,gid=44"
+  "/dev/nvidia-caps/nvidia-cap1,gid=44"
+  "/dev/nvidia-caps/nvidia-cap2,gid=44"
 )
+
+declare -A current_devices=()
+while IFS= read -r line; do
+  if [[ "$line" =~ ^dev([0-5]):[[:space:]](.*)$ ]]; then
+    current_devices["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
+  fi
+done <<<"$config_output"
+
+for i in "${!desired_devices[@]}"; do
+  if [[ -n "${current_devices[$i]:-}" && "${current_devices[$i]}" != "${desired_devices[$i]}" ]]; then
+    die "CT $ctid already has dev$i mapped to '${current_devices[$i]}'; refusing to overwrite it"
+  fi
+done
+
+cmd=(pct set "$ctid")
+for i in "${!desired_devices[@]}"; do
+  cmd+=("-dev$i" "${desired_devices[$i]}")
+done
 
 if (( dry_run )); then
   printf '[dry-run] %s\n' "${cmd[*]}"
