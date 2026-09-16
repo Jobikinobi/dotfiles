@@ -60,7 +60,14 @@ LOG=/var/log/gpu-provision.log
 
 err() { printf '%s: %s\n' "$PROG" "$*" >&2; }
 die() { err "$*"; exit 1; }
-log() { echo "[$(date -Is)] $*" | tee -a "$LOG"; }
+log() {
+  local message="[$(date -Is)] $*"
+  if (( dry_run )); then
+    printf '%s\n' "$message"
+  else
+    printf '%s\n' "$message" | tee -a "$LOG"
+  fi
+}
 
 usage() {
   cat >&2 <<EOF
