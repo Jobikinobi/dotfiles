@@ -252,7 +252,7 @@ as_user() {
     export PATH=/usr/bin:/usr/sbin:\$PATH; $*"
 }
 
-if systemctl is-active --quiet docker 2>/dev/null; then
+if [[ -z "$docker_user_override" ]] && systemctl is-active --quiet docker 2>/dev/null; then
   log "Rootful system dockerd detected — configuring /etc/docker/daemon.json"
   run nvidia-ctk runtime configure --runtime=docker
   log "Restarting docker.service"
