@@ -1,0 +1,87 @@
+[
+  {
+    "description": "Cloudflare DNS Servers",
+    "domains": [
+      "eu1.netbird.services"
+    ],
+    "enabled": false,
+    "groups": [
+      "d930le2fadhs7395pa1g"
+    ],
+    "id": "d930np3l0ubs73euo8n0",
+    "name": "CFdns",
+    "nameservers": [
+      {
+        "ip": "1.1.1.1",
+        "ns_type": "udp",
+        "port": 53
+      },
+      {
+        "ip": "1.0.0.1",
+        "ns_type": "udp",
+        "port": 53
+      }
+    ],
+    "primary": false,
+    "search_domains_enabled": false
+  },
+  {
+    "description": "Cloudflare DNS Servers",
+    "domains": [
+      "peer.hole-truth.com",
+      "eu1.netbird.services"
+    ],
+    "enabled": false,
+    "groups": [
+      "d8sc3jifadhs739vach0",
+      "google-oauth2|025b2l0r1gdkyuf",
+      "google-oauth2|0184mhaj1h5up8e",
+      "google-oauth2|03s49zyc0kd2pvv",
+      "google-oauth2|039kk8xu1hyqypk"
+    ],
+    "id": "d8scenifadhs73a30ffg",
+    "name": "Cloudflare DNS",
+    "nameservers": [
+      {
+        "ip": "1.1.1.1",
+        "ns_type": "udp",
+        "port": 53
+      },
+      {
+        "ip": "1.0.0.1",
+        "ns_type": "udp",
+        "port": 53
+      }
+    ],
+    "primary": false,
+    "search_domains_enabled": false
+  },
+  {
+    "description": "",
+    "domains": [
+      "hole-truth.com",
+      "eu1.netbird.services"
+    ],
+    "enabled": true,
+    "groups": [
+      "google-oauth2|03s49zyc0kd2pvv",
+      "d8sc3jifadhs739vach0"
+    ],
+    "id": "d8sv9hjl0ubs73abt3fg",
+    "name": "internal-dnsd",
+    "nameservers": [
+      {
+        "ip": "1.1.1.1",
+        "ns_type": "udp",
+        "port": 53
+      },
+      {
+        "ip": "8.8.8.8",
+        "ns_type": "udp",
+        "port": 53
+      }
+    ],
+    "primary": false,
+    "search_domains_enabled": false
+  }
+]

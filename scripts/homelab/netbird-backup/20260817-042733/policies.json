@@ -1,0 +1,1075 @@
+[
+  {
+    "description": "homelab, local-resources",
+    "enabled": true,
+    "id": "d9vuq1jl0ubs73bvbpf0",
+    "name": "incus Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "homelab, local-resources",
+        "destinationResource": {
+          "id": "d9vuq1ifadhs739f49m0",
+          "type": "domain"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "d9vuq1jl0ubs73bvbpf0",
+        "name": "incus Access",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "d9vusu3l0ubs73c11ndg",
+    "name": "proxmox-resources Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9vustqfadhs739gbp50",
+          "type": "subnet"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "d9vusu3l0ubs73c11ndg",
+        "name": "proxmox-resources Access",
+        "protocol": "icmp",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "d9hs752fadhs7385oj40",
+    "name": "wideopen",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": true,
+        "description": "",
+        "destinations": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ],
+        "enabled": true,
+        "id": "d9hs752fadhs7385oj40",
+        "name": "wideopen",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lmobl0ubs73agbba0",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9gq90afadhs73b3teg0",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lmobl0ubs73agbba0",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lts2fadhs73deecng",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9rs3djl0ubs73fv779g",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lts2fadhs73deecng",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lueqfadhs73dempc0",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9d4f9ifadhs73dc0i90",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lueqfadhs73dempc0",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lto2fadhs73dechbg",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9sjp1qfadhs73eq02hg",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lto2fadhs73dechbg",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lulafadhs73depnq0",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9kpirifadhs73dots70",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lulafadhs73depnq0",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lu0rl0ubs73akdb90",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d8schcafadhs73a3ucm0",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lu0rl0ubs73akdb90",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lu3qfadhs73dehs00",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9vdq03l0ubs739ooncg",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lu3qfadhs73dehs00",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lu72fadhs73dejc4g",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9vtlaafadhs738ucte0",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lu72fadhs73dejc4g",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0luibl0ubs73akmq10",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d988gmqfadhs73fm4ab0",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0luibl0ubs73akmq10",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lupbl0ubs73akq61g",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9lrba3l0ubs73f0al9g",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lupbl0ubs73akq61g",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lutjl0ubs73akslvg",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d93ehc2fadhs73ek2hd0",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lutjl0ubs73akslvg",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          },
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lve3l0ubs73al4utg",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9v3fkrl0ubs73bn7dng",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lve3l0ubs73al4utg",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lv1ifadhs73deviv0",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9lub2bl0ubs7384bqi0",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lv1ifadhs73deviv0",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lvm2fadhs73df9mcg",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9ldprifadhs73a9kh50",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lvm2fadhs73df9mcg",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|025b2l0r1gdkyuf",
+            "name": "HOLE Foundation",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lv5jl0ubs73al0dog",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d930kvqfadhs7395jmkg",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lv5jl0ubs73al0dog",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|025b2l0r1gdkyuf",
+            "name": "HOLE Foundation",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lvabl0ubs73al2rr0",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d9sgcurl0ubs73ejru4g",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lvabl0ubs73al2rr0",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          },
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lvi2fadhs73df7qpg",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d94u0difadhs738nitgg",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lvi2fadhs73df7qpg",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|025b2l0r1gdkyuf",
+            "name": "HOLE Foundation",
+            "peers_count": 1,
+            "resources_count": 0
+          },
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "da0lvpafadhs73dfb36g",
+    "name": "SSH Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d930e7rl0ubs73eq117g",
+          "type": "peer"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "da0lvpafadhs73dfb36g",
+        "name": "SSH Access",
+        "ports": [
+          "22"
+        ],
+        "protocol": "netbird-ssh",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          },
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "d96bv9afadhs73d197hg",
+    "name": "incus Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d96bv92fadhs73d196jg",
+          "type": "domain"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "d96bv9afadhs73d197hg",
+        "name": "incus Access",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "d95b2f3l0ubs73ah1qg0",
+            "name": "incus",
+            "peers_count": 4,
+            "resources_count": 0
+          },
+          {
+            "id": "d962heafadhs73aeq500",
+            "name": "incus hosts",
+            "peers_count": 0,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "d96bv9afadhs73d197i0",
+    "name": "incus Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d96bv92fadhs73d196jg",
+          "type": "domain"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "d96bv9afadhs73d197i0",
+        "name": "incus Access",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "google-oauth2|03s49zyc0kd2pvv",
+            "name": "Home",
+            "peers_count": 13,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "My First Network, Created during onboarding",
+    "enabled": true,
+    "id": "d8tfi9rl0ubs73bonov0",
+    "name": "My Resource Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "My First Network, Created during onboarding",
+        "destinationResource": {
+          "id": "d8sc47qfadhs739vhe60",
+          "type": "domain"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "d8tfi9rl0ubs73bonov0",
+        "name": "My Resource Access",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "",
+    "enabled": true,
+    "id": "d8td16rl0ubs73aas33g",
+    "name": "home-network Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "",
+        "destinationResource": {
+          "id": "d8td16rl0ubs73aas200",
+          "type": "subnet"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "d8td16rl0ubs73aas33g",
+        "name": "home-network Access",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "d8sc482fadhs739vhfv0",
+            "name": "Routing Peers",
+            "peers_count": 3,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "Allows users to access routing peers",
+    "enabled": true,
+    "id": "d8sc483l0ubs739ts5cg",
+    "name": "Users to Routing Peers",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": true,
+        "description": "Allows users to access routing peers",
+        "destinations": [
+          {
+            "id": "d8sc482fadhs739vhfv0",
+            "name": "Routing Peers",
+            "peers_count": 3,
+            "resources_count": 0
+          }
+        ],
+        "enabled": true,
+        "id": "d8sc483l0ubs739ts5cg",
+        "name": "Users to Routing Peers",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "d8sc47rl0ubs739ts460",
+            "name": "Users",
+            "peers_count": 2,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": null
+  },
+  {
+    "description": "My First Network, Created during onboarding",
+    "enabled": true,
+    "id": "d92mkm2fadhs73d2pgi0",
+    "name": "Homes Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "My First Network, Created during onboarding",
+        "destinationResource": {
+          "id": "d92mkm3l0ubs73adurng",
+          "type": "subnet"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "d92mkm2fadhs73d2pgi0",
+        "name": "Homes Access",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "paperclip",
+    "enabled": false,
+    "id": "d924msrl0ubs73auf4vg",
+    "name": "mscontrol Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "paperclip",
+        "destinationResource": {
+          "id": "d924msrl0ubs73auf3r0",
+          "type": "host"
+        },
+        "destinations": null,
+        "enabled": false,
+        "id": "d924msrl0ubs73auf4vg",
+        "name": "mscontrol Access",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  },
+  {
+    "description": "paperclip",
+    "enabled": true,
+    "id": "d924n4ifadhs73e4ic80",
+    "name": "paperclip Access",
+    "rules": [
+      {
+        "action": "accept",
+        "bidirectional": false,
+        "description": "paperclip",
+        "destinationResource": {
+          "id": "d924n4afadhs73e4ib9g",
+          "type": "host"
+        },
+        "destinations": null,
+        "enabled": true,
+        "id": "d924n4ifadhs73e4ic80",
+        "name": "paperclip Access",
+        "protocol": "all",
+        "sources": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 0
+          }
+        ]
+      }
+    ],
+    "source_posture_checks": []
+  }
+]
