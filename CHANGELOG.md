@@ -8,6 +8,14 @@ This file is maintained automatically by
 hand — write good commit messages instead (`feat:`, `fix:`, `docs:`, …) and the
 next release PR will regenerate the entries below.
 
+## [1.2.1](https://github.com/Jobikinobi/dotfiles/compare/v1.2.0...v1.2.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **macos:** unblock deploy — best-effort Nix, Brewfile syntax, hardcoded-path fixes ([#129](https://github.com/Jobikinobi/dotfiles/issues/129)) ([7d4332e](https://github.com/Jobikinobi/dotfiles/commit/7d4332e344a01f24e9147ad52d4c1162da2c23e7))
+* **macos:** unblock the deploy at the before-phase Nix install ([#120](https://github.com/Jobikinobi/dotfiles/issues/120)) ([9c81aaa](https://github.com/Jobikinobi/dotfiles/commit/9c81aaa281ff9896006ec36457fccc5fb21c2c0b))
+
 ## [1.2.0](https://github.com/Jobikinobi/dotfiles/compare/v1.1.0...v1.2.0) (2026-07-29)
 
 
