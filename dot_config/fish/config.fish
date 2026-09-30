@@ -9,4 +9,3 @@ else if test -d "$HOME/micromamba/bin"
     set -x PATH "$HOME/micromamba/bin" $PATH
 end
 # <<< conda initialize <<<
-
