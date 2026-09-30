@@ -1,0 +1,1 @@
+const o="infisical__hubspot-utk",e=()=>{const t=document.cookie.match(/(?:^|;\s*)hubspotutk=([^;]*)/);return(t==null?void 0:t[1])||localStorage.getItem(o)||void 0},s=()=>{const t=document.cookie.match(/(?:^|;\s*)hubspotutk=([^;]*)/);t!=null&&t[1]&&localStorage.setItem(o,t[1])};export{e as g,s as p};

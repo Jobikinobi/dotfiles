@@ -16,7 +16,7 @@ deploys to every machine, see `dot_local/private_share/infra/`
 > by this machine and accessible from any other."
 
 Translation:
-- Proxmox box at `192.168.68.16` is the hub.
+- Proxmox box at `10.0.0.100` is the hub.
 - Mac workstations become thin clients that SSH into hosted Linux guests.
 - Eventually the Macs themselves get reformatted to Linux and migrated to be
   hosted from PVE too.
@@ -24,30 +24,33 @@ Translation:
 ## Architectural pins (decisions locked in)
 
 1. **PVE host = root-only, by design.** No daily-driver users on the bare
-   Debian. Day-to-day work happens in guest VMs/CTs. Admin tasks go through
-   `pve-admin` LXC, never directly on the host.
+   Debian. Day-to-day work happens in guest VMs/CTs. Admin tasks are done as
+   root over `ssh pve`. (This pin used to route admin through a `pve-admin`
+   LXC. That LXC does not exist — see the correction under Proxmox below.)
 2. **LAN IPs are the primary addressing layer.** Tailscale aliases are
    *fallbacks* for off-LAN access only. The system must keep working if
    Tailscale ever disappears (acquisition, policy change, etc.).
 3. **Per-target SSH keys**, not one shared key. Stolen-laptop blast radius is
    one revocation per target. Cost is ~30 seconds of extra setup per target.
 4. **Password fallback stays enabled** on SSH targets that humans use
-   (PVE host, Mac Studio). Key auth is preferred; password is recovery. The
-   admin LXC is key-only because it's reachable only via SSH.
+   (PVE host, Mac Studio). Key auth is preferred; password is recovery.
 5. **Ubuntu** is the preferred distro for workload VMs. Debian is fine for
-   the PVE admin LXC (matches the host) but workload guests = Ubuntu.
+   service CTs that track the host, but workload guests = Ubuntu.
 6. **chezmoi + age** is the source of truth for cross-machine config and
    credentials. The age identity is the single critical secret.
 
-## Current state (2026-05-20)
+## Current state (addressing re-verified 2026-08-25)
 
 ### Mac fleet
 
 | Host             | LAN              | Public TS (`lemming-likert`) | Headscale (`lab`)   | Role                                |
 |------------------|------------------|------------------------------|---------------------|-------------------------------------|
-| MacBook Air      | 192.168.68.70    | 100.115.1.29 (legacy)        | 100.64.0.9 (node 9, currently offline) | Mobile / current dev workstation. Cut over to Headscale 2026-06-05. |
-| Mac Studio       | 192.168.68.168   | 100.94.84.6 (legacy)         | 100.64.0.10 (node 10, online) | Primary desktop workstation. Cut over to Headscale 2026-06-05. **Production cutover succeeded ahead of the original "Mac Studio last" plan.** |
-| Mac Mini         | 192.168.68.68    | 100.119.161.120              | — (not migrated)    | Secondary workstation. Only Mac still on public TS — pending Headscale cutover. |
+| MacBook Air      | 10.0.0.4         | 100.115.1.29 (legacy)        | 100.64.0.9 (node 9, currently offline) | Mobile / current dev workstation. Cut over to Headscale 2026-06-05. |
+| Mac Studio       | 10.0.0.13        | 100.94.84.6 (legacy)         | 100.64.0.10 (node 10, online) | Primary desktop workstation. Cut over to Headscale 2026-06-05. **Production cutover succeeded ahead of the original "Mac Studio last" plan.** |
+| Mac Mini         | 10.0.0.12        | 100.119.161.120              | — (not migrated)    | Secondary workstation. Only Mac still on public TS — pending Headscale cutover. Also answers on `10.0.0.22` — same host, identical ed25519 fingerprint. |
+
+LAN column re-verified 2026-08-25 by sweep plus host-key/port match from the
+Mac Studio; the previous `192.168.68.x` values predate the renumber.
 
 All three Macs: FileVault on, Touch-ID-for-sudo enabled via `pam_tid.so`.
 
@@ -55,23 +58,41 @@ The Headscale rollout details, current node inventory, and the cutover playbook 
 
 ### Proxmox
 
-- **Host** `pve` (Debian 12 / PVE 9.1.18) at `192.168.68.16`.
+- **Host** `pve` at `10.0.0.100` — Debian 13.6, `pve-manager/9.2.10`,
+  kernel 7.0.14-12-pve. `vmbr0` carries the only LAN address; there is no
+  192.168.68.x interface left on this machine. Tailscale IP `100.103.38.58`.
   CPU: i7-11700K (8c/16t). RAM: 62 GiB. Storage: `local` (96 GiB XFS),
-  `local-lvm` (337 GiB free thin pool), `NFS-ISOs` (self-served NFS export
-  with installer ISOs + image library).
+  `local-lvm` (337 GiB free thin pool), `local-zfs`, `NFS-ISOs` (self-served
+  NFS export with installer ISOs + image library).
   SSH: key + password fallback, fail2ban active. PVE firewall disabled. No
-  off-host backup target yet.
-- **CTID 100 `pve-admin`** — Debian 13 unprivileged LXC at `192.168.68.60`
-  (DHCP — should be reserved at the router). User `jth`, key-only sshd,
-  passwordless sudo. 2c/2GB/8GB. Created 2026-05-20.
+  off-host backup target yet. *(Host facts re-verified 2026-08-25; the
+  previous entry said Debian 12 / PVE 9.1.18 at `192.168.68.16`.)*
+- **CTID 113 `Portainer`** — Debian LXC, static `10.0.0.201/24` (gw
+  `10.0.0.1`), 8c/24 GB/64 GB, NVIDIA device passthrough, `onboot: 1`. Runs
+  the Docker host for the `hole-stack` and `authentik` compose stacks. Reach
+  it as `ssh portainer` (root, `id_ed25519_portainer`, over the tailnet).
+
+> **Correction (2026-08-25): there is no `pve-admin` LXC.**
+> This section used to claim *CTID 100 `pve-admin`, Debian 13 unprivileged
+> LXC at `192.168.68.60`, user `jth`, key-only sshd*. None of that is true
+> now: `pct config 100` reports hostname `kanidm` (4c/4 GB/20 GB, DHCP,
+> stopped), and `10.0.0.100` is the Proxmox host itself. `pve-admin` was only
+> ever a second name for the host, so it is now an alias on the `pve` block in
+> `private_dot_ssh/config.tmpl` rather than a separate entry. It could not
+> have worked as written in any case — `/home/jth/.ssh` on pve contains no
+> `authorized_keys`, so key-only auth as `jth` had nothing to authenticate
+> against.
 
 ### Pinned LAN addressing — `10.0.0.0/24` fleet (2026-07-23)
 
-The Incus host and the corpus NFS server sit on the **`10.0.0.0/24`** LAN
-(distinct from the PVE `192.168.68.0/24` net above). These addresses are now
-**DHCP-reserved at the router** so they no longer drift on lease renewal —
-which is what makes the LAN-primary rule (pin #2) safe to rely on for these
-hosts. Reservations verified holding 2026-07-23.
+These addresses are **DHCP-reserved at the router** so they no longer drift on
+lease renewal — which is what makes the LAN-primary rule (pin #2) safe to rely
+on for these hosts. Reservations verified holding 2026-07-23.
+
+`10.0.0.0/24` was originally a second net alongside the PVE `192.168.68.0/24`.
+It is not any more: the whole fleet has moved, and `pve` itself now has only
+`10.0.0.100/24` on `vmbr0`. Any `192.168.68.x` address still written down in
+this file is historical (2026-08-25).
 
 | Host             | LAN (reserved)   | NetBird (`*.netbird.hole`) | Notes                                            |
 |------------------|------------------|----------------------------|--------------------------------------------------|
@@ -96,9 +117,9 @@ No reverse DNS (PTR) zone exists in Pi-hole for `10.0.0.0/24` yet — forward
 
 | Key file (deployed)              | Reaches                          | In dotfiles? |
 |----------------------------------|----------------------------------|--------------|
-| `~/.ssh/id_ed25519_pve`          | `root@192.168.68.16`             | encrypted    |
-| `~/.ssh/id_ed25519_pve_admin`    | `jth@192.168.68.60`              | encrypted    |
-| `~/.ssh/id_ed25519_macstudio`    | `jth@192.168.68.168`             | encrypted    |
+| `~/.ssh/id_ed25519_pve`          | `root@10.0.0.100`                | encrypted    |
+| `~/.ssh/id_ed25519_macstudio`    | `jth@10.0.0.13`                  | encrypted    |
+| `~/.ssh/id_ed25519_portainer`    | `root@portainer` (CT 113)        | (pre-existing)|
 | `~/.ssh/id_ed25519`              | DigitalOcean droplets            | (pre-existing)|
 | `~/.ssh/joe-laptop`              | `windev` (Windows gaming PC)     | (pre-existing)|
 | `~/.ssh/mac-mini`                | `mac-mini`                       | (pre-existing)|
@@ -152,6 +173,9 @@ fine — different prefix. Public keys are reconstructable on demand:
 5. **Created the `pve-admin` LXC** (CTID 100, Debian 13, unprivileged) with
    `jth`, sudo, key-only sshd, passwordless sudo. Verified
    `ssh pve-admin && sudo -n whoami` returns `root`.
+   *(Historical. CTID 100 is `kanidm` today and no `pve-admin` guest exists —
+   see the correction under Proxmox. Left in place because this list is a log
+   of what was done on the date in the heading, not current state.)*
 6. **Updated `~/.ssh/config`** with `pve`, `pve-admin`, `macstudio` blocks
    plus Tailscale fallbacks. Backup of original at
    `~/.ssh/config.bak.20260520_125422`.
@@ -177,7 +201,8 @@ fine — different prefix. Public keys are reconstructable on demand:
 - **Ubuntu cloud-init workload template** (VMID 9000) for fast clone-based VM
   provisioning. Pending two decisions: storage target (`local` vs `NFS-ISOs`)
   and Ubuntu version (24.04 LTS vs 26.04 LTS).
-- **Reserve `192.168.68.60`** for the `pve-admin` LXC's MAC at the router.
+- ~~**Reserve `192.168.68.60`** for the `pve-admin` LXC's MAC at the router.~~
+  Dropped 2026-08-25: no such LXC, and that subnet is gone.
 
 ### Quality-of-life on the Mac
 
@@ -217,3 +242,43 @@ multi-HTTP-per-node service deployment.
 - Resource pools: `pve` (host stuff, never delete), `userpool` (user stuff).
 - Hostnames in SSH config use the short LAN name primary, Tailscale alias
   suffixed `-ts`.
+
+## Open security item — Docker API on `tcp/2375` (staged 2026-08-26)
+
+`dockerd` on CT 113 (`Portainer`) serves the Engine API on **`0.0.0.0:2375`
+with no auth and no TLS**. It answers on the plain LAN as well as the tailnet:
+
+```
+$ curl -s http://10.0.0.201:2375/version
+{"Platform":{"Name":"Docker Engine - Community"},"Version":"29.7.2",...}
+```
+
+Unauthenticated Engine API access is root-equivalent on the host, and that
+host runs `authentik` — the thing everything else authenticates against.
+
+**Staged, not applied.** `/etc/docker/daemon.json` on CT 113 has been rewritten
+to drop the tcp host and add `"live-restore": true`; `dockerd --validate`
+returns `configuration OK`. The *running* daemon is untouched, so 2375 is still
+open until someone runs:
+
+```bash
+ssh portainer systemctl restart docker
+```
+
+That bounces containers once. At staging time 11 of 12 had
+`restart=unless-stopped` or `always`; only `tender_yalow` (a scratch
+`ubuntu:resolute`) had `restart=no` and would stay down. `live-restore`
+prevents *future* restarts from bouncing anything but cannot help the restart
+that enables it.
+
+The file and the running daemon disagree until then — **a reboot will apply
+this silently**. `/etc/docker/README.staged-change` on the host says the same,
+with rollback instructions (`daemon.json.bak-20260826`).
+
+Nothing depends on 2375 any more. Both replacements were verified first:
+
+- `ssh://root@portainer.wolverine-wyrm.ts.net` — the local `portainer` Docker
+  context was pointed at plain `tcp://…:2375` despite its description claiming
+  SSH; it now genuinely uses SSH, authenticating with `id_ed25519_portainer`.
+- `tcp://<tailnet-ip>:2376` — a pre-existing `tailscale serve` onto
+  `unix:///var/run/docker.sock`, tailnet-scoped and governed by tailnet ACLs.

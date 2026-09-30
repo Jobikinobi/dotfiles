@@ -1,0 +1,1 @@
+import{eZ as r}from"./index-v0-165-0-CRDiI7NB.js";function u(t){return n=>{const o=(t?Math[t]:Math.trunc)(n);return o===0?0:o}}function e(t,n){return+r(t)-+r(n)}function c(t,n,o){const a=e(t,n)/1e3;return u(o==null?void 0:o.roundingMethod)(a)}export{e as a,c as d,u as g};

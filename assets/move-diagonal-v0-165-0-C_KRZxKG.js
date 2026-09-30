@@ -1,0 +1,6 @@
+import{es as o}from"./index-v0-165-0-CRDiI7NB.js";import"./recharts-v0-165-0-BL2qVztg.js";/**
+* @license lucide-react v0.544.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/const a=[["path",{d:"M11 19H5v-6",key:"8awifj"}],["path",{d:"M13 5h6v6",key:"7voy1q"}],["path",{d:"M19 5 5 19",key:"wwaj1z"}]],e=o("move-diagonal",a);export{a as __iconNode,e as default};

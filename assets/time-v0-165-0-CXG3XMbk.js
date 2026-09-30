@@ -1,0 +1,1 @@
+import{er as t}from"./index-v0-165-0-CRDiI7NB.js";const e=r=>{if(typeof r!="string")throw new Error("Date must be string");try{return t(r)}catch{throw new Error(`Invalid date format string: ${r}`)}};export{e as m};

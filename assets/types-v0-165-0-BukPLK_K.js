@@ -1,0 +1,1 @@
+var r=(e=>(e.OVERWRITE_TARGET="overwrite-target",e.PREFER_TARGET="prefer-target",e.PREFER_SOURCE="prefer-source",e))(r||{}),t=(e=>(e.ONE_TO_ONE="one-to-one",e.MANY_TO_ONE="many-to-one",e))(t||{}),T=(e=>(e.CUSTOM="custom",e.SECRET_METADATA="secret-metadata",e))(T||{});export{t as I,r as a,T as b};

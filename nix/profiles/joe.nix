@@ -27,31 +27,13 @@
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
 
-  home-manager.users.${primaryUser} = { pkgs, ... }: {
+  # Packages and workspace dirs live in ./joe-home.nix so homeConfigurations
+  # ."joe-linux" can import the identical set. Only the paths differ.
+  home-manager.users.${primaryUser} = {
+    imports = [ ./joe-home.nix ];
     home.username = primaryUser;
     home.homeDirectory = "/Users/${primaryUser}";
     home.stateVersion = "25.05";
-
-    # Personal tools managed by Nix for version pinning.
-    # Only tools NOT already in dot_Brewfile.core or a project Brewfile.
-    # Homebrew continues to own the core CLI stack and casks.
-    home.packages = with pkgs; [
-      nil          # Nix language server (LSP for .nix files)
-      nixpkgs-fmt  # canonical Nix formatter (for nix/ in this repo)
-      mkcert       # local HTTPS dev certificates
-    ];
-
-    # Workspace directory stubs (see docs/conventions/workspace-directory-layout.md).
-    # home-manager creates parent dirs when symlinking these sentinel files.
-    home.file = {
-      "projects/gh/.keep".text  = "";
-      "projects/local/.keep".text = "";
-      "docs/notes/.keep".text     = "";
-      "docs/references/.keep".text = "";
-      "apps/.keep".text           = "";
-      "bin/.keep".text            = "";
-      "scratch/.keep".text        = "";
-    };
   };
 
   # ── nix-darwin system settings ────────────────────────────────────────────

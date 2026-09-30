@@ -1,0 +1,1 @@
+import{j as o}from"./index-v0-165-0-CRDiI7NB.js";import{b as t}from"./recharts-v0-165-0-BL2qVztg.js";const e=()=>(t.useEffect(()=>{window.localStorage.setItem("PROVIDER_AUTH_ERROR","err"),window.close()},[]),o.jsx("div",{})),r=e;export{r as component};

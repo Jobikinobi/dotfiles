@@ -1,0 +1,1 @@
+import{T as t,j as i}from"./index-v0-165-0-CRDiI7NB.js";const n=(r,s="cloud",e)=>t({type:"error",text:i.jsx("a",{href:`https://infisical.com/docs/integrations/${s}/${r}${e?`#${e}`:""}`,target:"_blank",rel:"noreferrer",className:"underline",children:"Click here to view docs"}),title:"Missing Environment Variables"});export{n as c};
