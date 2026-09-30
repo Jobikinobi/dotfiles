@@ -27,6 +27,8 @@ brew "git"
 brew "gh"           # GitHub CLI
 brew "git-filter-repo"
 brew "lazygit"
+tap "coderabbitai/tap"
+brew "coderabbitai/tap/git-gtr"  # git worktree manager
 # ── Language toolchains ─────────────────────────────────────────────────────
 brew "go"
 brew "pyenv"
