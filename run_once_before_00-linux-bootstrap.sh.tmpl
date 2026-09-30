@@ -97,9 +97,13 @@ case "$OS_FAMILY" in
     done
     if [ -n "$MISSING" ]; then
       echo "→ Installing apt prereqs:$MISSING"
-      $SUDO DEBIAN_FRONTEND=noninteractive apt-get update -qq
+      # `env` is required, not stylistic: the shell recognises assignment
+      # prefixes at parse time, so with $SUDO empty (running as root, as in
+      # containers and cloud-init) `DEBIAN_FRONTEND=... apt-get` is parsed as
+      # a command named "DEBIAN_FRONTEND=..." and exits 127.
+      $SUDO env DEBIAN_FRONTEND=noninteractive apt-get update -qq
       # shellcheck disable=SC2086
-      $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $MISSING
+      $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $MISSING
     else
       echo "→ All apt prereqs already installed"
     fi

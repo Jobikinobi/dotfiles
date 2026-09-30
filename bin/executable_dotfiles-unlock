@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# dotfiles-unlock — fetch the age identity from Doppler and unlock encrypted dotfiles
+#
+# Managed by chezmoi as ~/bin/dotfiles-unlock (source: bin/executable_dotfiles-unlock).
+# Requires: doppler, age, chezmoi. ~/bin is on PATH via dot_zshrc.tmpl.
+#
+# This repository is PUBLIC. Every secret in it is age-encrypted to
+# age1l2n5sqj8eg0728vlj6che0vas474svdxej2ceypr6046z5ylwqusr00mzj and is
+# inert without the matching private identity, which lives ONLY in Doppler
+# (project `dotfiles`, config `prd`, secret `AGE_IDENTITY`) and in the
+# offline recovery archive. It is never committed.
+#
+# Until this script has run, `chezmoi apply` deliberately skips every
+# encrypted file — see the self-maintaining guard in .chezmoiignore — so a
+# fresh machine bootstraps cleanly and gains its secrets on a second pass.
+#
+# Usage:
+#   dotfiles-unlock            fetch key, then chezmoi apply
+#   dotfiles-unlock --key-only fetch key, skip apply
+#   dotfiles-unlock --verify   check the existing key without touching Doppler
+
+set -euo pipefail
+
+DOPPLER_PROJECT="${DOTFILES_DOPPLER_PROJECT:-dotfiles}"
+DOPPLER_CONFIG="${DOTFILES_DOPPLER_CONFIG:-prd}"
+KEY_PATH="${CHEZMOI_AGE_KEY:-$HOME/.config/chezmoi/key.txt}"
+RECIPIENT="age1l2n5sqj8eg0728vlj6che0vas474svdxej2ceypr6046z5ylwqusr00mzj"
+
+die() { printf 'dotfiles-unlock: %s\n' "$*" >&2; exit 1; }
+
+# Confirm a key file really is the identity this repo is encrypted to, by
+# deriving its public key. Cheap, and catches a truncated or wrong-tenant
+# secret before it produces a confusing decryption failure later.
+verify_key() {
+    local path="$1" derived
+    [ -s "$path" ] || return 1
+    derived="$(age-keygen -y "$path" 2>/dev/null)" || return 1
+    [ "$derived" = "$RECIPIENT" ]
+}
+
+case "${1:-}" in
+    --verify)
+        if verify_key "$KEY_PATH"; then
+            echo "✅ $KEY_PATH matches the repository recipient"
+            exit 0
+        fi
+        die "key at $KEY_PATH is missing, unreadable, or not the right identity"
+        ;;
+esac
+
+# Only age-keygen and chezmoi are unconditional. Doppler is checked inside the
+# fetch branch: a machine whose key is already installed and valid has no
+# reason to need the Doppler CLI at all.
+for cmd in age age-keygen chezmoi; do
+    command -v "$cmd" >/dev/null 2>&1 || die "$cmd is not installed"
+done
+
+if verify_key "$KEY_PATH"; then
+    echo "→ Existing key already matches the repository recipient; leaving it alone."
+else
+    command -v doppler >/dev/null 2>&1 \
+        || die "no valid key at $KEY_PATH and doppler is not installed to fetch one.
+       Install it:  curl -fsSL https://cli.doppler.com/install.sh | sh
+       Or place the identity at $KEY_PATH manually (mode 0600)."
+
+    doppler configure get token --plain >/dev/null 2>&1 \
+        || die "not logged in to Doppler. Run: doppler login"
+
+    echo "→ Fetching AGE_IDENTITY from Doppler ($DOPPLER_PROJECT/$DOPPLER_CONFIG)..."
+    mkdir -p "$(dirname "$KEY_PATH")"
+
+    # Write via a 0600 temp file in the destination directory so the secret is
+    # never briefly world-readable and never lands on a different filesystem.
+    tmp="$(mktemp "$(dirname "$KEY_PATH")/.key.XXXXXX")"
+    trap 'rm -f "$tmp"' EXIT
+    chmod 600 "$tmp"
+
+    doppler secrets get AGE_IDENTITY --plain \
+        --project "$DOPPLER_PROJECT" --config "$DOPPLER_CONFIG" > "$tmp" \
+        || die "could not read AGE_IDENTITY from $DOPPLER_PROJECT/$DOPPLER_CONFIG"
+
+    verify_key "$tmp" || die "the secret fetched from Doppler is not the expected identity"
+
+    mv "$tmp" "$KEY_PATH"
+    chmod 600 "$KEY_PATH"
+    trap - EXIT
+    echo "→ Key installed at $KEY_PATH (0600) and verified."
+fi
+
+[ "${1:-}" = "--key-only" ] && { echo "→ --key-only: not applying."; exit 0; }
+
+# A machine that has been in use for a while can have drifted far from the
+# source. Applying that blind would rewrite unrelated files as a side effect of
+# unlocking secrets, which is not what anyone runs this script for. Count the
+# pending changes first and make a large diff an explicit decision.
+# Count only drift that has NOTHING to do with unlocking. The encrypted files
+# themselves are always pending on the unlock pass (that is the point), so
+# counting them would make a normal fresh-machine unlock look like drift.
+DRIFT_LIMIT="${DOTFILES_DRIFT_LIMIT:-10}"
+changed=$(chezmoi status 2>/dev/null | grep -c . || true)
+unrelated=$(chezmoi status --exclude=encrypted,scripts 2>/dev/null | grep -c . || true)
+
+if [ "$unrelated" -gt "$DRIFT_LIMIT" ] && [ -t 0 ]; then
+    echo
+    echo "⚠️  $unrelated paths unrelated to your secrets are also pending"
+    echo "    (out of $changed total) — more than $DRIFT_LIMIT."
+    echo "    This machine has drifted from the source, so applying now would"
+    echo "    rewrite unrelated files, not just the secrets you came for."
+    echo
+    echo "    Review with:  chezmoi diff"
+    echo "    Apply one at a time:  chezmoi apply ~/.config/rclone/rclone.conf"
+    echo
+    printf "    Apply all %s changes anyway? [y/N] " "$changed"
+    read -r reply
+    case "$reply" in
+        [yY]|[yY][eE][sS]) ;;
+        *) echo "→ Not applying. The key is installed, so 'chezmoi apply <path>' works now."; exit 0 ;;
+    esac
+elif [ "$unrelated" -gt "$DRIFT_LIMIT" ]; then
+    # Non-interactive (cloud-init, CI): refuse rather than silently rewrite.
+    echo "⚠️  $unrelated unrelated pending changes (of $changed total) exceeds $DRIFT_LIMIT, no TTY to confirm."
+    echo "    Key installed. Re-run interactively, or set DOTFILES_DRIFT_LIMIT."
+    exit 0
+fi
+
+echo "→ Applying dotfiles ($changed pending)..."
+chezmoi apply
+echo "✅ Unlocked. Encrypted files are now deployed."
