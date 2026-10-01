@@ -443,6 +443,6 @@ fi
   This means fresh deploys without the agent get empty values, matching
   the old `|| true` behavior from Doppler template baking.
 */ -}}
-{{- if .fileExists (joinPath .chezmoi.homeDir ".infisical/backend-secrets.env") }}
+{{- if stat (joinPath .chezmoi.homeDir ".infisical/backend-secrets.env") }}
 source "{{ .chezmoi.homeDir }}/.infisical/backend-secrets.env"
 {{- end }}

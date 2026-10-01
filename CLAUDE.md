@@ -23,7 +23,7 @@ Cross-platform development environment managed by chezmoi.
 {{ if eq .chezmoi.os "darwin" }}   # macOS-only block
 {{ if lookPath "infisical" }}      # only if Infisical CLI exists
 {{ if stdinIsATTY }}               # interactive vs headless
-{{ if .fileExists "path" }}        # check if agent-rendered file exists
+{{ if stat "path" }}               # check if agent-rendered file exists
 {{ output "cmd" "args" | trim }}   # run command, capture output (legacy Doppler)
 ```
 
