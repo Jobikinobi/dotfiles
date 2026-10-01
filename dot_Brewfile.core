@@ -9,7 +9,8 @@ brew "age"          # file encryption (used by chezmoi for secrets)
 # ── CLI essentials ──────────────────────────────────────────────────────────
 brew "bat"          # cat replacement
 brew "direnv"       # auto-load .envrc per project
-brew "doppler"      # secrets management
+brew "doppler"              # secrets management (legacy — being replaced by infisical-agent)
+brew "infisical/get-cli/infisical"  # secrets management daemon (replaces doppler; agent renders secrets to files)
 brew "eza"          # ls replacement
 brew "fd"           # find replacement (used by fzf)
 brew "fnm"          # Node version manager
