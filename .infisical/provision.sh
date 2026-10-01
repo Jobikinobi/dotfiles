@@ -42,9 +42,13 @@ PROJECTS=(
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+# Print the arguments as an error message prefixed with the program name to stderr.
 err() { printf '%s: %s\n' "$PROG" "$*" >&2; }
+
+# Report the arguments as an error message and exit with status 1.
 die() { err "$*"; exit 1; }
 
+# Print the arguments as a progress message to stderr.
 info() { printf '→ %s\n' "$*" >&2; }
 
 # Authenticate as the Provisioner and return a Bearer token.
@@ -241,6 +245,8 @@ EOF
 # Main
 # ──────────────────────────────────────────────────────────────────────────────
 
+# Authenticate and provision each configured project's reader credentials and agent config.
+# Print deployment instructions after all projects have been processed.
 main() {
   info "Infisical provisioner bootstrap"
   info "Address: $INFISICAL_ADDRESS"
