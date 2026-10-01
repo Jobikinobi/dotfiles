@@ -96,6 +96,12 @@ else
   # requires the explicit `install` subcommand on current Homebrew.
   if [[ -f "$HOME/.Brewfile.core" ]]; then
     echo "→ Installing core packages from ~/.Brewfile.core..."
+    # Homebrew refuses to load formulae from a third-party tap in
+    # non-interactive mode unless explicitly trusted first. Without this,
+    # `brew bundle install` aborts under `set -e` on any machine that has
+    # never tapped coderabbitai/tap before (every fresh install).
+    brew tap coderabbitai/tap >/dev/null 2>&1 || true
+    brew trust --tap coderabbitai/tap
     brew bundle install --file="$HOME/.Brewfile.core"
   fi
 fi
