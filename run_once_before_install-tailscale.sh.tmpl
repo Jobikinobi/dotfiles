@@ -30,17 +30,24 @@ fi
 if command -v tailscale &>/dev/null; then
   if ! tailscale status &>/dev/null; then
     sudo systemctl enable --now tailscaled 2>/dev/null || true
-{{- if lookPath "doppler" }}
-    TS_AUTHKEY="$(doppler secrets get TAILSCALE_AUTHKEY_SERVER --plain -p backend -c dev 2>/dev/null)" || true
+{{- if or (lookPath "infisical") (.fileExists (joinPath .chezmoi.homeDir ".infisical/tailscale-authkey.txt")) }}
+    # Try Infisical Agent rendered file first (preferred), then fall back to CLI.
+    TS_AUTHKEY=""
+    if [ -f "{{ .chezmoi.homeDir }}/.infisical/tailscale-authkey.txt" ]; then
+      TS_AUTHKEY="$(cat "{{ .chezmoi.homeDir }}/.infisical/tailscale-authkey.txt" | tr -d '[:space:]')"
+    fi
+    if [[ -z "$TS_AUTHKEY" ]] && command -v infisical &>/dev/null; then
+      TS_AUTHKEY="$(infisical run --env=dev --path=/ --project backend -- sh -c 'echo "$TAILSCALE_AUTHKEY_SERVER"' 2>/dev/null)" || true
+    fi
     if [[ -n "$TS_AUTHKEY" ]]; then
       echo "→ Joining tailnet..."
       sudo tailscale up --authkey="$TS_AUTHKEY" --ssh --advertise-tags=tag:server
       echo "✓ Joined tailnet with Tailscale SSH enabled"
     else
-      echo "⚠ Tailscale installed but no auth key returned from Doppler — run 'sudo tailscale up' manually"
+      echo "⚠ Tailscale installed but no auth key available — run 'sudo tailscale up' manually"
     fi
 {{- else }}
-    echo "⚠ Tailscale installed but Doppler not available at template-render time — run 'sudo tailscale up' manually"
+    echo "⚠ Tailscale installed but no secrets manager available — run 'sudo tailscale up' manually"
 {{- end }}
   else
     echo "✓ Tailscale already connected"

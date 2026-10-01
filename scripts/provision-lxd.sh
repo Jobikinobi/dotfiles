@@ -156,25 +156,38 @@ if [[ ! -f "$brewfile" ]]; then
   exit 1
 fi
 
-# ── fetch single-use Tailscale auth key from Doppler ────────────────────────
+# ── fetch single-use auth key from Infisical (preferred) or Doppler (legacy) ─
 ts_authkey=""
 if (( dry_run )); then
   ts_authkey="DRY-RUN-PLACEHOLDER-TAILSCALE-AUTHKEY-NOT-FETCHED"
 else
-  command -v doppler >/dev/null 2>&1 \
-    || die "doppler not on PATH; install + authenticate Doppler before running this script."
+  # Try Infisical Agent rendered file first.
+  if [[ -f "${INFISICAL_AUTHKEY_FILE:-$HOME/.infisical/tailscale-authkey.txt}" ]]; then
+    ts_authkey="$(cat "${INFISICAL_AUTHKEY_FILE:-$HOME/.infisical/tailscale-authkey.txt}" | tr -d '[:space:]')"
+  fi
 
-  if ! ts_authkey="$(
-    doppler secrets get "$DOPPLER_SECRET" \
-      --plain \
-      --project "$DOPPLER_PROJECT" \
-      --config "$DOPPLER_CONFIG" 2>/dev/null
-  )"; then
-    die "could not fetch $DOPPLER_SECRET from doppler scope $DOPPLER_PROJECT/$DOPPLER_CONFIG. Verify login + scope."
+  # Fall back to Infisical CLI if agent file not available.
+  if [[ -z "$ts_authkey" ]] && command -v infisical &>/dev/null; then
+    ts_authkey="$(infisical run --env=dev --path=/ --project backend -- sh -c "echo \"\$$DOPPLER_SECRET\"" 2>/dev/null)" || true
+  fi
+
+  # Ultimate fallback: Doppler (legacy).
+  if [[ -z "$ts_authkey" ]]; then
+    command -v doppler >/dev/null 2>&1 \
+      || die "neither Infisical nor Doppler is on PATH; install one before running this script."
+
+    if ! ts_authkey="$(
+      doppler secrets get "$DOPPLER_SECRET" \
+        --plain \
+        --project "$DOPPLER_PROJECT" \
+        --config "$DOPPLER_CONFIG" 2>/dev/null
+    )"; then
+      die "could not fetch $DOPPLER_SECRET via Infisical or Doppler from scope $DOPPLER_PROJECT/$DOPPLER_CONFIG. Verify login + scope."
+    fi
   fi
 
   [[ -n "$ts_authkey" ]] \
-    || die "$DOPPLER_SECRET was empty in doppler scope $DOPPLER_PROJECT/$DOPPLER_CONFIG."
+    || die "$DOPPLER_SECRET was empty in scope $DOPPLER_PROJECT/$DOPPLER_CONFIG."
 fi
 
 # ── render cloud-init ───────────────────────────────────────────────────────
