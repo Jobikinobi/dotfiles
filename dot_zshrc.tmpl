@@ -19,6 +19,28 @@ elif [[ -f /usr/local/bin/brew ]]; then
 elif [[ -f /home/linuxbrew/.linuxbrew/bin/brew ]]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1a. FPATH SELF-HEALING
+# `brew shellenv` above exports FPATH. Once exported, a zsh started INSIDE
+# another zsh (tmux pane, container, nested `zsh` invocation) inherits that
+# frozen string instead of rebuilding its own compiled-in default fpath — so
+# it silently loses zsh's shipped functions (compinit, is-at-least, colors,
+# add-zsh-hook, bashcompinit, ...), producing "function definition file not
+# found" errors on every autoload. Re-assert the standard dirs here so the
+# shell self-heals regardless of what FPATH arrived with, and dedupe repeated
+# prepends from nested sourcing (typeset -U also cleans up PATH duplicates).
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+typeset -U fpath path
+
+fpath+=(
+  /usr/share/zsh/${ZSH_VERSION}/functions(N)
+  /usr/share/zsh/${ZSH_VERSION}/functions/**/*(N/)
+  /usr/share/zsh/functions(N)
+  /usr/share/zsh/functions/**/*(N/)
+  /usr/local/share/zsh/${ZSH_VERSION}/functions(N)
+  /usr/local/share/zsh/site-functions(N)
+)
 {{ if and (eq .chezmoi.os "darwin") (stdinIsATTY) -}}
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 1b. KEYCHAIN UNLOCK FOR SSH SESSIONS (macOS)
@@ -51,6 +73,24 @@ zinit snippet OMZP::docker
 zinit snippet OMZP::kubectl
 zinit snippet OMZP::npm
 zinit snippet OMZP::command-not-found
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 3a. GIT-GTR (worktree management) — MUST run before compinit below.
+# Installed via Brewfile.core (coderabbitai/tap/git-gtr); this block just
+# wires up its completions/init if the binary is present.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if command -v git-gtr &>/dev/null; then
+  zstyle ':completion:*:*:git:*' user-commands gtr:'Git worktree management'
+
+  _gtr_site_functions="$(brew --prefix git-gtr 2>/dev/null)/share/zsh/site-functions"
+  [[ -d "$_gtr_site_functions" ]] && fpath=("$_gtr_site_functions" $fpath)
+  unset _gtr_site_functions
+
+  _gtr_init="${XDG_CACHE_HOME:-$HOME/.cache}/gtr/init-gtr.zsh"
+  [[ -f "$_gtr_init" ]] && head -n 1 "$_gtr_init" | grep -q ' init=6 ' || eval "$(git gtr init zsh)" || true
+  source "$_gtr_init" 2>/dev/null || true
+  unset _gtr_init
+fi
 
 autoload -Uz compinit
 if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
@@ -438,7 +478,7 @@ fi
   authenticated yet (fresh VM, before `doppler login`). When
   unauthenticated, the exported vars are empty.
 */ -}}
-{{ if lookPath "doppler" -}}
+{{ if lookPath "doppler" }}
 export POSTMAN_API_KEY='{{ output "sh" "-c" "doppler secrets get POSTMAN_API_KEY --plain -p backend -c prd 2>/dev/null || true" | trim }}'
 export MEM0_API_KEY='{{ output "sh" "-c" "doppler secrets get MEM0_API_KEY --plain -p backend -c prd 2>/dev/null || true" | trim }}'
 {{- end }}
