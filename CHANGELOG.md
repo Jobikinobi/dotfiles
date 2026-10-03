@@ -8,6 +8,13 @@ This file is maintained automatically by
 hand — write good commit messages instead (`feat:`, `fix:`, `docs:`, …) and the
 next release PR will regenerate the entries below.
 
+## [1.3.0](https://github.com/Jobikinobi/dotfiles/compare/v1.2.1...v1.3.0) (2026-10-03)
+
+
+### Features
+
+* **secrets:** Doppler → Infisical Agent migration (provisioning key + delegated readers) ([#143](https://github.com/Jobikinobi/dotfiles/issues/143)) ([47d36b8](https://github.com/Jobikinobi/dotfiles/commit/47d36b83d6a6d7faab5d08c1ecfe0ef7dacea190))
+
 ## [1.2.1](https://github.com/Jobikinobi/dotfiles/compare/v1.2.0...v1.2.1) (2026-09-30)
 
 
