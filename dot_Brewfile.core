@@ -10,10 +10,11 @@ brew "age"          # file encryption (used by chezmoi for secrets)
 brew "bat"          # cat replacement
 brew "direnv"       # auto-load .envrc per project
 brew "doppler"              # secrets management (legacy — being replaced by infisical-agent)
-tap "infisical/get-cli"             # required before installing from this custom tap — Homebrew
-                                     # refuses untapped third-party formulae in non-interactive
-                                     # containers ("untrusted tap"), which broke CI on this PR
-brew "infisical/get-cli/infisical"  # secrets management daemon (replaces doppler; agent renders secrets to files)
+tap "infisical/get-cli", trusted: true  # Homebrew 6.0's Tap Trust blocks any third-party
+                                         # tap/formula without `trusted: true` — a bare `tap`
+                                         # line (no trust flag) still fails in non-interactive
+                                         # CI with "Refusing to load formula ... untrusted tap"
+brew "infisical/get-cli/infisical", trusted: true  # secrets management daemon (replaces doppler; agent renders secrets to files)
 brew "eza"          # ls replacement
 brew "fd"           # find replacement (used by fzf)
 brew "fnm"          # Node version manager
