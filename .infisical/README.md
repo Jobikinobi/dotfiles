@@ -65,9 +65,11 @@
 ## Setup Steps
 
 ### Step 1: Install Infisical CLI
-Already in `dot_Brewfile.core`. After `chezmoi apply`:
+Already in `dot_Brewfile.core` (the official homebrew-core `infisical` formula — not the
+vendor's `infisical/get-cli/infisical` tap, which requires macOS and trips Homebrew's Tap
+Trust in CI). `chezmoi apply` installs it automatically; to do it by hand:
 ```bash
-brew install infisical/get-cli/infisical
+brew install infisical
 ```
 
 ### Step 2: Create the Provisioner Identity
