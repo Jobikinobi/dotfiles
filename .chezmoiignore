@@ -57,5 +57,8 @@ private_dot_ssh/encrypted_private_id_ed25519_pve.age
 private_dot_ssh/encrypted_private_id_ed25519_pve_admin.age
 {{- end }}
 
+# Infisical Agent credentials and configs — age-encrypted, not secrets themselves
+.infisical/children/**
+
 # Vendored binaries — never deploy platform-specific executables
 bin/chezmoi

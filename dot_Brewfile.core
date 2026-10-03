@@ -9,7 +9,12 @@ brew "age"          # file encryption (used by chezmoi for secrets)
 # ── CLI essentials ──────────────────────────────────────────────────────────
 brew "bat"          # cat replacement
 brew "direnv"       # auto-load .envrc per project
-brew "doppler"      # secrets management
+brew "doppler"              # secrets management (legacy — being replaced by infisical-agent)
+brew "infisical"             # secrets management daemon (replaces doppler; agent renders
+                              # secrets to files). Use the official homebrew-core formula,
+                              # NOT the vendor's infisical/get-cli/infisical tap — that one
+                              # requires macOS (breaks Linux CI) and also tripped Homebrew
+                              # 6.0's Tap Trust ("untrusted tap") since it's third-party.
 brew "eza"          # ls replacement
 brew "fd"           # find replacement (used by fzf)
 brew "fnm"          # Node version manager

@@ -269,7 +269,7 @@ alias mac-edit='chezmoi edit'
 # 14. CLOUD & INFRASTRUCTURE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-alias aws-login='doppler run --project master --config prd -- aws configure'
+alias aws-login='infisical run --env=prod --path=/aws --project master -- aws configure'
 alias aws-sso='aws sso login --profile hole-admin'
 alias aws-who='aws sts get-caller-identity'
 alias s3-ls-mipds='aws s3 ls s3://hole-foia-deep-archive/MIPDS/ --human-readable --summarize'
@@ -429,16 +429,20 @@ fi
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# SECRETS — baked in by chezmoi from Doppler (never hardcoded in source)
+# SECRETS — rendered by Infisical Agent daemon into ~/.infisical/*.env files
+#           (never hardcoded in source; agent polls cloud and writes files)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {{- /*
-  Bake Doppler-managed secrets into .zshrc at apply time. Wrapped in
-  `sh -c "… || true"` so the apply succeeds even if Doppler isn't
-  authenticated yet (fresh VM, before `doppler login`). When
-  unauthenticated, the exported vars are empty.
+  Source pre-rendered secret files written by the Infisical Agent daemon.
+  The agent runs as a persistent background process, authenticates once to
+  Infisical Cloud, and continuously renders secrets into files on disk.
+  chezmoi never calls out to any secrets manager — it just wires up files.
+
+  If the agent isn't running or hasn't rendered yet, we silently skip.
+  This means fresh deploys without the agent get empty values, matching
+  the old `|| true` behavior from Doppler template baking.
 */ -}}
-{{ if lookPath "doppler" -}}
-export POSTMAN_API_KEY='{{ output "sh" "-c" "doppler secrets get POSTMAN_API_KEY --plain -p backend -c prd 2>/dev/null || true" | trim }}'
-export MEM0_API_KEY='{{ output "sh" "-c" "doppler secrets get MEM0_API_KEY --plain -p backend -c prd 2>/dev/null || true" | trim }}'
+{{- if stat (joinPath .chezmoi.homeDir ".infisical/backend-secrets.env") }}
+source "{{ .chezmoi.homeDir }}/.infisical/backend-secrets.env"
 {{- end }}
