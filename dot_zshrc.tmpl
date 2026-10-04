@@ -265,6 +265,30 @@ alias mac-save='chezmoi re-add && brew bundle dump --file="$(chezmoi source-path
 alias mac-check='chezmoi diff'
 alias mac-edit='chezmoi edit'
 
+# What version of the dotfiles is this machine running? Reads the stamp that
+# chezmoi deploys to ~/.local/share/chezmoi-version (see dotfiles#144), and warns
+# when the host is tracking a branch rather than a release channel — the state
+# every bootstrap path defaulted to before version pinning existed.
+dotfiles-version() {
+  local stamp="$HOME/.local/share/chezmoi-version"
+  if [[ ! -r "$stamp" ]]; then
+    print -u2 "dotfiles-version: no stamp at $stamp — run 'chezmoi apply' to generate it"
+    return 1
+  fi
+  ( . "$stamp"
+    print "version  ${DOTFILES_VERSION:-unknown}"
+    print "ref      ${DOTFILES_REF:-unknown}"
+    print "sha      ${DOTFILES_SHA:-unknown}"
+    print "host     ${DOTFILES_HOST:-unknown}"
+    case "${DOTFILES_REF:-}" in
+      v*)      print "channel  pinned to a tag" ;;
+      stable)  print "channel  stable" ;;
+      unknown) print "channel  unknown (source dir is not a git checkout)" ;;
+      *)       print "channel  tracking branch '${DOTFILES_REF}' — not a release" ;;
+    esac
+  )
+}
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 14. CLOUD & INFRASTRUCTURE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
