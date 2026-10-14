@@ -279,6 +279,29 @@ mac-save
 
 ---
 
+## What version is this machine running?
+
+```bash
+dotfiles-version
+# version  1.2.1
+# ref      main
+# sha      47d36b8
+# host     studio
+# channel  tracking branch 'main' — not a release
+```
+
+`chezmoi apply` writes the stamp to `~/.local/share/chezmoi-version`. It is POSIX-sourceable, so scripts and fleet audits can read it without parsing:
+
+```bash
+. ~/.local/share/chezmoi-version && echo "$DOTFILES_VERSION"
+```
+
+`ref` is what matters: a release channel (`stable`), an exact tag (`v1.2.1`, from `chezmoi init --tag`), or a branch name — which means the host is riding unreviewed code. `unknown` means the source directory is not a git checkout (tarball or baked-image install); the stamp still reports `version`.
+
+The stamp deliberately contains no apply timestamp, so `chezmoi diff` stays quiet when nothing has actually changed. Use the file's mtime if you need to know when these values last moved.
+
+---
+
 ## Adding a new project
 
 Per-project tooling (the `legal`, `godocs`, `oversight` profiles, etc.) lives behind the `projects` data variable in `~/.config/chezmoi/chezmoi.toml`. To add a new profile, follow the 10-step checklist in [docs/profiles/README.md](docs/profiles/README.md).
