@@ -1,0 +1,6 @@
+import{es as t}from"./index-v0-165-0-CRDiI7NB.js";import"./recharts-v0-165-0-BL2qVztg.js";/**
+* @license lucide-react v0.544.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/const e=[["path",{d:"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z",key:"q3az6g"}],["path",{d:"m12 10 3-3",key:"1mc12w"}],["path",{d:"m9 7 3 3v7.5",key:"39i0xv"}],["path",{d:"M9 11h6",key:"1fldmi"}],["path",{d:"M9 15h6",key:"cctwl0"}]],a=t("receipt-japanese-yen",e);export{e as __iconNode,a as default};

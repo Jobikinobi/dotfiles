@@ -1,0 +1,1 @@
+import{j as s}from"./index-v0-165-0-CRDiI7NB.js";import{C as d}from"./CertificatesSection-v0-165-0-CdeMN81o.js";const o=({externalFilter:r,dashboardFilters:a,dashboardViewId:e})=>s.jsx(d,{externalFilter:r,dashboardFilters:a,dashboardViewId:e});export{o as C};

@@ -1,0 +1,35 @@
+#cloud-config
+# Vultr user-data — paste into "Cloud-Init User-Data" at deploy
+# (Additional Features → Enable Cloud-Init User-Data), or:
+#   vultr-cli instance user-data set <id> -d vultr-cloud-config.yaml
+# Target: Ubuntu 22.04 / 24.04 (Vultr stock images)
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: false
+packages:
+  - curl
+  - ca-certificates
+
+users:
+  # no "default" entry — avoids creating the stock "ubuntu" account
+  - name: jth
+    gecos: Joseph T. Herrmann
+    groups: [sudo, adm]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    lock_passwd: true
+    ssh_authorized_keys:
+      # Vultr does not reliably merge console-selected SSH keys when
+      # user-data is present — put the public key here.
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCtzDq9k+gbgsxq1ZLeDmD5tj6Eb22aB+fT4voQTHONTzNP35lUazptPJhdm+OgAlrE2P3QWTpRxwBz5Yhib/vvoATd7g1TxtwNG+FkMTL4tV9RS5wBjzhFajrUDP8JrZCUNX0dcbOfp0XwMcFGmBMN7TCMmT4S5V7VVeVoski2639xk5ZkEviezMcqpZ7Ld2WMI2cRolAJH4RVR0D5fvWwvDdfKx1YruP0dstPk/zDLlhftoKg1vwao2RxVZ17UED0ANLmVP/8gYaobVHCuPI8gDA/CM9tgfTxAHDD4AkHxU/dUI+xRyJpwLZIfML2TpaLtOfmCZx0iOiR4oPO8hYiPZA0neiR9+GLRhwwNEfGbdCDHonKA2LGP01fAKx8SEbdvZgcQ2On5qTYw/RWuSY+EnpKJcAH36ph7/+8zmUPThY3K0P+rf2RloPT6fiPUw9kPSsPAJL97HjRvtR3Mj/QHkCCMWDy1MFT6iPy/np0cSL/sFUA52ntRU+K+h8vSpk= josephherrmann@MacBook-Air.local
+
+runcmd:
+  # Install Tailscale (official installer handles apt repo + package)
+  - curl -fsSL https://tailscale.com/install.sh | sh
+  # Join tailnet. runcmd runs as root, so no sudo needed.
+  - tailscale up --auth-key=tskey-auth-kEr3q5uHf421CNTRL-cotvtAJmRTi3ttPK8jkvSiKSTrzxLBL6
+  # Scrub the auth key from the persisted user-data copy on disk
+  - sed -i 's/tskey-auth-[A-Za-z0-9-]*/REDACTED/' /var/lib/cloud/instance/user-data.txt || true
+
+final_message: "cloud-init done in $UPTIME s — jth ready, tailscale up"

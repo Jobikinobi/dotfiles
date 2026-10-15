@@ -1,0 +1,1 @@
+import{j as e,eR as i,O as a}from"./index-v0-165-0-CRDiI7NB.js";function l({lottieClassName:s}){return e.jsx("div",{className:"flex h-full w-full items-center justify-center",children:e.jsx(i,{icon:"infisical_loading_white",isAutoPlay:!0,className:a("w-24",s)})})}export{l as P};

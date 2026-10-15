@@ -359,7 +359,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [agent-linux]
+        # x86_64-linux runner, so only the x86_64 keys. The -aarch64 variants
+        # exist for Apple-Silicon lima/LXC guests and would need emulation.
+        profile: [agent-linux, joe-linux]
     steps:
       - uses: actions/checkout@v4
         with:

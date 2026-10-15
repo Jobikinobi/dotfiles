@@ -1,0 +1,1 @@
+import{j as o,C as t,bx as e}from"./index-v0-165-0-CRDiI7NB.js";import"./recharts-v0-165-0-BL2qVztg.js";const m=({className:a,...s})=>o.jsx(t,{className:e("mx-auto w-full max-w-none items-stretch gap-0 border-0 bg-transparent p-0 shadow-none",a),...s});export{m as A};

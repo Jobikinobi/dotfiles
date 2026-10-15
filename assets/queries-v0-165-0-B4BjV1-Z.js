@@ -1,0 +1,1 @@
+import{a5 as a,Z as s}from"./index-v0-165-0-CRDiI7NB.js";const r={serverStatus:["serverStatus"]},e=async()=>{const{data:t}=await s.get("/api/status");return t},u=()=>a({queryKey:r.serverStatus,queryFn:e});export{u};

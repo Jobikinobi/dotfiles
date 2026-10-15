@@ -1,0 +1,1 @@
+import"./recharts-v0-165-0-BL2qVztg.js";import{a1 as s,gQ as o,a3 as t,aw as e,iz as r,aU as c,la as i}from"./index-v0-165-0-CRDiI7NB.js";const p=n=>{const{permission:a}=e();return a.can(r.Connect,c.AppConnections)&&a.can(i.Create,n)},C=()=>{const{permission:n}=s();return n.can(o.Connect,t.AppConnections)};export{p as a,C as u};

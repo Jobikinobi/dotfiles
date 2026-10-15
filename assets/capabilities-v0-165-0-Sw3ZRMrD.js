@@ -1,0 +1,1 @@
+import{sU as e}from"./index-v0-165-0-CRDiI7NB.js";const r=s=>s===e.INTERNAL,t=s=>{switch(s){case e.DIGICERT:return{requiresHsm:!0,supportsExistingOrderReuse:!0,minRsaKeyBits:3072};default:return{requiresHsm:!1,supportsExistingOrderReuse:!1}}};export{t as g,r as i};

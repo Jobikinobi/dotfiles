@@ -57,10 +57,25 @@
       ];
     };
 
-    # Linux — standalone home-manager for agent containers (agent profile, P3)
-    homeConfigurations."agent-linux" = home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.x86_64-linux;
-      modules = [
+    # ── Linux — standalone home-manager ──────────────────────────────────────
+    #
+    # run_once_after_nix-profile.sh.tmpl activates `#<profile>-linux` on x86_64
+    # and `#<profile>-linux-aarch64` elsewhere, so every profile that may be
+    # selected on Linux needs BOTH keys. A missing one fails the same way the
+    # missing darwin key did in dotfiles#117: "flake output attribute not found".
+    #
+    # `joe-linux` exists because chezmoi.toml offers `joe` on every platform but
+    # the flake only ever defined agent-linux — picking `joe` on a Linux box was
+    # an unconditional hard failure. joe.nix itself cannot serve here (it is
+    # nix-darwin-only), hence the portable ./profiles/joe-home.nix split.
+    homeConfigurations = let
+      mkLinux = system: modules: home-manager.lib.homeManagerConfiguration {
+        pkgs = nixpkgs.legacyPackages.${system};
+        inherit modules;
+      };
+
+      # provision-lxd.sh --nix-profile agent creates user "agent" to match this.
+      agentModules = [
         ./profiles/common.nix
         ./profiles/agent.nix
         {
@@ -69,6 +84,22 @@
           home.stateVersion = "25.05";
         }
       ];
+
+      # "jth" matches the account Dockerfile.alpine / Dockerfile.rhel create.
+      joeModules = [
+        ./profiles/common.nix
+        ./profiles/joe-home.nix
+        {
+          home.username = "jth";
+          home.homeDirectory = "/home/jth";
+          home.stateVersion = "25.05";
+        }
+      ];
+    in {
+      "agent-linux"         = mkLinux "x86_64-linux"  agentModules;
+      "agent-linux-aarch64" = mkLinux "aarch64-linux" agentModules;
+      "joe-linux"           = mkLinux "x86_64-linux"  joeModules;
+      "joe-linux-aarch64"   = mkLinux "aarch64-linux" joeModules;
     };
 
   };

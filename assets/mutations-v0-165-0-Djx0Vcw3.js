@@ -1,0 +1,1 @@
+import{Y as s,Z as e}from"./index-v0-165-0-CRDiI7NB.js";const c=()=>s({mutationFn:async({projectId:a,actorId:t,actorType:o})=>{const{data:r}=await e.post(`/api/v1/projects/${a}/assume-privileges`,{actorId:t,actorType:o});return r}}),p=()=>s({mutationFn:async({projectId:a})=>{const{data:t}=await e.delete(`/api/v1/projects/${a}/assume-privileges`);return t}});export{c as a,p as u};
