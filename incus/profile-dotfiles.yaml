@@ -1,0 +1,203 @@
+# Incus profile: dotfiles
+#
+# Composes ON TOP of `default` — it deliberately does NOT redefine eth0 or
+# root, so it cannot disturb existing instances:
+#
+#   incus launch images:ubuntu/24.04/cloud <name> -p default -p dotfiles
+#
+# Apply/update with:
+#   incus profile create dotfiles 2>/dev/null || true
+#   incus profile edit dotfiles < incus/profile-dotfiles.yaml
+#
+# cloud-init only runs on /cloud images (e.g. images:ubuntu/24.04/cloud).
+#
+# ── Security posture ──────────────────────────────────────────────────────
+# No passwords and no password SSH. Access is by SSH key or Tailscale SSH,
+# with `incus exec` from the host as the always-available backdoor — the same
+# recoverability principle that governs the pve → pct exec staging order.
+# That is why this file is safe to keep in a PUBLIC repo: it contains only
+# public SSH keys and no $6$ shadow hashes.
+#
+# ── First boot ────────────────────────────────────────────────────────────
+# Installs sshd, Tailscale, age, Doppler and chezmoi, then applies the
+# dotfiles. Encrypted files are SKIPPED on this pass (no age identity is
+# present), which is by design — .chezmoiignore's guard makes that a clean
+# skip rather than a failure.
+#
+# ── Second pass: secrets ──────────────────────────────────────────────────
+# Nothing is baked in. When you want the secrets on this guest:
+#
+#   incus exec <instance> -- su - jth -c 'doppler login'
+#   incus exec <instance> -- su - jth -c 'dotfiles-unlock'
+#
+# That pulls AGE_IDENTITY from Doppler (project dotfiles, config prd),
+# verifies it against the repository recipient, and re-applies — after which
+# rclone, aws, gh and every SSH key are live on the guest.
+
+name: dotfiles
+description: Dotfiles-ready guest — Tailscale + chezmoi + Doppler unlock path
+
+devices:
+  # Tailscale needs a real TUN device. Without it tailscaled silently falls
+  # back to userspace networking: `tailscale up` still appears to succeed and
+  # outbound traffic works, but inbound connections to services on this guest
+  # do not. The failure is quiet, so the device is not optional.
+  tun:
+    type: unix-char
+    source: /dev/net/tun
+    path: /dev/net/tun
+
+config:
+  cloud-init.user-data: |
+    #cloud-config
+
+    disable_root: false
+
+    # Key-only SSH. `incus exec` remains the console backdoor from the host.
+    ssh_pwauth: false
+
+    groups:
+      - sudo
+      - wheel
+
+    packages:
+      - bash
+      - sudo
+      - curl
+      - git
+      - ca-certificates
+      - age
+
+    users:
+      - name: root
+        ssh_authorized_keys:
+          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIInW5iHbHBB2ljSvSXzfVjcDP038uyodqSeJXgJzhxAx
+
+      - name: jth
+        gecos: Joseph Herrmann
+        shell: /bin/bash
+        groups: [sudo, wheel]
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        # No passwd hash: a $6$ hash in a public repo is offline-crackable.
+        # lock_passwd stays false so `incus exec` console access works.
+        lock_passwd: false
+        ssh_authorized_keys:
+          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIInW5iHbHBB2ljSvSXzfVjcDP038uyodqSeJXgJzhxAx
+
+      - name: paperclip
+        gecos: Paperclip
+        shell: /bin/bash
+        sudo: false
+        lock_passwd: false
+        ssh_authorized_keys:
+          - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIInW5iHbHBB2ljSvSXzfVjcDP038uyodqSeJXgJzhxAx
+
+    chpasswd:
+      expire: false
+
+    write_files:
+
+      - path: /usr/local/bin/tailscale-login
+        owner: root:root
+        permissions: '0755'
+        content: |
+          #!/usr/bin/env bash
+          # Interactive Tailscale enrollment. Auth is deliberately interactive:
+          # no reusable Tailscale credential is stored in this profile.
+          set -euo pipefail
+          command -v tailscale >/dev/null 2>&1 || { echo "Tailscale is not installed." >&2; exit 1; }
+          if tailscale status >/dev/null 2>&1; then
+              echo "Tailscale is already connected:"; tailscale status; exit 0
+          fi
+          echo; echo "Open the URL below to authenticate this machine."; echo
+          if [ "$(id -u)" -eq 0 ]; then exec tailscale up; else exec sudo tailscale up; fi
+
+      - path: /usr/local/sbin/bootstrap-dotfiles
+        owner: root:root
+        permissions: '0755'
+        content: |
+          #!/usr/bin/env bash
+          # Apply the dotfiles as jth (not root) so ~/.config, ~/.ssh and shell
+          # files end up owned by the right user. chezmoi clones the repo itself.
+          set -euo pipefail
+          [ -d /home/jth ] || { echo "jth home directory does not exist." >&2; exit 1; }
+          echo "Applying Jobikinobi dotfiles for jth..."
+          sudo -u jth -H bash -lc \
+            'sh -c "$(curl -fsLS https://get.chezmoi.io)" -- init --apply Jobikinobi'
+          echo "Chezmoi bootstrap complete (encrypted files skipped — run dotfiles-unlock)."
+
+      - path: /usr/local/sbin/incus-firstboot
+        owner: root:root
+        permissions: '0755'
+        content: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          echo "==> Incus guest first-boot bootstrap"
+
+          pkg_install() {
+              if   command -v apt-get >/dev/null 2>&1; then DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
+              elif command -v apk     >/dev/null 2>&1; then apk add --no-cache "$@"
+              elif command -v dnf     >/dev/null 2>&1; then dnf install -y "$@"
+              elif command -v yum     >/dev/null 2>&1; then yum install -y "$@"
+              elif command -v pacman  >/dev/null 2>&1; then pacman -Sy --noconfirm "$@"
+              else echo "WARNING: no known package manager for: $*" >&2; return 1; fi
+          }
+
+          command -v sshd >/dev/null 2>&1 || { echo "==> Installing OpenSSH server"; pkg_install openssh-server || pkg_install openssh || true; }
+
+          echo "==> Starting SSH"
+          if   command -v systemctl >/dev/null 2>&1; then systemctl enable --now ssh 2>/dev/null || systemctl enable --now sshd 2>/dev/null || true
+          elif command -v rc-update >/dev/null 2>&1; then rc-update add sshd default 2>/dev/null || true; rc-service sshd start 2>/dev/null || true
+          elif command -v service    >/dev/null 2>&1; then service ssh start 2>/dev/null || service sshd start 2>/dev/null || true
+          fi
+
+          # age is needed to decrypt dotfiles secrets; ship it even if the
+          # distro's cloud-init `packages:` list did not carry it.
+          command -v age >/dev/null 2>&1 || { echo "==> Installing age"; pkg_install age || true; }
+
+          # Doppler holds the age identity. Without its CLI the guest can
+          # never unlock, so install it at first boot rather than by hand.
+          if ! command -v doppler >/dev/null 2>&1; then
+              echo "==> Installing Doppler CLI"
+              curl -fsSL https://cli.doppler.com/install.sh | sh || echo "WARNING: Doppler CLI install failed" >&2
+          fi
+
+          if ! command -v tailscale >/dev/null 2>&1; then
+              echo "==> Installing Tailscale"; curl -fsSL https://tailscale.com/install.sh | sh
+          fi
+
+          echo "==> Starting tailscaled"
+          if   command -v systemctl >/dev/null 2>&1; then systemctl enable --now tailscaled 2>/dev/null || true
+          elif command -v rc-update >/dev/null 2>&1; then rc-update add tailscale default 2>/dev/null || true; rc-service tailscale start 2>/dev/null || true
+          elif command -v service    >/dev/null 2>&1; then service tailscaled start 2>/dev/null || service tailscale start 2>/dev/null || true
+          fi
+
+          /usr/local/sbin/bootstrap-dotfiles
+
+          cat <<'BANNER'
+
+          ==========================================================
+           Incus first-boot configuration complete.
+
+           Tailscale is installed but NOT authenticated:
+             incus exec <instance> -- tailscale-login
+
+           Dotfiles are applied, but encrypted secrets are SKIPPED.
+           To unlock them (rclone, aws, gh, ssh keys):
+             incus exec <instance> -- su - jth -c 'doppler login'
+             incus exec <instance> -- su - jth -c 'dotfiles-unlock'
+          ==========================================================
+          BANNER
+
+    runcmd:
+      - [ /usr/local/sbin/incus-firstboot ]
+
+    final_message: |
+      Incus cloud-init bootstrap complete.
+
+      Authenticate Tailscale:
+          incus exec <instance> -- tailscale-login
+
+      Unlock encrypted dotfiles secrets:
+          incus exec <instance> -- su - jth -c 'doppler login'
+          incus exec <instance> -- su - jth -c 'dotfiles-unlock'
