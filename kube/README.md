@@ -61,8 +61,12 @@ kubectl apply -f vm-sandbox-kata.yaml
 kubectl -n kiac-dev exec untrusted-sandbox-kata -- uname -r   # 6.18.x = Kata guest kernel
 ```
 
-After a reboot, resume with the shim on PATH, or the nodes boot without nested virt:
+After a reboot, resume with the shim on PATH, or the nodes boot without nested virt
+(tested: `/dev/kvm`, mDNS and the sandbox all come back):
 `PATH="$PWD/shim:$PATH" kiac resume cluster --name kata`
+
+gVisor (`bootstrap.sh gvisor`) doesn't work on this cluster: `install-gvisor.sh`
+uses `container exec`, which only reaches Apple container (non-GPU) kiac nodes.
 
 Why the extra pieces are needed:
 
