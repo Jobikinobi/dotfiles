@@ -6,7 +6,8 @@
 set -euo pipefail
 
 KATA_VERSION="${KATA_VERSION:-4.3.1}"
-CHART="oci://ghcr.io/kata-containers/kata-deploy-charts/kata-deploy"
+# GitHub release tarball, not the ghcr OCI chart: helm OCI pulls can hang on the macOS Keychain credential helper
+CHART="https://github.com/kata-containers/kata-containers/releases/download/${KATA_VERSION}/kata-deploy-${KATA_VERSION}.tgz"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 # --- 1. Host check (informational: the node check below is what counts) ---
@@ -25,7 +26,12 @@ fi
 node_has_kvm() {
   local n="$1"
   # kiac/kind nodes are apple/container VMs; Lima nodes are reached with limactl
-  if command -v container >/dev/null && container inspect "$n" >/dev/null 2>&1; then
+  if [ -f "$HOME/.kiac/gpu-nodes/nodes/$n/state.json" ]; then
+    # kiac krunkit (GPU-backend) nodes: reachable over ssh as fedora@<node>.local
+    ssh -i "$HOME/.kiac/gpu-nodes/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes \
+      -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.kiac/gpu-nodes/nodes/$n/known_hosts" \
+      "fedora@$n.local" test -c /dev/kvm
+  elif command -v container >/dev/null && container inspect "$n" >/dev/null 2>&1; then
     container exec "$n" test -c /dev/kvm
   elif command -v limactl >/dev/null && limactl list -q 2>/dev/null | grep -qx "$n"; then
     limactl shell "$n" test -c /dev/kvm
@@ -66,7 +72,10 @@ if kubectl get runtimeclass kata >/dev/null 2>&1 &&
 fi
 
 # --- 4. Install kata-deploy ---
-helm upgrade --install kata-deploy "$CHART" --version "$KATA_VERSION" \
+# Local file: given a URL, helm also consults configured repos and fails if their caches are stale
+TGZ="$(mktemp -d)/kata-deploy.tgz"
+curl -fsSL -o "$TGZ" "$CHART"
+helm upgrade --install kata-deploy "$TGZ" \
   --namespace kube-system -f "$HERE/kata-values.yaml" --wait --timeout 10m
 
 kubectl get runtimeclass kata
