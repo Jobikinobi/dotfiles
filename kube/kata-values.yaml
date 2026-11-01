@@ -6,6 +6,18 @@ shims:
   disableAll: true
   qemu-runtime-rs:
     enabled: true
+    # Fixes for nested KVM on Apple silicon (krunkit --nested node VMs):
+    # - no PMU, so QEMU rejects Kata's default "-cpu host,pmu=off" and exits
+    # - MSI interrupts never reach the guest, so virtio I/O hangs at boot; pci=nomsi
+    #   falls back to legacy interrupts (the rest is Kata's default kernel_params)
+    # - the nested guest takes longer than Kata's default 3s to start its agent
+    dropIn: |
+      [hypervisor.qemu]
+      cpu_features = ""
+      kernel_params = "cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 pci=nomsi"
+      [agent.kata]
+      dial_timeout_ms = 200
+      reconnect_timeout_ms = 60000
     supportedArches:
       - arm64
     allowedHypervisorAnnotations: []

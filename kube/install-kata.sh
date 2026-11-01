@@ -2,7 +2,7 @@
 # Install Kata Containers (VM-per-pod) on the current kubectl cluster.
 # Needs nodes that expose /dev/kvm, which on a Mac means an M3-or-newer chip,
 # macOS 15+, and node VMs started with nested virtualization turned on.
-# Safe to re-run. Usage: ./install-kata.sh [node ...]   (default: all workers)
+# Safe to re-run. Usage: ./install-kata.sh [node ...]   (default: every node; ones without /dev/kvm are skipped)
 set -euo pipefail
 
 KATA_VERSION="${KATA_VERSION:-4.3.1}"
@@ -20,7 +20,7 @@ fi
 # --- 2. Find nodes and check each one for /dev/kvm ---
 NODES=("$@")
 if [ ${#NODES[@]} -eq 0 ]; then
-  read -r -a NODES <<<"$(kubectl get nodes -l '!node-role.kubernetes.io/control-plane' -o jsonpath='{.items[*].metadata.name}')"
+  read -r -a NODES <<<"$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}')"
 fi
 
 node_has_kvm() {

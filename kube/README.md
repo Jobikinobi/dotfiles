@@ -9,7 +9,7 @@ Two isolation runtimes are supported:
 | Runtime | Isolation | Works on |
 |---|---|---|
 | **gVisor** (`runtimeClassName: gvisor`) | Each pod gets its own user-space kernel | Any Apple silicon Mac |
-| **Kata** (`runtimeClassName: kata`) | Each pod is a separate VM | Nodes with `/dev/kvm`: M3 or newer, macOS 15+, nested virtualization on |
+| **Kata** (`runtimeClassName: kata`) | Each pod is a separate VM | M3 or newer, via `kiac-create-kata.sh` |
 
 Kata needs a VM inside the node VM (nested virtualization). M1 and M2 chips
 can't do that, so the MacBook (M1) uses gVisor.
@@ -46,25 +46,50 @@ Check which runtime a sandbox is using: inside gVisor, `uname -r` ends in
 | `install-kata.sh` | Checks nodes for `/dev/kvm`, labels them, installs kata-deploy with Helm |
 | `kata-values.yaml` | Helm values: arm64 QEMU shim only, creates the `kata` RuntimeClass |
 | `vm-sandbox-kata.yaml` | Example sandbox on Kata |
+| `kiac-create-kata.sh` | Creates a nested-virt kiac cluster and installs Kata on it |
+| `shim/krunkit` | Adds `--nested` to krunkit when put on PATH for kiac |
 
 The gVisor node changes live only inside the running node VMs. If you delete
 and recreate the cluster, run `bootstrap.sh` again.
 
-## Kata on the Mac Studio
+## Kata on the Mac Studio (tested: M4 Max, macOS 27.0.1, kiac 0.9.0)
 
-1. **Check the chip.** Run `sysctl -n machdep.cpu.brand_string`. It needs to be
-   M3 or newer (M3 Ultra, M4 Max, etc.) with macOS 15 or later.
-2. **Create the cluster and run `./bootstrap.sh kata`.** The script checks
-   every worker for `/dev/kvm` and stops without installing anything if none
-   has it.
-3. **If no node has `/dev/kvm`:** kiac v0.9.0 has no option to turn on nested
-   virtualization for its node VMs (Apple's `container` tool supports it with
-   `--virtualization`, but kiac doesn't pass that through). Options:
-   - Check whether a newer kiac adds it: `kiac create cluster --help | grep -i virt`.
-   - Run the cluster in [Lima](https://lima-vm.io) VMs instead, which support
-     `limactl create --nested-virt` (Lima 2.x, `vz` VM type), and install
-     Kubernetes (for example k3s) inside them. Set `k8sDistribution: k3s` in
-     `kata-values.yaml` if you use k3s. *Not tested yet.*
+```sh
+cd ~/dotfiles/kube
+./kiac-create-kata.sh                  # creates cluster "kata", installs agent-sandbox + Kata
+kubectl apply -f vm-sandbox-kata.yaml
+kubectl -n kiac-dev exec untrusted-sandbox-kata -- uname -r   # 6.18.x = Kata guest kernel
+```
+
+After a reboot, resume with the shim on PATH, or the nodes boot without nested virt:
+`PATH="$PWD/shim:$PATH" kiac resume cluster --name kata`
+
+Why the extra pieces are needed:
+
+- **krunkit, not Apple container.** Apple's `container --virtualization` starts the
+  guest at EL2, but its default kernel has no KVM, and kiac never passes the flag.
+  kiac's GPU backend (`--gpu-workers`) runs nodes as Fedora VMs under krunkit, and
+  Fedora's kernel has KVM.
+- **`shim/krunkit`** adds `--nested` to every krunkit call kiac makes (kiac has no
+  option for it). Nodes then have `/dev/kvm`.
+- **mDNS.** kiac waits for nodes at `<node>.local`, but they came up with mDNS off and
+  creation timed out. `kiac-create-kata.sh` turns it on in each node as it boots.
+- **Kata drop-in (`kata-values.yaml`).** Under nested KVM: there's no PMU, so QEMU
+  rejects Kata's `-cpu host,pmu=off`; MSI interrupts don't reach the guest, so it
+  boots with `pci=nomsi`; and the agent takes longer to start, so the connect
+  timeout is 60s.
+- **Kata runs on the control plane.** The cluster has 0 plain workers (the GPU
+  worker is tainted), so the control plane is untainted and hosts the Kata VMs.
+
+Two macOS gotchas on the host:
+
+- **Local Network privacy.** If `kubectl` says `no route to host` while `ping` works,
+  the app running your shell lacks Local Network access (System Settings, Privacy &
+  Security, Local Network). Apple's own `ssh`/`curl` aren't affected.
+- **helm + Keychain.** `helm` OCI pulls can hang on `docker-credential-osxkeychain`.
+  `install-kata.sh` installs the chart from the GitHub release tarball instead.
+
+On an M1/M2 none of this works (no nested virt); use gVisor.
 
 ## GPUs
 
