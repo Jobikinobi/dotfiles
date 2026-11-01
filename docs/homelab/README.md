@@ -142,7 +142,8 @@ fine — different prefix. Public keys are reconstructable on demand:
 2. **Keychain-over-SSH diagnosis**: confirmed it's an architectural limit of
    macOS, not a config bug. Three viable approaches catalogued: 1Password as
    keychain alternative; `launchctl asuser` bridge; interactive
-   `security unlock-keychain` wrapper. Open item.
+   `security unlock-keychain` wrapper. Resolved with the
+   `launchctl asuser` bridge, see [ssh-keychain.md](../ssh-keychain.md).
 3. **Generated three new ed25519 keys** on MBA: `id_ed25519_pve`,
    `id_ed25519_pve_admin`, `id_ed25519_macstudio`. Passphraseless
    (relying on FileVault for at-rest protection); loaded into Apple Keychain

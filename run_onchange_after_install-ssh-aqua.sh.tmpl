@@ -1,0 +1,14 @@
+{{- if and (eq .chezmoi.os "darwin") (index . "ssh_aqua") -}}
+#!/bin/sh
+# Narrow sudo rule for ~/.local/bin/aqua: root may only re-enter the GUI session
+# and immediately drop back to this user. Validated with visudo before install.
+set -eu
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+cat > "$tmp" <<'RULE'
+{{ .chezmoi.username }} ALL=(root) NOPASSWD: /bin/launchctl asuser {{ output "id" "-u" | trim }} /usr/bin/sudo -n -E -u {{ .chezmoi.username }} -- *
+RULE
+/usr/sbin/visudo -cqf "$tmp"
+echo "ssh-aqua: installing /etc/sudoers.d/ssh-aqua (may ask for your password)"
+sudo /usr/bin/install -m 0440 -o root -g wheel "$tmp" /etc/sudoers.d/ssh-aqua
+{{ end -}}

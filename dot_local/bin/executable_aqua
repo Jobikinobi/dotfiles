@@ -1,0 +1,34 @@
+#!/bin/sh
+# aqua — run a command (or a login shell) inside the console user's GUI
+# security session, so SSH logins can use the login keychain like Terminal.app.
+#
+# An SSH login gets its own "remote" security session and the Background
+# launchd bootstrap, where securityd refuses keychain access. `launchctl asuser`
+# (root only) moves the process into the user's Aqua session; the inner sudo
+# drops straight back to the user. The only root grant needed is the narrow
+# /etc/sudoers.d/ssh-aqua rule installed by chezmoi (ssh_aqua = true).
+#
+#   aqua                 # interactive login shell in Aqua
+#   aqua cmd args...     # run one command in Aqua
+#
+# Requires an active console login (gui/<uid> exists).
+
+uid=$(id -u)
+user=$(id -un)
+
+if [ "$(launchctl managername 2>/dev/null)" = Aqua ]; then
+  [ $# -eq 0 ] && exec "${SHELL:-/bin/zsh}" -l
+  exec "$@"
+fi
+
+# Must match the sudoers rule word for word.
+hop() { sudo -n /bin/launchctl asuser "$uid" /usr/bin/sudo -n -E -u "$user" -- "$@"; }
+
+if ! launchctl print "gui/$uid" >/dev/null 2>&1 || ! hop /usr/bin/true 2>/dev/null; then
+  echo "aqua: can't enter the GUI session (no console login, or sudo rule missing); staying in Background" >&2
+  [ $# -eq 0 ] && exit 1   # lets ~/.zshrc carry on as a normal shell
+  exec "$@"
+fi
+
+[ $# -eq 0 ] && set -- "${SHELL:-/bin/zsh}" -l
+hop "$@"

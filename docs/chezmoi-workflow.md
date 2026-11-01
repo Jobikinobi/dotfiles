@@ -90,7 +90,7 @@ export KEY='{{ output "doppler" "secrets" "get" "KEY" "--plain" "-p" "backend" "
 - `lookPath` checks if `doppler` binary exists (skips on machines without it)
 - The actual secret value is baked into `~/.zshrc` — never visible in git
 - You must have Doppler authenticated (`doppler login`) for this to work
-- **Known issue**: Fails over SSH due to keychain access — see issue #5
+- **Known issue**: Fails over SSH due to keychain access — see issue #5; fixed on Macs with `ssh_aqua` ([ssh-keychain.md](ssh-keychain.md))
 
 ## Troubleshooting
 

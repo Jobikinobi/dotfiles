@@ -22,6 +22,9 @@ encryption = "age"
     projects = {{ $project_list | toJson }}
     lxd_profile = {{ promptStringOnce . "lxd_profile" "LXD profile key (blank for none)" "" | quote }}
     nix_profile = {{ promptStringOnce . "nix_profile" "Workspace profile [joe/agent] (blank for no Nix)" "" | quote }}
+{{- if eq .chezmoi.os "darwin" }}
+    ssh_aqua = {{ promptBoolOnce . "ssh_aqua" "Let SSH logins use the GUI keychain (installs a narrow sudoers rule)" false }}
+{{- end }}
 {{- else }}
     name = "Joseph T. Herrmann, M.D."
     email = "joeherrmann@gmail.com"
@@ -29,4 +32,5 @@ encryption = "age"
     projects = []
     lxd_profile = ""
     nix_profile = ""
+    ssh_aqua = false
 {{- end }}

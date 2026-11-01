@@ -38,6 +38,7 @@ Policy docs that govern how this repo is used day-to-day.
 | [`homelab/README.md`](homelab/README.md) | Homelab goal, architectural pins, PVE hub + Mac thin-client plan |
 | [`homelab/nfs-corpus-mount.md`](homelab/nfs-corpus-mount.md) | Mount the `corpus` NFS drive (`/data/corpus` → `/Volumes/corpus`): LAN Bonjour, off-LAN NetBird, fallbacks |
 | [`homelab/recovery.md`](homelab/recovery.md) | Homelab recovery procedures |
+| [`ssh-keychain.md`](ssh-keychain.md) | Use the macOS login keychain over SSH (`ssh_aqua` opt-in) |
 
 ## ADR (Architecture Decision Records)
 

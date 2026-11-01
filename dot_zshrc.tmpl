@@ -1,3 +1,12 @@
+{{- if and (eq .chezmoi.os "darwin") (index . "ssh_aqua") -}}
+# SSH logins run outside the GUI session, so the login keychain is unreachable.
+# ~/.local/bin/aqua re-enters the GUI session; if it can't, we carry on here.
+# Skip with NO_AQUA=1 ssh ...
+if [[ -n $SSH_CONNECTION && -z $NO_AQUA && -o interactive && -t 0 && -t 1 \
+      && -x ~/.local/bin/aqua && $(launchctl managername 2>/dev/null) == Background ]]; then
+  ~/.local/bin/aqua && exit
+fi
+{{ end -}}
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
