@@ -1,0 +1,23 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: gpu-untrusted-sandbox
+  namespace: kiac-dev
+spec:
+  podTemplate:
+    spec:
+      # gVisor: each pod gets its own user-space kernel (see gvisor-runtime.yaml).
+      # Kata needs nested virtualization, which the M1 chip doesn't support.
+      runtimeClassName: gvisor
+      containers:
+      - name: sandbox-runtime
+        image: ubuntu:24.04
+        command: ["/bin/bash", "-c", "sleep infinity"]
+        resources:
+          # Worker nodes have 2 GB RAM, so keep requests small
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi

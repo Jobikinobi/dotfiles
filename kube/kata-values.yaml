@@ -1,0 +1,30 @@
+# Helm values for kata-deploy 4.3.1 (used by install-kata.sh).
+# Installs only the default arm64 shim (QEMU, Rust runtime) and creates a
+# RuntimeClass named "kata" that points at it.
+
+shims:
+  disableAll: true
+  qemu-runtime-rs:
+    enabled: true
+    supportedArches:
+      - arm64
+    allowedHypervisorAnnotations: []
+    hypervisor:
+      rootless: false
+    containerd:
+      snapshotter: ""
+    runtimeClass:
+      nodeSelector:
+        sandbox.kata.dev/kvm: "true"
+
+defaultShim:
+  arm64: qemu-runtime-rs
+
+runtimeClasses:
+  enabled: true
+  createDefault: true
+  defaultName: kata
+
+# Only install Kata on nodes that install-kata.sh confirmed have /dev/kvm
+nodeSelector:
+  sandbox.kata.dev/kvm: "true"
