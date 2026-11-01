@@ -1,7 +1,7 @@
 # Agent sandboxes on kiac
 
 Isolated sandboxes for running untrusted (for example AI-agent) code on a local
-[kiac](https://github.com/) cluster, using the Kubernetes
+[kiac](https://github.com/saiyam1814/kiac) cluster, using the Kubernetes
 [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) `Sandbox` API.
 
 Two isolation runtimes are supported:
@@ -24,13 +24,18 @@ can't do that, so the MacBook (M1) uses gVisor.
 
 ## Quick start
 
+gVisor, on any kiac cluster:
+
 ```sh
 kiac create cluster              # or use an existing cluster
 cd ~/dotfiles/kube               # this folder (not deployed by chezmoi)
-./bootstrap.sh gvisor            # or: ./bootstrap.sh kata
-kubectl apply -f vm-sandbox.yaml # or: vm-sandbox-kata.yaml
+./bootstrap.sh gvisor
+kubectl apply -f vm-sandbox.yaml
 kubectl -n kiac-dev exec -it gpu-untrusted-sandbox -- bash
 ```
+
+Kata needs a cluster made by `kiac-create-kata.sh` (a plain `kiac create cluster`
+has no `/dev/kvm`); see [Kata on the Mac Studio](#kata-on-the-mac-studio-tested-m4-max-macos-2701-kiac-090).
 
 Check which runtime a sandbox is using: inside gVisor, `uname -r` ends in
 `-gvisor`. Inside Kata, `uname -r` shows the Kata guest kernel, not the node's.

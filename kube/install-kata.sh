@@ -30,7 +30,10 @@ node_has_kvm() {
     # kiac krunkit (GPU-backend) nodes: reachable over ssh as fedora@<node>.local
     ssh -i "$HOME/.kiac/gpu-nodes/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes \
       -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.kiac/gpu-nodes/nodes/$n/known_hosts" \
-      "fedora@$n.local" test -c /dev/kvm
+      "fedora@$n.local" test -c /dev/kvm || {
+        # 255 = ssh itself failed; don't mistake an unreachable node for one without KVM
+        rc=$?; [ "$rc" -eq 255 ] && { echo "ERROR: can't reach $n over ssh (is mDNS on?)" >&2; exit 1; }
+        return "$rc"; }
   elif command -v container >/dev/null && container inspect "$n" >/dev/null 2>&1; then
     container exec "$n" test -c /dev/kvm
   elif command -v limactl >/dev/null && limactl list -q 2>/dev/null | grep -qx "$n"; then
