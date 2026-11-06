@@ -1,0 +1,23 @@
+# Same sandbox as vm-sandbox.yaml, but each pod runs inside its own Kata VM.
+# Needs install-kata.sh to have succeeded (nodes with /dev/kvm).
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: untrusted-sandbox-kata
+  namespace: kiac-dev
+spec:
+  podTemplate:
+    spec:
+      runtimeClassName: kata
+      containers:
+      - name: sandbox-runtime
+        image: ubuntu:24.04
+        command: ["/bin/bash", "-c", "sleep infinity"]
+        resources:
+          # Kata adds ~320Mi / 250m of VM overhead on top of these
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi

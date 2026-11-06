@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# kiac has no nested-virt option, so add krunkit's --nested to give node VMs /dev/kvm (M3+ chips).
+# Use only for kiac runs: PATH="$PWD/kube/shim:$PATH" kiac ...
+REAL="${KRUNKIT_REAL:-/opt/homebrew/bin/krunkit}"
+for a in "$@"; do
+  case "$a" in --version|-V|--help|-h|--nested|-n) exec "$REAL" "$@" ;; esac
+done
+exec "$REAL" --nested "$@"
