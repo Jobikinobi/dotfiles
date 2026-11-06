@@ -1,0 +1,823 @@
+[
+  {
+    "id": "d9pqckafadhs73dvggug",
+    "issued": "api",
+    "name": "docker-gpu-hosts",
+    "peers": null,
+    "peers_count": 0,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "google-oauth2|039kk8xu1hyqypk",
+    "issued": "integration",
+    "name": "Honest Oversight & Legal Ethics",
+    "peers": [
+      {
+        "id": "d8schcafadhs73a3ucm0",
+        "name": "macstudio"
+      },
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      },
+      {
+        "id": "d9c6fvbl0ubs73ci95b0",
+        "name": "lima-macos.local"
+      },
+      {
+        "id": "d9la0b2fadhs7387e4k0",
+        "name": "macbookair"
+      },
+      {
+        "id": "d9vp1eqfadhs73epshig",
+        "name": "macstudio"
+      }
+    ],
+    "peers_count": 5,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "google-oauth2|0184mhaj1h5up8e",
+    "issued": "integration",
+    "name": "Herrmann Group",
+    "peers": [
+      {
+        "id": "d8schcafadhs73a3ucm0",
+        "name": "macstudio"
+      },
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      },
+      {
+        "id": "d930kvqfadhs7395jmkg",
+        "name": "netbird"
+      },
+      {
+        "id": "d93ehc2fadhs73ek2hd0",
+        "name": "pve"
+      },
+      {
+        "id": "d94u0difadhs738nitgg",
+        "name": "incus"
+      },
+      {
+        "id": "d988gmqfadhs73fm4ab0",
+        "name": "lima-krunkit"
+      },
+      {
+        "id": "d9c6fvbl0ubs73ci95b0",
+        "name": "lima-macos.local"
+      },
+      {
+        "id": "d9d4f9ifadhs73dc0i90",
+        "name": "Portainer"
+      },
+      {
+        "id": "d9gq90afadhs73b3teg0",
+        "name": "holepaperclip"
+      },
+      {
+        "id": "d9kpirifadhs73dots70",
+        "name": "papra"
+      },
+      {
+        "id": "d9la0b2fadhs7387e4k0",
+        "name": "macbookair"
+      },
+      {
+        "id": "d9ldprifadhs73a9kh50",
+        "name": "macmini"
+      },
+      {
+        "id": "d9lub2bl0ubs7384bqi0",
+        "name": "ubuntuocr"
+      },
+      {
+        "id": "d9pp41jl0ubs73as5a1g",
+        "name": "docker"
+      },
+      {
+        "id": "d9q4si3l0ubs7380ncc0",
+        "name": "llama-cpp"
+      },
+      {
+        "id": "d9rs3djl0ubs73fv779g",
+        "name": "pve-paperclip"
+      },
+      {
+        "id": "d9sgcurl0ubs73ejru4g",
+        "name": "nfsdrive"
+      },
+      {
+        "id": "d9sjp1qfadhs73eq02hg",
+        "name": "warpgate"
+      },
+      {
+        "id": "d9vp1eqfadhs73epshig",
+        "name": "macstudio"
+      },
+      {
+        "id": "d9vp8nbl0ubs738sck0g",
+        "name": "proxdocker"
+      },
+      {
+        "id": "d9vtlaafadhs738ucte0",
+        "name": "dadsmac"
+      }
+    ],
+    "peers_count": 21,
+    "resources": [
+      {
+        "id": "d8sc47qfadhs739vhe60",
+        "type": "domain"
+      }
+    ],
+    "resources_count": 1
+  },
+  {
+    "id": "google-oauth2|025b2l0r1tnh0x2",
+    "issued": "integration",
+    "name": "gcp-billing-admins",
+    "peers": null,
+    "peers_count": 0,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "d9vuq7ifadhs739f7l10",
+    "issued": "api",
+    "name": "docker",
+    "peers": null,
+    "peers_count": 0,
+    "resources": [
+      {
+        "id": "d94mid3l0ubs7396rcdg",
+        "type": "domain"
+      },
+      {
+        "id": "d9vustqfadhs739gbp50",
+        "type": "subnet"
+      }
+    ],
+    "resources_count": 2
+  },
+  {
+    "id": "d9vurhjl0ubs73c07hl0",
+    "issued": "api",
+    "name": "proxmox",
+    "peers": null,
+    "peers_count": 0,
+    "resources": [
+      {
+        "id": "d9vustqfadhs739gbp50",
+        "type": "subnet"
+      }
+    ],
+    "resources_count": 1
+  },
+  {
+    "id": "d940tdqfadhs73dt3tq0",
+    "issued": "api",
+    "name": "opc",
+    "peers": [
+      {
+        "id": "d92mlmrl0ubs73aecsd0",
+        "name": "opc"
+      }
+    ],
+    "peers_count": 1,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "d8sc6m3l0ubs739uo360",
+    "issued": "api",
+    "name": "server",
+    "peers": [
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      }
+    ],
+    "peers_count": 1,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "d930le2fadhs7395pa1g",
+    "issued": "api",
+    "name": "home",
+    "peers": [
+      {
+        "id": "d8schcafadhs73a3ucm0",
+        "name": "macstudio"
+      },
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      },
+      {
+        "id": "d930e7rl0ubs73eq117g",
+        "name": "jdebian"
+      },
+      {
+        "id": "d930kvqfadhs7395jmkg",
+        "name": "netbird"
+      },
+      {
+        "id": "d93ehc2fadhs73ek2hd0",
+        "name": "pve"
+      },
+      {
+        "id": "d93g5oifadhs73f65vh0",
+        "name": "certimate"
+      },
+      {
+        "id": "d94u0difadhs738nitgg",
+        "name": "incus"
+      },
+      {
+        "id": "d950ll2fadhs739lh2p0",
+        "name": "incus3"
+      },
+      {
+        "id": "d950lp3l0ubs73dk7vq0",
+        "name": "incus2"
+      },
+      {
+        "id": "d968vnrl0ubs73eiu8a0",
+        "name": "hermesagent"
+      },
+      {
+        "id": "d96tttrl0ubs73ct0cog",
+        "name": "hermesagent"
+      },
+      {
+        "id": "d988gmqfadhs73fm4ab0",
+        "name": "lima-krunkit"
+      },
+      {
+        "id": "d9c6fvbl0ubs73ci95b0",
+        "name": "lima-macos.local"
+      },
+      {
+        "id": "d9c6t33l0ubs73cog800",
+        "name": "paperless-ngx"
+      },
+      {
+        "id": "d9gq90afadhs73b3teg0",
+        "name": "holepaperclip"
+      },
+      {
+        "id": "d9kpirifadhs73dots70",
+        "name": "papra"
+      },
+      {
+        "id": "d9la0b2fadhs7387e4k0",
+        "name": "macbookair"
+      },
+      {
+        "id": "d9ldprifadhs73a9kh50",
+        "name": "macmini"
+      },
+      {
+        "id": "d9lrba3l0ubs73f0al9g",
+        "name": "alpineocr"
+      },
+      {
+        "id": "d9lub2bl0ubs7384bqi0",
+        "name": "ubuntuocr"
+      },
+      {
+        "id": "d9m89p3l0ubs73cijvfg",
+        "name": "ocr"
+      },
+      {
+        "id": "d9pd823l0ubs73dhq0jg",
+        "name": "documents"
+      },
+      {
+        "id": "d9q4si3l0ubs7380ncc0",
+        "name": "llama-cpp"
+      },
+      {
+        "id": "d9rs3djl0ubs73fv779g",
+        "name": "pve-paperclip"
+      },
+      {
+        "id": "d9sgcurl0ubs73ejru4g",
+        "name": "nfsdrive"
+      },
+      {
+        "id": "d9sjp1qfadhs73eq02hg",
+        "name": "warpgate"
+      },
+      {
+        "id": "d9vp1eqfadhs73epshig",
+        "name": "macstudio"
+      },
+      {
+        "id": "d9vtlaafadhs738ucte0",
+        "name": "dadsmac"
+      }
+    ],
+    "peers_count": 28,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "d8sc47rl0ubs739ts460",
+    "issued": "api",
+    "name": "Users",
+    "peers": [
+      {
+        "id": "d8schcafadhs73a3ucm0",
+        "name": "macstudio"
+      },
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      }
+    ],
+    "peers_count": 2,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "d8sc3jifadhs739vach0",
+    "issued": "api",
+    "name": "All",
+    "peers": [
+      {
+        "id": "d8schcafadhs73a3ucm0",
+        "name": "macstudio"
+      },
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      },
+      {
+        "id": "d924j13l0ubs73asrdb0",
+        "name": "paperclips"
+      },
+      {
+        "id": "d92mlmrl0ubs73aecsd0",
+        "name": "opc"
+      },
+      {
+        "id": "d930e7rl0ubs73eq117g",
+        "name": "jdebian"
+      },
+      {
+        "id": "d930kvqfadhs7395jmkg",
+        "name": "netbird"
+      },
+      {
+        "id": "d93ehc2fadhs73ek2hd0",
+        "name": "pve"
+      },
+      {
+        "id": "d93g5oifadhs73f65vh0",
+        "name": "certimate"
+      },
+      {
+        "id": "d94u0difadhs738nitgg",
+        "name": "incus"
+      },
+      {
+        "id": "d950ll2fadhs739lh2p0",
+        "name": "incus3"
+      },
+      {
+        "id": "d950lp3l0ubs73dk7vq0",
+        "name": "incus2"
+      },
+      {
+        "id": "d968vnrl0ubs73eiu8a0",
+        "name": "hermesagent"
+      },
+      {
+        "id": "d96aavjl0ubs73fgtia0",
+        "name": "termix"
+      },
+      {
+        "id": "d96tttrl0ubs73ct0cog",
+        "name": "hermesagent"
+      },
+      {
+        "id": "d988gmqfadhs73fm4ab0",
+        "name": "lima-krunkit"
+      },
+      {
+        "id": "d9bsqsifadhs7398j6i0",
+        "name": "apache-tika"
+      },
+      {
+        "id": "d9c6fvbl0ubs73ci95b0",
+        "name": "lima-macos.local"
+      },
+      {
+        "id": "d9c6t33l0ubs73cog800",
+        "name": "paperless-ngx"
+      },
+      {
+        "id": "d9d4f9ifadhs73dc0i90",
+        "name": "Portainer"
+      },
+      {
+        "id": "d9godvjl0ubs73ctc33g",
+        "name": "incusolo"
+      },
+      {
+        "id": "d9gq90afadhs73b3teg0",
+        "name": "holepaperclip"
+      },
+      {
+        "id": "d9gs70afadhs73c6n80g",
+        "name": "oracle-ai"
+      },
+      {
+        "id": "d9htviafadhs738jsc0g",
+        "name": "seaweed"
+      },
+      {
+        "id": "d9i3h2rl0ubs73fannc0",
+        "name": "paperless-gpt"
+      },
+      {
+        "id": "d9kpirifadhs73dots70",
+        "name": "papra"
+      },
+      {
+        "id": "d9la0b2fadhs7387e4k0",
+        "name": "macbookair"
+      },
+      {
+        "id": "d9ldprifadhs73a9kh50",
+        "name": "macmini"
+      },
+      {
+        "id": "d9lrba3l0ubs73f0al9g",
+        "name": "alpineocr"
+      },
+      {
+        "id": "d9lub2bl0ubs7384bqi0",
+        "name": "ubuntuocr"
+      },
+      {
+        "id": "d9m89p3l0ubs73cijvfg",
+        "name": "ocr"
+      },
+      {
+        "id": "d9pd823l0ubs73dhq0jg",
+        "name": "documents"
+      },
+      {
+        "id": "d9pp41jl0ubs73as5a1g",
+        "name": "docker"
+      },
+      {
+        "id": "d9q4si3l0ubs7380ncc0",
+        "name": "llama-cpp"
+      },
+      {
+        "id": "d9rs3djl0ubs73fv779g",
+        "name": "pve-paperclip"
+      },
+      {
+        "id": "d9sgcurl0ubs73ejru4g",
+        "name": "nfsdrive"
+      },
+      {
+        "id": "d9sjp1qfadhs73eq02hg",
+        "name": "warpgate"
+      },
+      {
+        "id": "d9v3fkrl0ubs73bn7dng",
+        "name": "vllm"
+      },
+      {
+        "id": "d9vdq03l0ubs739ooncg",
+        "name": "rustfs"
+      },
+      {
+        "id": "d9vp1eqfadhs73epshig",
+        "name": "macstudio"
+      },
+      {
+        "id": "d9vp8nbl0ubs738sck0g",
+        "name": "proxdocker"
+      },
+      {
+        "id": "d9vqgeqfadhs73fg1fmg",
+        "name": "proxdoctor"
+      },
+      {
+        "id": "d9vtlaafadhs738ucte0",
+        "name": "dadsmac"
+      }
+    ],
+    "peers_count": 42,
+    "resources": [
+      {
+        "id": "d8sc47qfadhs739vhe60",
+        "type": "host"
+      },
+      {
+        "id": "d92mkdifadhs73d2lvfg",
+        "type": "subnet"
+      }
+    ],
+    "resources_count": 2
+  },
+  {
+    "id": "d8sc482fadhs739vhfv0",
+    "issued": "api",
+    "name": "Routing Peers",
+    "peers": [
+      {
+        "id": "d930e7rl0ubs73eq117g",
+        "name": "jdebian"
+      },
+      {
+        "id": "d93ehc2fadhs73ek2hd0",
+        "name": "pve"
+      },
+      {
+        "id": "d9vtlaafadhs738ucte0",
+        "name": "dadsmac"
+      }
+    ],
+    "peers_count": 3,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "d9fu2cjl0ubs73avkuh0",
+    "issued": "api",
+    "name": "incus-containers",
+    "peers": null,
+    "peers_count": 0,
+    "resources": [
+      {
+        "id": "d9vuq1ifadhs739f49m0",
+        "type": "domain"
+      }
+    ],
+    "resources_count": 1
+  },
+  {
+    "id": "d95b2f3l0ubs73ah1qg0",
+    "issued": "api",
+    "name": "incus",
+    "peers": [
+      {
+        "id": "d950ll2fadhs739lh2p0",
+        "name": "incus3"
+      },
+      {
+        "id": "d950lp3l0ubs73dk7vq0",
+        "name": "incus2"
+      },
+      {
+        "id": "d9godvjl0ubs73ctc33g",
+        "name": "incusolo"
+      },
+      {
+        "id": "d9gq90afadhs73b3teg0",
+        "name": "holepaperclip"
+      }
+    ],
+    "peers_count": 4,
+    "resources": [
+      {
+        "id": "d9vuq1ifadhs739f49m0",
+        "type": "domain"
+      }
+    ],
+    "resources_count": 1
+  },
+  {
+    "id": "google-oauth2|049x2ik50pceoj0",
+    "issued": "integration",
+    "name": "abuse",
+    "peers": [
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      }
+    ],
+    "peers_count": 1,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "google-oauth2|01ksv4uv269x28s",
+    "issued": "integration",
+    "name": "admin",
+    "peers": [
+      {
+        "id": "d9c6fvbl0ubs73ci95b0",
+        "name": "lima-macos.local"
+      },
+      {
+        "id": "d9la0b2fadhs7387e4k0",
+        "name": "macbookair"
+      },
+      {
+        "id": "d9ldprifadhs73a9kh50",
+        "name": "macmini"
+      },
+      {
+        "id": "d9vp1eqfadhs73epshig",
+        "name": "macstudio"
+      }
+    ],
+    "peers_count": 4,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "google-oauth2|037m2jsg2houn9e",
+    "issued": "integration",
+    "name": "paperclip",
+    "peers": [
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      },
+      {
+        "id": "d9c6fvbl0ubs73ci95b0",
+        "name": "lima-macos.local"
+      },
+      {
+        "id": "d9la0b2fadhs7387e4k0",
+        "name": "macbookair"
+      },
+      {
+        "id": "d9ldprifadhs73a9kh50",
+        "name": "macmini"
+      },
+      {
+        "id": "d9vp1eqfadhs73epshig",
+        "name": "macstudio"
+      }
+    ],
+    "peers_count": 5,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "google-oauth2|037m2jsg3pk98cr",
+    "issued": "integration",
+    "name": "gcp-organization-admins",
+    "peers": null,
+    "peers_count": 0,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "google-oauth2|04i7ojhp301mrz2",
+    "issued": "integration",
+    "name": "postmaster",
+    "peers": [
+      {
+        "id": "d9c6fvbl0ubs73ci95b0",
+        "name": "lima-macos.local"
+      },
+      {
+        "id": "d9vp1eqfadhs73epshig",
+        "name": "macstudio"
+      }
+    ],
+    "peers_count": 2,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "google-oauth2|03s49zyc0kd2pvv",
+    "issued": "integration",
+    "name": "Home",
+    "peers": [
+      {
+        "id": "d8schcafadhs73a3ucm0",
+        "name": "macstudio"
+      },
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      },
+      {
+        "id": "d924j13l0ubs73asrdb0",
+        "name": "paperclips"
+      },
+      {
+        "id": "d930e7rl0ubs73eq117g",
+        "name": "jdebian"
+      },
+      {
+        "id": "d93ehc2fadhs73ek2hd0",
+        "name": "pve"
+      },
+      {
+        "id": "d93g5oifadhs73f65vh0",
+        "name": "certimate"
+      },
+      {
+        "id": "d9c6fvbl0ubs73ci95b0",
+        "name": "lima-macos.local"
+      },
+      {
+        "id": "d9la0b2fadhs7387e4k0",
+        "name": "macbookair"
+      },
+      {
+        "id": "d9ldprifadhs73a9kh50",
+        "name": "macmini"
+      },
+      {
+        "id": "d9lub2bl0ubs7384bqi0",
+        "name": "ubuntuocr"
+      },
+      {
+        "id": "d9rs3djl0ubs73fv779g",
+        "name": "pve-paperclip"
+      },
+      {
+        "id": "d9sgcurl0ubs73ejru4g",
+        "name": "nfsdrive"
+      },
+      {
+        "id": "d9vp1eqfadhs73epshig",
+        "name": "macstudio"
+      }
+    ],
+    "peers_count": 13,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "d988o63l0ubs73a28mog",
+    "issued": "api",
+    "name": "lima",
+    "peers": [
+      {
+        "id": "d988gmqfadhs73fm4ab0",
+        "name": "lima-krunkit"
+      }
+    ],
+    "peers_count": 1,
+    "resources": null,
+    "resources_count": 0
+  },
+  {
+    "id": "d962heafadhs73aeq500",
+    "issued": "api",
+    "name": "incus hosts",
+    "peers": null,
+    "peers_count": 0,
+    "resources": [
+      {
+        "id": "d9vuq1ifadhs739f49m0",
+        "type": "domain"
+      }
+    ],
+    "resources_count": 1
+  },
+  {
+    "id": "google-oauth2|025b2l0r1gdkyuf",
+    "issued": "api",
+    "name": "HOLE Foundation",
+    "peers": [
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      }
+    ],
+    "peers_count": 1,
+    "resources": [
+      {
+        "id": "d8sc47qfadhs739vhe60",
+        "type": "host"
+      }
+    ],
+    "resources_count": 1
+  },
+  {
+    "id": "d8td16ifadhs73ba5b40",
+    "issued": "api",
+    "name": "network",
+    "peers": [
+      {
+        "id": "d8splebl0ubs73ffo0ig",
+        "name": "iPhone-joe"
+      }
+    ],
+    "peers_count": 1,
+    "resources": null,
+    "resources_count": 0
+  }
+]

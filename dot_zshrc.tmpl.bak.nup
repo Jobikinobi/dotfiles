@@ -1,0 +1,617 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Modern ZSH Configuration with Zinit
+# Managed by chezmoi — edit ~/dotfiles/dot_zshrc.tmpl, not this file
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1. HOMEBREW (must be first so everything else finds brew-installed tools)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if [[ -f /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -f /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+elif [[ -f /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+{{ if and (eq .chezmoi.os "darwin") (stdinIsATTY) -}}
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1b. KEYCHAIN UNLOCK FOR SSH SESSIONS (macOS)
+# Manually unlock login keychain for SSH/VS Code Remote sessions
+# (macOS can't prompt via GUI — run this when CC says "not logged in",
+#alias unlock-keychain='security unlock-keychain ~/Library/Keychains/login.keychain-db' 
+{{ end -}}
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 2. ZINIT INITIALIZATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+
+if [ ! -d "$ZINIT_HOME" ]; then
+   mkdir -p "$(dirname $ZINIT_HOME)"
+   git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+fi
+
+source "${ZINIT_HOME}/zinit.zsh"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 3. COMPLETIONS + OH-MY-ZSH SNIPPETS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+fpath=(~/.zsh/completions /opt/homebrew/share/zsh/site-functions $fpath)
+
+zinit snippet OMZL::completion.zsh
+zinit snippet OMZP::git
+zinit snippet OMZP::docker
+zinit snippet OMZP::kubectl
+zinit snippet OMZP::npm
+zinit snippet OMZP::command-not-found
+
+autoload -Uz compinit
+if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
+    compinit -i
+else
+    compinit -i -C
+fi
+
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path ~/.zsh/cache
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 4. COMPLETION STYLES (fish-like)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+setopt COMPLETE_IN_WORD ALWAYS_TO_END AUTO_MENU AUTO_LIST AUTO_PARAM_SLASH
+unsetopt BEEP LIST_BEEP HIST_BEEP
+
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
+zstyle ':completion:*' completer _complete _match _approximate
+zstyle ':completion:*:match:*' original only
+zstyle ':completion:*:approximate:*' max-errors 1 numeric
+zstyle ':completion:*:*:*:*:*' menu select
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#) ([0-9a-z-]#)*=01;34=0=01'
+zstyle ':completion:*:options' description 'yes'
+zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
+zstyle ':completion:*:messages' format '%F{purple}-- %d --%f'
+zstyle ':completion:*:warnings' format '%F{red}-- no matches found --%f'
+zstyle ':completion:*:corrections' format '%F{green}-- %d (errors: %e) --%f'
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*' verbose yes
+zstyle ':completion:*' special-dirs true
+zstyle ':completion:*' list-dirs-first true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 5. PLUGINS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+zinit light zsh-users/zsh-autosuggestions
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
+bindkey '^ ' autosuggest-accept
+
+zinit light zsh-users/zsh-syntax-highlighting
+zinit light zsh-users/zsh-completions
+zinit light Aloxaf/fzf-tab
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 6. HISTORY
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HISTFILE=~/.zsh_history
+HISTSIZE=50000
+SAVEHIST=50000
+
+setopt EXTENDED_HISTORY HIST_EXPIRE_DUPS_FIRST HIST_IGNORE_DUPS
+setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS HIST_IGNORE_SPACE
+setopt HIST_SAVE_NO_DUPS HIST_REDUCE_BLANKS HIST_VERIFY SHARE_HISTORY
+
+autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+bindkey "^[[A" up-line-or-beginning-search
+bindkey "^[[B" down-line-or-beginning-search
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 7. NAVIGATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_MINUS PUSHD_SILENT PUSHD_TO_HOME
+
+alias d='dirs -v | head -20'
+alias 1='cd -' 2='cd -2' 3='cd -3' 4='cd -4' 5='cd -5'
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 8. KEY BINDINGS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+bindkey -e
+bindkey '^[[1;5C' forward-word
+bindkey '^[[1;5D' backward-word
+bindkey '^[[H' beginning-of-line
+bindkey '^[[F' end-of-line
+bindkey '^[[3~' delete-char
+bindkey '^[[3;5~' kill-word
+bindkey '^H' backward-kill-word
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 9. PATH & TOOLCHAINS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Node (fnm)
+command -v fnm &>/dev/null && eval "$(fnm env --use-on-cd)"
+
+# Go
+export PATH="$HOME/go/bin:$PATH"
+
+# Rust
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+
+# Python (uv) / pipx
+export PATH="$PATH:$HOME/.local/bin"
+
+# pnpm
+export PNPM_HOME="{{ .chezmoi.homeDir }}/Library/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;; *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+
+# ~/bin
+case ":$PATH:" in
+  *":$HOME/bin:"*) ;; *) export PATH="$PATH:$HOME/bin" ;;
+esac
+
+# direnv
+command -v direnv &>/dev/null && eval "$(direnv hook zsh)"
+
+# Suppress update nags
+export DISABLE_AUTOUPDATER=1
+export NO_UPDATE_NOTIFIER=1
+export NPM_CONFIG_UPDATE_NOTIFIER=false
+
+# Default editor: Helix (hx) — used by nnn, git, and anything that respects $EDITOR
+if command -v hx &>/dev/null; then
+    export EDITOR=hx
+    export VISUAL=hx
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 10. MODERN CLI REPLACEMENTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if command -v eza &>/dev/null; then
+    alias ls='eza --icons --group-directories-first'
+    alias ll='eza -l --icons --group-directories-first'
+    alias la='eza -la --icons --group-directories-first'
+    alias lt='eza --tree --level=2 --icons'
+    alias l='eza -lah --icons --group-directories-first'
+    alias ls-rec='eza -D -s changed -r'
+    alias ls-dirs='eza -D'
+else
+    alias ls='ls -G' ll='ls -lh' la='ls -lah' l='ls -lah'
+fi
+
+command -v bat &>/dev/null && alias cat='bat --paging=never' catt='bat'
+command -v rg &>/dev/null && alias grep='rg'
+
+if command -v fzf &>/dev/null; then
+    eval "$(fzf --zsh)" 2> >(grep -v "can't change option: zle" >&2)
+    export FZF_DEFAULT_OPTS="
+        --height 40%
+        --layout=reverse
+        --border
+        --inline-info
+        --color=fg:#d0d0d0,bg:#121212,hl:#5f87af
+        --color=fg+:#d0d0d0,bg+:#262626,hl+:#5fd7ff
+        --color=info:#afaf87,prompt:#d7005f,pointer:#af5fff
+        --color=marker:#87ff00,spinner:#af5fff,header:#87afaf
+    "
+    if command -v fd &>/dev/null; then
+        export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+        export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    fi
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 11. GIT ALIASES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+alias g='git' ga='git add' gaa='git add --all'
+alias gc='git commit -v' gcm='git commit -m'
+alias gco='git checkout' gd='git diff'
+alias gl='git pull' gp='git push'
+alias gst='git status' glog='git log --oneline --graph --decorate'
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 12. UTILITY ALIASES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+alias projects='cd /Volumes/HOLE-RAID-DRIVE/Projects'
+alias venva='source .venv/bin/activate'
+alias secure-reboot='sudo fdesetup authrestart'
+alias restart-screensharing='sudo launchctl kickstart -k system/com.apple.screensharing'
+
+{{ if eq .chezmoi.os "darwin" -}}
+# ocrmypdf with the Apple Vision OCR engine (ocrmypdf-appleocr plugin).
+# Both live in the same `uv tool install ocrmypdf --with ocrmypdf-appleocr` env.
+appleocr() { ocrmypdf --plugin ocrmypdf_appleocr "$@"; }
+{{ end -}}
+
+# Downgrade TERM when sshing from terminals whose terminfo many remote hosts lack.
+# Without this, p10k+autosuggestions+syntax-highlighting redraws leave ghost chars
+# because cursor-movement escapes for the unknown terminal are wrong.
+ssh() {
+  case "$TERM" in
+    alacritty|xterm-ghostty) TERM=xterm-256color command ssh "$@" ;;
+    *)                       command ssh "$@" ;;
+  esac
+}
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 13. DOTFILES MANAGEMENT (chezmoi)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+alias install-brew='/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+alias mac-restore='brew install chezmoi && chezmoi init --apply {{ .github_user }}'
+alias mac-save='chezmoi re-add && brew bundle dump --file="$(chezmoi source-path)/dot_Brewfile" --force && cd "$(chezmoi source-path)" && git add -A && git diff --cached --quiet || git commit -m "auto-save: $(date +%Y-%m-%d)" && git push && cd -'
+alias mac-check='chezmoi diff'
+alias mac-edit='chezmoi edit'
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 14. CLOUD & INFRASTRUCTURE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+alias aws-login='doppler run --project master --config prd -- aws configure'
+alias aws-sso='aws sso login --profile hole-admin'
+alias aws-who='aws sts get-caller-identity'
+alias s3-ls-mipds='aws s3 ls s3://hole-foia-deep-archive/MIPDS/ --human-readable --summarize'
+alias s3-ls-scratch='aws s3 ls s3://hole-foia-deep-archive/mipds-scratch/ --human-readable --summarize'
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 15. PLATFORM-SPECIFIC
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Docker (Colima)
+[[ -S "${HOME}/.colima/default/docker.sock" ]] && export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
+
+# Tailscale
+[[ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]] && alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 16. NNN FILE MANAGER (Finder replacement)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 📖 FULL DOCS: ~/dotfiles/docs/nnn.md  (or `mem0 search "nnn shortcuts"`)
+#
+# USAGE:
+#   n              — open nnn in current directory
+#   n ~/Downloads  — open nnn at a specific path
+#
+# NAVIGATION:
+#   h/l or ←/→    — parent / enter directory
+#   j/k or ↓/↑    — move down / up
+#   b              — bookmarks menu (see NNN_BMS below)
+#   /              — filter (live search in current dir)
+#   Tab or ` or ~  — switch context (4 tabs, like Finder tabs)
+#   G              — jump to last entry
+#   '              — jump to first entry
+#   -              — last visited directory
+#   .              — toggle hidden files
+#   t              — sort menu (name, size, time, etc.)
+#
+# FILE & FOLDER OPERATIONS:
+#   Space          — toggle select (file or folder)
+#   a              — select all in directory
+#   A              — invert selection
+#   p / Ctrl+P     — COPY selected items to current dir
+#   v / Ctrl+V     — MOVE selected items to current dir
+#   x              — DELETE selected/hovered (sends to Trash)
+#   Ctrl+R         — rename hovered file/folder
+#   r              — batch rename selection in $EDITOR
+#   n              — create NEW (type 'name/' for folder, 'name' for file)
+#                    Example: 'projects/2026/q2/' creates nested folders
+#   o              — open with system default (macOS open / xdg-open)
+#   e              — edit in $EDITOR
+#   Ctrl+X         — toggle executable permission
+#   y              — copy hovered path to clipboard
+#   Y              — copy selection paths to clipboard
+#
+# SORTING (press t, then one of):
+#   n              — sort by name
+#   t              — sort by time modified
+#   s              — sort by size
+#   e              — sort by extension
+#   r              — toggle reverse order
+#   c              — clear sort (default)
+#
+# PLUGIN SHORTCUTS (press ; then the key):
+#   ;f             — fzf cd (fuzzy find directories)
+#   ;o             — fzf open (fuzzy find + open files)
+#   ;z             — fzf navigate (fuzzy search all)
+#   ;d             — git diffs
+#   ;g             — git log
+#   ;s             — git status
+#   ;r             — batch renamer (advanced, uses vidir/qmv)
+#   ;S             — search (Spotlight/mdfind on macOS, locate on Linux)
+{{ if eq .chezmoi.os "darwin" -}}
+#   ;F             — open current folder in macOS Finder
+#   ;m             — mdfind by name (quick filename search, macOS only)
+{{ else -}}
+#   ;F             — open current folder in system file manager
+{{ end -}}
+#
+# BOOKMARKS (press b then the key):
+{{ if eq .chezmoi.os "darwin" -}}
+#   p  → /Volumes/HOLE-RAID-DRIVE/Projects
+#   t  → transparency-engine
+#   f  → HOLE-FUSE
+#   a  → HOLE-Astro-Dev-Container
+{{ else -}}
+#   p  → ~/Projects
+{{ end -}}
+#   h  → $HOME
+#   d  → ~/Downloads
+#   D  → ~/Documents
+#
+# TIPS:
+#   - Select files with Space across multiple dirs, then p/v to copy/move
+#   - Ctrl+G to quit AND cd your shell to where you navigated
+#   - q to quit (shell cd's to last dir automatically via wrapper)
+#   - Type ; then Enter to browse all available plugins
+#   - Press ? for built-in help
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Options: c=context colors, E=use $EDITOR, d=detail mode,
+#          r=show cp/mv progress, u=use selection, x=xterm title + copy to clipboard
+export NNN_OPTS="cEdrux"
+
+# Delete to Trash instead of rm (1=trash-cli on Linux, macOS trash built-in)
+export NNN_TRASH=1
+
+# Smart opener — handles files by type (images, PDFs, video, etc.)
+export NNN_OPENER="${XDG_CONFIG_HOME:-$HOME/.config}/nnn/plugins/nuke"
+
+# Bookmarks: key:path pairs — access with 'b' key inside nnn
+{{ if eq .chezmoi.os "darwin" -}}
+export NNN_BMS="p:/Volumes/HOLE-RAID-DRIVE/Projects;t:/Volumes/HOLE-RAID-DRIVE/Projects/transparency-engine;f:/Volumes/HOLE-RAID-DRIVE/Projects/HOLE-FUSE;a:/Volumes/HOLE-RAID-DRIVE/Projects/AstroTruthProject/HOLE-Astro-Dev-Container;h:$HOME;d:$HOME/Downloads;D:$HOME/Documents"
+{{ else -}}
+export NNN_BMS="h:$HOME;d:$HOME/Downloads;D:$HOME/Documents;p:$HOME/Projects"
+{{ end -}}
+
+# Plugins: key:plugin pairs — access with ';' key, or Alt+key
+NNN_PLUG_GIT='d:diffs;g:!git log;s:!git status'
+NNN_PLUG_FILES='r:renamer;x:togglex'
+{{ if eq .chezmoi.os "darwin" -}}
+NNN_PLUG_SEARCH='f:fzcd;o:fzopen;z:fzz;S:spotlight;m:!mdfind -name "$nnn"*'
+NNN_PLUG_CLIP='c:cbcopy-mac;V:cbpaste-mac'
+NNN_PLUG_OS='F:!&open .'
+{{ else -}}
+NNN_PLUG_SEARCH='f:fzcd;o:fzopen;z:fzz;S:spotlight'
+NNN_PLUG_CLIP='c:x2sel'
+NNN_PLUG_OS='F:!&xdg-open .'
+{{ end -}}
+export NNN_PLUG="$NNN_PLUG_SEARCH;$NNN_PLUG_GIT;$NNN_PLUG_FILES;$NNN_PLUG_CLIP;$NNN_PLUG_OS"
+
+# File type colors (xterm 256-color hex):
+# dir=blue symlink=cyan sock=magenta pipe=brown exec=green
+export NNN_FCOLORS='c1e2272e006033f7c6d6abc4'
+
+# Archive formats nnn can extract/list
+export NNN_ARCHIVE="\\.(7z|bz2|gz|tar|tgz|zip|rar|xz|zst)$"
+
+# cd-on-quit marker file
+export NNN_TMPFILE="${XDG_CONFIG_HOME:-$HOME/.config}/nnn/.lastd"
+
+# Launch nnn, cd the shell to the last-visited directory on quit
+n() {
+    [ "${NNNLVL:-0}" -eq 0 ] || { echo "nnn is already running"; return; }
+    command nnn "$@"
+    [ -f "$NNN_TMPFILE" ] && { . "$NNN_TMPFILE"; rm -f "$NNN_TMPFILE" > /dev/null; }
+}
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PDF / OCR
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# reocrpdf — batch ocrmypdf over a directory tree, mirroring structure to OUT
+#
+#   reocrpdf <indir> <outdir> [ocrmypdf args...]
+#
+# Defaults to `-m strip` (removes the invisible OCR text layer; runs NO OCR).
+# Pass your own args to override, e.g.:
+#   reocrpdf in/ out/ -m force --ocr-engine appleocr   # macOS + ocrmypdf_appleocr
+#   reocrpdf in/ out/ -m force --ocr-engine tesseract  # portable
+#
+# Knobs (env):  REOCR_JOBS=4        outer files-in-flight
+#               REOCR_INNER_JOBS=3  ocrmypdf --jobs per file
+#
+# Machine-specific wrappers (hardcoded corpus paths) belong in the LOCAL
+# ~/.zshrc, not here — this seed is shared across macOS and Linux boxes.
+reocrpdf() {
+  emulate -L zsh
+  setopt local_options pipe_fail
+
+  if (( $# < 2 )); then
+    print -u2 "usage: reocrpdf <indir> <outdir> [ocrmypdf args...]"
+    print -u2 "  default ocrmypdf args: -m strip"
+    return 2
+  fi
+
+  local indir=${1:A} outdir=${2:A}
+  shift 2
+
+  [[ -d $indir ]] || { print -u2 "reocrpdf: no such input dir: $indir"; return 1 }
+
+  local -a oargs=( "$@" )
+  (( ${#oargs} )) || oargs=( -m strip )
+
+  local jobs=${REOCR_JOBS:-4} inner=${REOCR_INNER_JOBS:-3}
+  local joblog=${outdir%/}.joblog
+
+  mkdir -p -- "$outdir" "${joblog:h}" || return 1
+
+  # in/out exported so parallel's child shell sees them (avoids nested quoting hell).
+  # ocrmypdf args are baked into the command string ALREADY QUOTED -- do not rely on
+  # the child shell word-splitting a variable: zsh doesn't split unquoted expansions,
+  # which silently turns `-m strip` into a single arg `-m<space>strip`.
+  export REOCR_IN=$indir REOCR_OUT=$outdir
+  local -a _qa=( "${(@q)oargs}" )   # quote EACH element ((@q), not (q)) then join
+  local qargs="${_qa[*]}"
+  local -x PARALLEL_SHELL=/bin/sh   # deterministic child shell
+
+  print -u2 "reocrpdf: $indir"
+  print -u2 "       -> $outdir"
+  print -u2 "   args: ocrmypdf $qargs   (outer -j$jobs, inner --jobs $inner)"
+  print -u2 " joblog: $joblog"
+
+  # NOTE: parallel already shell-quotes {} — do NOT wrap it in your own quotes,
+  # or the quotes end up literal. Concatenate outside them: "$VAR"/{}
+  fd -e pdf -H -t f -E '._*' . --print0 --base-directory "$indir" \
+  | parallel -0 --bar --tag -j "$jobs" --joblog "$joblog" \
+      'mkdir -p "$REOCR_OUT"/{//} && ocrmypdf --jobs '"$inner $qargs"' -- "$REOCR_IN"/{} "$REOCR_OUT"/{}'
+  local rc=$?
+
+  (( rc == 0 )) \
+    && print -u2 "reocrpdf: done, all jobs OK" \
+    || print -u2 "reocrpdf: $rc job(s) failed — retry just those with:\n  parallel --resume-failed --joblog '$joblog' --bar --tag -j $jobs"
+
+  return $rc
+}
+
+# ---------------------------------------------------------------------------
+# img2exhibit — turn folders of evidence images into court-ready exhibit PDFs
+#
+#   img2exhibit <image-root> <out-dir> [extra img2pdf args...]
+#
+# Every directory at or under <image-root> that contains images becomes ONE
+# PDF, named after that directory, mirrored into <out-dir>:
+#
+#   evidence/ExhibitA/*.jpg        ->  out/ExhibitA.pdf
+#   evidence/Photos/Scene/*.png    ->  out/Photos/Scene.pdf
+#   evidence/*.jpg  (loose at top) ->  out/<image-root basename>.pdf
+#
+# Images are NATURALLY sorted (scan1, scan2, scan10 — not scan1, scan10, scan2).
+# img2pdf is lossless: JPEG data is embedded as-is, never re-encoded.
+#
+# Knobs (env):  EXH_PAGESIZE=Letter   any img2pdf pagesize (A4, Legal, 8inx10in)
+#               EXH_JOBS=4            exhibits built in parallel
+#               EXH_AUTO_ORIENT=0     1 = rotate page for landscape images
+#                                     (default 0 keeps EVERY page the same size,
+#                                      which is what courts usually want)
+#               EXH_EXTS="jpg jpeg png tif tiff bmp gif heic"
+#
+# Later args win, so you can override the default pagesize:
+#   img2exhibit ./evidence ./out --pagesize Legal
+#
+# Output has NO text layer. To make exhibits searchable, run reocrpdf after:
+#   img2exhibit ./evidence ./out
+#   reocrpdf ./out ./out-ocr --ocr-engine appleocr
+# ---------------------------------------------------------------------------
+img2exhibit() {
+  emulate -L zsh
+  setopt local_options pipe_fail extended_glob
+
+  if (( $# < 2 )); then
+    print -u2 "usage: img2exhibit <image-root> <out-dir> [img2pdf args...]"
+    print -u2 "  env: EXH_PAGESIZE=Letter EXH_JOBS=4 EXH_AUTO_ORIENT=0"
+    return 2
+  fi
+
+  local root=${1:A} out=${2:A}
+  shift 2
+  [[ -d $root ]] || { print -u2 "img2exhibit: no such image dir: $root"; return 1 }
+
+  local -a iargs=( --pagesize "${EXH_PAGESIZE:-Letter}" )
+  [[ ${EXH_AUTO_ORIENT:-0} == 1 ]] && iargs+=( --auto-orient )
+  iargs+=( "$@" )                      # user args last so they override
+
+  local -a exts=( ${=EXH_EXTS:-jpg jpeg png tif tiff bmp gif heic} )
+  local -a fdext; local e
+  for e in $exts; do fdext+=( -e $e ); done
+
+  local jobs=${EXH_JOBS:-4}
+  local joblog=${out%/}.joblog
+  mkdir -p -- "$out" "${joblog:h}" || return 1
+
+  local -a _qa=( "${(@q)iargs}" )
+  export EXH_IN=$root EXH_OUT=$out EXH_ROOTNAME=${root:t}
+  export EXH_ARGS="${_qa[*]}"
+  export EXH_GLOB="${(j:|:)exts}"      # jpg|jpeg|png|...
+
+  # every distinct directory that directly holds an image, relative to root
+  local -a dirs
+  dirs=( ${(f)"$(fd -H -t f $fdext -E '._*' . --base-directory "$root" --print0 \
+                 | xargs -0 -n1 dirname 2>/dev/null | sort -u)"} )
+
+  if (( ! ${#dirs} )); then
+    print -u2 "img2exhibit: no images found under $root"
+    return 1
+  fi
+
+  print -u2 "img2exhibit: $root"
+  print -u2 "          -> $out"
+  print -u2 "     args: img2pdf $EXH_ARGS   (-j$jobs)"
+  print -u2 "  folders: ${#dirs} -> ${#dirs} exhibit PDF(s)"
+
+  # The per-exhibit worker lives in a temp SCRIPT, not an inline string: a
+  # multi-line script passed inline to parallel gets mangled by the shell it
+  # spawns. Globbing inside the worker (rather than piping into xargs) also
+  # means a huge folder can never be split across two img2pdf runs, where the
+  # second -o would silently overwrite the first.
+  local worker
+  worker=$(mktemp -t img2exhibit) || return 1
+  cat > "$worker" <<'WORKER'
+setopt extended_glob null_glob numeric_glob_sort
+rel=$1
+if [[ $rel == . ]]; then out=$EXH_OUT/$EXH_ROOTNAME.pdf
+else                     out=$EXH_OUT/$rel.pdf
+fi
+mkdir -p -- "${out:h}" || exit 1
+imgs=( $EXH_IN/$rel/(#i)*.(${~EXH_GLOB})(N.n) )
+(( ${#imgs} )) || { print -u2 "img2exhibit: no images in '$rel'"; exit 1 }
+img2pdf ${=EXH_ARGS} -o "$out" -- "${imgs[@]}"
+WORKER
+
+  print -rl -- $dirs \
+  | parallel --bar --tag -j "$jobs" --joblog "$joblog" zsh -f "$worker" {}
+  local rc=$?
+
+  rm -f -- "$worker"
+
+  (( rc == 0 )) \
+    && print -u2 "img2exhibit: done, ${#dirs} exhibit(s) built" \
+    || print -u2 "img2exhibit: $rc failed — retry with:\n  parallel --resume-failed --joblog '$joblog' --bar --tag -j $jobs"
+
+  return $rc
+}
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PROMPT — Powerlevel10k
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if [[ -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
+  source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
+elif [[ -f /home/linuxbrew/.linuxbrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
+  source /home/linuxbrew/.linuxbrew/share/powerlevel10k/powerlevel10k.zsh-theme
+fi
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SECRETS — baked in by chezmoi from Doppler (never hardcoded in source)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{- /*
+  Bake Doppler-managed secrets into .zshrc at apply time. Wrapped in
+  `sh -c "… || true"` so the apply succeeds even if Doppler isn't
+  authenticated yet (fresh VM, before `doppler login`). When
+  unauthenticated, the exported vars are empty.
+*/ -}}
+{{ if lookPath "doppler" -}}
+export POSTMAN_API_KEY='{{ output "sh" "-c" "doppler secrets get POSTMAN_API_KEY --plain -p backend -c prd 2>/dev/null || true" | trim }}'
+export MEM0_API_KEY='{{ output "sh" "-c" "doppler secrets get MEM0_API_KEY --plain -p backend -c prd 2>/dev/null || true" | trim }}'
+{{- end }}
