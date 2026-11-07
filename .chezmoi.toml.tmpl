@@ -7,6 +7,7 @@ encryption = "age"
 
 [data]
 {{- if stdinIsATTY }}
+    vps = {{ promptBoolOnce . "vps" "VPS mode (plain bash only; no zsh/brew/installs)" false }}
     name = {{ promptStringOnce . "name" "Full name" | quote }}
     email = {{ promptStringOnce . "email" "Email address" | quote }}
     github_user = {{ promptStringOnce . "github_user" "GitHub username" | quote }}
@@ -23,6 +24,7 @@ encryption = "age"
     lxd_profile = {{ promptStringOnce . "lxd_profile" "LXD profile key (blank for none)" "" | quote }}
     nix_profile = {{ promptStringOnce . "nix_profile" "Workspace profile [joe/agent] (blank for no Nix)" "" | quote }}
 {{- else }}
+    vps = {{ eq (env "CHEZMOI_VPS") "1" }}
     name = "Joseph T. Herrmann, M.D."
     email = "joeherrmann@gmail.com"
     github_user = "Jobikinobi"
