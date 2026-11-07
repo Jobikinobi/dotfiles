@@ -62,3 +62,11 @@ private_dot_ssh/encrypted_private_id_ed25519_pve_admin.age
 
 # Vendored binaries — never deploy platform-specific executables
 bin/chezmoi
+
+{{- if get . "vps" }}
+# VPS mode: plain bash, nothing else. Skips zsh, brew, ssh config and every
+# run_once install script, so the host keeps its own shell and packages.
+*
+.*
+!.bashrc
+{{- end }}

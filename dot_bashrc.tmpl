@@ -19,3 +19,28 @@ fi
 
 # Rust — guarded so a fresh machine without rustup doesn't error on every shell.
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+{{- if get . "vps" }}
+
+# ── VPS mode: plain bash with color and completion ──────────────────────────
+case $- in *i*) ;; *) return ;; esac
+
+# An unknown TERM (e.g. xterm-ghostty with no terminfo on this host) breaks
+# line editing: one keypress redraws as several words. Fall back to a TERM
+# every host knows. shortcut: needs infocmp (ncurses), present on Debian/Ubuntu/RHEL.
+if command -v infocmp >/dev/null 2>&1 && ! infocmp "$TERM" >/dev/null 2>&1; then
+  export TERM=xterm-256color
+fi
+
+# Start from the distro's own defaults (aliases, lesspipe, completion).
+[ -f /etc/skel/.bashrc ] && . /etc/skel/.bashrc
+
+# Tab completion, if the distro defaults didn't already load it.
+if ! declare -F _completion_loader >/dev/null && ! shopt -oq posix; then
+  for f in /usr/share/bash-completion/bash_completion /etc/bash_completion; do
+    [ -f "$f" ] && . "$f" && break
+  done
+fi
+
+alias ls='ls --color=auto' grep='grep --color=auto'
+PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '
+{{- end }}

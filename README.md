@@ -49,6 +49,19 @@ brew install chezmoi && chezmoi init --apply Jobikinobi
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Jobikinobi
 ```
 
+### VPS (lightweight)
+
+```bash
+sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Jobikinobi
+# answer "vps" to: Workspace profile [joe/agent/vps]
+```
+
+VPS mode deploys only `~/.bashrc`: the distro's own defaults plus color, tab
+completion and a TERM fallback (fixes the "one keypress shows as several
+words" bug when the host lacks Ghostty's terminfo). No zsh, no Homebrew, no
+install scripts, and the login shell is left alone. Headless:
+`CHEZMOI_VPS=1`.
+
 ### Docker (pre-built, instant)
 
 ```bash
