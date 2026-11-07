@@ -53,7 +53,7 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Jobikinobi
 
 ```bash
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Jobikinobi
-# answer "y" to: VPS mode (plain bash only; no zsh/brew/installs)
+# answer "vps" to: Workspace profile [joe/agent/vps]
 ```
 
 VPS mode deploys only `~/.bashrc`: the distro's own defaults plus color, tab
