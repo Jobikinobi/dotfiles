@@ -1,0 +1,208 @@
+{
+  "d9vurmrl0ubs73c0amm0": {
+    "network": {
+      "description": "",
+      "id": "d9vurmrl0ubs73c0amm0",
+      "name": "home",
+      "policies": [
+        "d9vusu3l0ubs73c11ndg"
+      ],
+      "resources": [
+        "d9vustqfadhs739gbp50"
+      ],
+      "routers": [
+        "d9vut32fadhs739ge5p0",
+        "d9vuta3l0ubs73c186n0"
+      ],
+      "routing_peers_count": 1
+    },
+    "resources": [
+      {
+        "address": "192.168.68.0/25",
+        "description": "proxmox",
+        "enabled": true,
+        "groups": [
+          {
+            "id": "d9vuq7ifadhs739f7l10",
+            "name": "docker",
+            "peers_count": 0,
+            "resources_count": 2
+          },
+          {
+            "id": "d9vurhjl0ubs73c07hl0",
+            "name": "proxmox",
+            "peers_count": 0,
+            "resources_count": 1
+          }
+        ],
+        "id": "d9vustqfadhs739gbp50",
+        "name": "proxmox-resources",
+        "type": "subnet"
+      }
+    ],
+    "routers": [
+      {
+        "enabled": true,
+        "id": "d9vut32fadhs739ge5p0",
+        "masquerade": true,
+        "metric": 9999,
+        "peer": "d93ehc2fadhs73ek2hd0",
+        "peer_groups": null
+      },
+      {
+        "enabled": true,
+        "id": "d9vuta3l0ubs73c186n0",
+        "masquerade": true,
+        "metric": 9999,
+        "peer": "",
+        "peer_groups": [
+          "d9vurhjl0ubs73c07hl0"
+        ]
+      }
+    ]
+  },
+  "d8sc47qfadhs739vhda0": {
+    "network": {
+      "description": "local-resources",
+      "id": "d8sc47qfadhs739vhda0",
+      "name": "homelab",
+      "policies": [
+        "d9vuq1jl0ubs73bvbpf0",
+        "d9hs752fadhs7385oj40",
+        "d8tfi9rl0ubs73bonov0"
+      ],
+      "resources": [
+        "d9vuq1ifadhs739f49m0",
+        "d8sc47qfadhs739vhe60",
+        "d92mkdifadhs73d2lvfg",
+        "d94mid3l0ubs7396rcdg"
+      ],
+      "routers": [
+        "d9rs5nafadhs73fqor40",
+        "d9ruvr3l0ubs73a0mqng",
+        "d8sr42ifadhs73fi57i0"
+      ],
+      "routing_peers_count": 64
+    },
+    "resources": [
+      {
+        "address": "*.incus",
+        "description": "",
+        "enabled": true,
+        "groups": [
+          {
+            "id": "d9fu2cjl0ubs73avkuh0",
+            "name": "incus-containers",
+            "peers_count": 0,
+            "resources_count": 1
+          },
+          {
+            "id": "d95b2f3l0ubs73ah1qg0",
+            "name": "incus",
+            "peers_count": 4,
+            "resources_count": 1
+          },
+          {
+            "id": "d962heafadhs73aeq500",
+            "name": "incus hosts",
+            "peers_count": 0,
+            "resources_count": 1
+          }
+        ],
+        "id": "d9vuq1ifadhs739f49m0",
+        "name": "incus",
+        "type": "domain"
+      },
+      {
+        "address": "netbird.netbird.hole",
+        "description": "Created during onboarding",
+        "enabled": false,
+        "groups": [
+          {
+            "id": "google-oauth2|0184mhaj1h5up8e",
+            "name": "Herrmann Group",
+            "peers_count": 21,
+            "resources_count": 1
+          },
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 2
+          },
+          {
+            "id": "google-oauth2|025b2l0r1gdkyuf",
+            "name": "HOLE Foundation",
+            "peers_count": 1,
+            "resources_count": 1
+          }
+        ],
+        "id": "d8sc47qfadhs739vhe60",
+        "name": "My Resource",
+        "type": "domain"
+      },
+      {
+        "address": "99.88.77.66/24",
+        "description": "Home intranet",
+        "enabled": true,
+        "groups": [
+          {
+            "id": "d8sc3jifadhs739vach0",
+            "name": "All",
+            "peers_count": 42,
+            "resources_count": 2
+          }
+        ],
+        "id": "d92mkdifadhs73d2lvfg",
+        "name": "Home",
+        "type": "subnet"
+      },
+      {
+        "address": "docker.hole",
+        "description": "",
+        "enabled": true,
+        "groups": [
+          {
+            "id": "d9vuq7ifadhs739f7l10",
+            "name": "docker",
+            "peers_count": 0,
+            "resources_count": 2
+          }
+        ],
+        "id": "d94mid3l0ubs7396rcdg",
+        "name": "docker",
+        "type": "domain"
+      }
+    ],
+    "routers": [
+      {
+        "enabled": true,
+        "id": "d9rs5nafadhs73fqor40",
+        "masquerade": true,
+        "metric": 9999,
+        "peer": "",
+        "peer_groups": [
+          "google-oauth2|0184mhaj1h5up8e"
+        ]
+      },
+      {
+        "enabled": true,
+        "id": "d9ruvr3l0ubs73a0mqng",
+        "masquerade": true,
+        "metric": 9999,
+        "peer": "d930kvqfadhs7395jmkg",
+        "peer_groups": null
+      },
+      {
+        "enabled": true,
+        "id": "d8sr42ifadhs73fi57i0",
+        "masquerade": true,
+        "metric": 9999,
+        "peer": "",
+        "peer_groups": [
+          "d8sc3jifadhs739vach0"
+        ]
+      }
+    ]
+  }
+}
