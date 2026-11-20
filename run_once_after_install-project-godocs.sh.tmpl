@@ -99,27 +99,49 @@ RCLONE_R2
 }
 
 R2_CONFIGURED=0
-if command -v doppler >/dev/null 2>&1 && command -v rclone >/dev/null 2>&1; then
-  # Probe Doppler quietly. `doppler secrets get` returns non-zero when the
-  # secret is missing or no session exists; we never want this to abort the
-  # whole chezmoi run.
-  R2_AKID="$(doppler secrets get R2_ACCESS_KEY_ID --plain \
-              --project "$DOPPLER_GODOCS_PROJECT" \
-              --config "$DOPPLER_GODOCS_CONFIG" 2>/dev/null || true)"
-  R2_SECRET="$(doppler secrets get R2_SECRET_ACCESS_KEY --plain \
-              --project "$DOPPLER_GODOCS_PROJECT" \
-              --config "$DOPPLER_GODOCS_CONFIG" 2>/dev/null || true)"
-  R2_ACCT="$(doppler secrets get R2_ACCOUNT_ID --plain \
-              --project "$DOPPLER_GODOCS_PROJECT" \
-              --config "$DOPPLER_GODOCS_CONFIG" 2>/dev/null || true)"
-  if [[ -n "$R2_AKID" && -n "$R2_SECRET" && -n "$R2_ACCT" ]]; then
-    write_r2_remote "$R2_AKID" "$R2_SECRET" "$R2_ACCT"
-    R2_CONFIGURED=1
+if command -v rclone >/dev/null 2>&1; then
+  # Try Infisical Agent rendered file first (preferred).
+  R2_CONF="{{ .chezmoi.homeDir }}/.infisical/r2-creds.env"
+  if [[ -f "$R2_CONF" ]]; then
+    # shellcheck disable=SC1090
+    . "$R2_CONF"
+    if [[ -n "${R2_ACCESS_KEY_ID:-}" && -n "${R2_SECRET_ACCESS_KEY:-}" && -n "${R2_ACCOUNT_ID:-}" ]]; then
+      write_r2_remote "$R2_ACCESS_KEY_ID" "$R2_SECRET_ACCESS_KEY" "$R2_ACCOUNT_ID"
+      R2_CONFIGURED=1
+    fi
+  fi
+
+  # Fall back to Infisical CLI.
+  if [[ "$R2_CONFIGURED" -eq 0 ]] && command -v infisical &>/dev/null; then
+    eval "$(infisical run --env=dev --path=/ --project godocs \
+      -- sh -c 'printf "R2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_ACCOUNT_ID=%s" "$R2_ACCESS_KEY_ID" "$R2_SECRET_ACCESS_KEY" "$R2_ACCOUNT_ID"' 2>/dev/null)" || true
+    if [[ -n "${R2_ACCESS_KEY_ID:-}" && -n "${R2_SECRET_ACCESS_KEY:-}" && -n "${R2_ACCOUNT_ID:-}" ]]; then
+      write_r2_remote "$R2_ACCESS_KEY_ID" "$R2_SECRET_ACCESS_KEY" "$R2_ACCOUNT_ID"
+      R2_CONFIGURED=1
+    fi
+  fi
+
+  # Ultimate fallback: Doppler (legacy).
+  if [[ "$R2_CONFIGURED" -eq 0 ]] && command -v doppler &>/dev/null; then
+    R2_AKID="$(doppler secrets get R2_ACCESS_KEY_ID --plain \
+                --project "$DOPPLER_GODOCS_PROJECT" \
+                --config "$DOPPLER_GODOCS_CONFIG" 2>/dev/null || true)"
+    R2_SECRET="$(doppler secrets get R2_SECRET_ACCESS_KEY --plain \
+                --project "$DOPPLER_GODOCS_PROJECT" \
+                --config "$DOPPLER_GODOCS_CONFIG" 2>/dev/null || true)"
+    R2_ACCT="$(doppler secrets get R2_ACCOUNT_ID --plain \
+               --project "$DOPPLER_GODOCS_PROJECT" \
+               --config "$DOPPLER_GODOCS_CONFIG" 2>/dev/null || true)"
+    if [[ -n "$R2_AKID" && -n "$R2_SECRET" && -n "$R2_ACCT" ]]; then
+      write_r2_remote "$R2_AKID" "$R2_SECRET" "$R2_ACCT"
+      R2_CONFIGURED=1
+    fi
   fi
 fi
 
 if [[ "$R2_CONFIGURED" -eq 0 ]]; then
-  echo "→ Skipping rclone R2 configuration (Doppler creds not available)."
+  echo "→ Skipping rclone R2 configuration (Infisical/Doppler creds not available)."
+fi
 fi
 
 cat <<'BANNER'
@@ -129,9 +151,8 @@ cat <<'BANNER'
 
   Next steps (run manually — fresh hosts have no creds yet):
 
-    1. Authenticate to Doppler so R2 / AWS secrets are available:
-         doppler login
-         doppler setup --project godocs --config dev
+    1. Authenticate to Infisical so R2 / AWS secrets are available:
+         infisical login --method=universal-auth --client-id=<id> --client-secret=<secret>
        Then re-run this script (it is idempotent) to write the rclone
        remote if it wasn't configured above:
          chezmoi apply --include=scripts
@@ -147,7 +168,7 @@ cat <<'BANNER'
          bash test-mupdf.sh
          soffice --headless --version
 
-    4. (Optional) Verify R2 reachability once Doppler creds are loaded:
+    4. (Optional) Verify R2 reachability once Infisical creds are loaded:
          rclone lsd r2:
 
   See ~/dotfiles/docs/profiles/godocs.md for the full reference.

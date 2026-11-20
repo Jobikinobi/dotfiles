@@ -293,8 +293,10 @@ build_image() {
 # IMPORTANT: we deliberately use `bash -c` (NOT `bash -lc`). A login shell
 # sources /etc/profile and ~/.bash_profile, both of which can mutate the
 # binary-resolution environment in ways that mask the IMAGE'S real state:
-#   - dot_bash_profile unconditionally prepends /Users/jth/micromamba/bin
-#     (a stale macOS path) and sources $HOME/.cargo/env (PATH-augmenting).
+#   - dot_bash_profile prepends $HOME/micromamba/bin and sources
+#     $HOME/.cargo/env (both PATH-augmenting). The micromamba prepend is now
+#     guarded on the dir existing (dotfiles#117); it used to fire
+#     unconditionally with a stale /Users/jth path.
 #   - dot_bashrc prepends /opt/homebrew/opt/postgresql@15/bin (macOS path).
 #   - Future operator-installed rc snippets could alias or shadow binary
 #     names (see THE-79 for the original false-negative report — a login

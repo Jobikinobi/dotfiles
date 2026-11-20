@@ -7,8 +7,8 @@
 # script is just the shebang + `exit 0` and does nothing.
 #
 # This script intentionally does NOT clone the project repo, run
-# `uv sync`, or `doppler login`. Fresh containers do not yet have
-# GitHub credentials or a Doppler session, and we never want to run
+# `uv sync`, or `infisical login`. Fresh containers do not yet have
+# GitHub credentials or an Infisical session, and we never want to run
 # unattended steps that would fail noisily on first boot. The banner
 # at the end tells the operator what to do next.
 {{- if not (has "legal" .projects) }}
@@ -34,9 +34,10 @@ cat <<'BANNER'
 
   Next steps (run manually — fresh hosts have no creds yet):
 
-    1. Authenticate to Doppler so the MCP servers can pull secrets:
-         doppler login
-         doppler setup --project mcp-servers --config dev
+    1. Authenticate to Infisical so the MCP servers can pull secrets:
+         infisical login --method=universal-auth --client-id=<id> --client-secret=<secret>
+       The agent will then render mcp-servers/dev secrets into
+       ~/.infisical/mcp-secrets.env automatically.
 
     2. Clone Legal-Assistant-v3 and sync the uv workspace:
          git clone git@github.com:The-HOLE-Foundation/Legal-Assistant-v3.git ~/src/Legal-Assistant-v3

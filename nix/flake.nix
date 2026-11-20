@@ -15,10 +15,13 @@
     };
   };
 
-  outputs = { self, nixpkgs, nix-darwin, home-manager, ... }: {
-
-    # macOS — Joe's personal machine (joe profile, P4 — HOL-508)
-    darwinConfigurations."joes-macbook" = nix-darwin.lib.darwinSystem {
+  outputs = { self, nixpkgs, nix-darwin, home-manager, ... }:
+  let
+    # Builds a darwinSystem running the `joe` profile for a given account name.
+    # Keeps the host entries below to one line each and keeps the account name
+    # out of ./profiles/joe.nix.
+    mkJoeDarwin = primaryUser: nix-darwin.lib.darwinSystem {
+      specialArgs = { inherit primaryUser; };
       modules = [
         home-manager.darwinModules.home-manager
         ./profiles/common.nix
@@ -29,6 +32,19 @@
         }
       ];
     };
+  in {
+
+    # macOS — Joe's personal machines (joe profile, P4 — HOL-508).
+    #
+    # run_once_after_nix-profile.sh.tmpl activates `#{{ .chezmoi.hostname }}`, so
+    # every machine that should get this profile needs an entry keyed on its
+    # exact LocalHostName (`scutil --get LocalHostName`). A missing key fails with
+    # "flake output attribute not found" (dotfiles#117 — MacBook-Air had no entry).
+    #
+    # `primaryUser` flows into ./profiles/joe.nix via specialArgs so the profile
+    # never hardcodes an account name.
+    darwinConfigurations."joes-macbook" = mkJoeDarwin "jth";
+    darwinConfigurations."MacBook-Air"  = mkJoeDarwin "josephherrmann";
 
     # macOS — headless agent node (agent profile, P3 / Q3 scope TBD)
     darwinConfigurations."agent-mac" = nix-darwin.lib.darwinSystem {

@@ -36,7 +36,7 @@
   programs.git = {
     enable = true;
     # name/email unset — operators set these per-deployment via git config or env.
-    extraConfig = {
+    settings = {
       init.defaultBranch = "main";
       pull.rebase = true;
     };

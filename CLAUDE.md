@@ -21,10 +21,18 @@ Cross-platform development environment managed by chezmoi.
 ### Template Patterns
 ```
 {{ if eq .chezmoi.os "darwin" }}   # macOS-only block
-{{ if lookPath "doppler" }}        # only if binary exists
+{{ if lookPath "infisical" }}      # only if Infisical CLI exists
 {{ if stdinIsATTY }}               # interactive vs headless
-{{ output "cmd" "args" | trim }}   # run command, capture output
+{{ if stat "path" }}               # check if agent-rendered file exists
+{{ output "cmd" "args" | trim }}   # run command, capture output (legacy Doppler)
 ```
+
+### Secrets Management
+- **Infisical Agent** renders secrets to files (`~/.infisical/*.env`) via persistent daemon
+- Agents use Universal Auth (machine identity) with per-project reader roles
+- `dot_zshrc.tmpl` sources pre-rendered files — no network call at apply time
+- Legacy Doppler calls remain as fallbacks during the migration period
+- See `.infisical/README.md` for provisioning and architecture details
 
 ### Script Execution Order
 1. `run_once_before_install-homebrew.sh.tmpl` — Install Homebrew
@@ -48,9 +56,13 @@ When adding, removing, or modifying a profile, follow the 10-step onboarding che
 
 ## Secrets
 
-- All secrets in Doppler — never hardcoded
-- `dot_zshrc.tmpl` uses `{{ output "doppler" ... }}` to bake secrets at apply time
-- Guarded by `{{ if lookPath "doppler" }}` — skipped if Doppler isn't installed
+- **Primary: Infisical Agent** — persistent daemon renders secrets to `~/.infisical/*.env` files
+  - Machine identity (Universal Auth) with per-project reader roles
+  - Provisioning key creates child identities but cannot read secrets
+  - See `.infisical/README.md` for architecture and provisioning steps
+- **Legacy: Doppler** — still present as fallback during migration
+  - `dot_zshrc.tmpl` sources pre-rendered files (no `{{ output "doppler" ... }}`)
+  - Shell scripts try agent file → Infisical CLI → Doppler fallback
 - Known issue: Doppler fails over SSH (keyring inaccessible) — see dotfiles#5
 
 ## Docker Image
@@ -70,4 +82,6 @@ When adding, removing, or modifying a profile, follow the 10-step onboarding che
 
 - [hole-devenv](https://github.com/Jobikinobi/hole-devenv) — Infrastructure layer (container stacks, backups)
 - Tailnet: `lemming-likert.ts.net` (MagicDNS)
-- Doppler secrets: multiple projects (`backend/prd`, dotfiles config)
+- Infisical Cloud org: `99ad52da-...` (secrets management)
+- Self-hosted Infisical Core: `infisical.wolverine-wyrm.ts.net` (PKI/cert-manager only)
+- Doppler secrets: multiple projects (`backend/prd`, dotfiles config) — legacy/fallback

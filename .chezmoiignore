@@ -14,6 +14,13 @@ entrypoint.sh
 .github/**
 scripts/**
 com.jth.mac-save.plist
+AGENTS.md
+docker-context.tar.gz
+
+# Never track binaries in ~/bin. A Linux chezmoi build was committed here twice
+# and deployed onto macOS (dotfiles#117); ~/bin is on PATH via dot_zshrc.tmpl.
+# Install tools with brew, not by vendoring 47MB executables into the source.
+bin/chezmoi
 
 # OS junk
 .DS_Store
@@ -49,3 +56,9 @@ private_dot_ssh/encrypted_private_id_ed25519_macstudio.age
 private_dot_ssh/encrypted_private_id_ed25519_pve.age
 private_dot_ssh/encrypted_private_id_ed25519_pve_admin.age
 {{- end }}
+
+# Infisical Agent credentials and configs — age-encrypted, not secrets themselves
+.infisical/children/**
+
+# Vendored binaries — never deploy platform-specific executables
+bin/chezmoi
