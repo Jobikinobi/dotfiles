@@ -114,10 +114,28 @@ fine — different prefix. Public keys are reconstructable on demand:
 |---------------------------------------------------|-------------------|-----------|
 | `docs/homelab/` (this file)                       | future-me at repo | no        |
 | `docs/homelab/timemachine/` (Samba TM runbook)    | future-me at repo | no        |
+| `docs/homelab/gpu-passthrough-lxc.md`             | future-me at repo | no        |
 | `~/.local/share/infra/` (from `dot_local/...`)    | future-me on Mac  | yes (enc) |
 | `~/Documents/__RECOVERY__/` (transient)           | bootstrap         | manual    |
 
 ## Setup log
+
+### 2026-08-24
+
+1. **NVIDIA GPU passthrough into a Proxmox LXC container**, done deliberately
+   and repeatably for the first time (prior art existed by hand on CTs 149/
+   1001). Applied to CT 113 (Portainer): host-side device passthrough
+   (`pct set` dev0..dev5) + in-container matching userspace driver +
+   `nvidia-container-toolkit`, wired into rootful Docker's
+   `/etc/docker/daemon.json`. Verified with `docker run --gpus all` and CDI's
+   `--device nvidia.com/gpu=all`. Two new idempotent scripts generalize this
+   for any container on this host. Full writeup:
+   [`gpu-passthrough-lxc.md`](gpu-passthrough-lxc.md).
+2. Before rebooting CT 113 to attach the devices, traced every running
+   Docker container's restart policy and compose provenance to confirm the
+   reboot was safe — all 9 live containers (`hole-stack-*`, `authentik-*`,
+   `tag`, `ts-rclone`) were `unless-stopped` and came back automatically.
+   That check is now documented as a standard pre-reboot step in the GPU doc.
 
 ### 2026-07-06
 
